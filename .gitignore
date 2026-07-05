@@ -3,3 +3,5 @@ dist
 .env
 .next
 coverage
+.DS_Store
+**/.DS_Store
