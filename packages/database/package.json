@@ -1,0 +1,23 @@
+{
+  "name": "@api-gateway/database",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc --project tsconfig.json",
+    "db:generate": "prisma generate --schema=prisma/schema.prisma",
+    "db:migrate": "prisma migrate dev --schema=prisma/schema.prisma",
+    "db:migrate:deploy": "prisma migrate deploy --schema=prisma/schema.prisma",
+    "db:seed": "tsx src/seed.ts",
+    "db:reset": "prisma migrate reset --schema=prisma/schema.prisma"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.5.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.8.7",
+    "prisma": "^5.5.2",
+    "tsx": "^4.23.0",
+    "typescript": "^5.2.2"
+  }
+}
