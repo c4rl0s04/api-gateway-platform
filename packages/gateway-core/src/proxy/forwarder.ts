@@ -1,21 +1,25 @@
 import { request as undiciRequest } from 'undici';
 import type { FastifyRequest, FastifyReply } from 'fastify';
-import type { ProxyConfig } from '@api-gateway/shared';
+import type { ProxyConfig, EndpointConfig } from '@api-gateway/shared';
+import type { ResolvedEndpoint } from './resolver';
 
 /**
- * Construye la URL del backend eliminando el basePath del gateway.
- *
- * Ejemplo:
- *   requestUrl = "/api/users/1?active=true"
- *   basePath   = "/api/users"
- *   targetUrl  = "http://localhost:4000"
- *   resultado  = "http://localhost:4000/users/1?active=true"
- *
- * El basePath del gateway desaparece porque el backend no sabe nada de él.
+ * Sustituye las variables en la URL de destino (ej. "http://backend/users/:id" -> "http://backend/users/123")
+ * y añade los query parameters originales si existen.
  */
-function buildTargetUrl(requestUrl: string, proxy: ProxyConfig): string {
-  const withoutBasePath = requestUrl.slice(proxy.basePath.length) || '/';
-  return `${proxy.targetUrl}${withoutBasePath}`;
+function buildTargetUrl(requestUrl: string, resolved: ResolvedEndpoint): string {
+  let url = resolved.endpoint.targetUrl;
+  
+  for (const [key, value] of Object.entries(resolved.params)) {
+    url = url.replace(`:${key}`, value);
+  }
+  
+  const queryIndex = requestUrl.indexOf('?');
+  if (queryIndex !== -1) {
+    url += requestUrl.slice(queryIndex);
+  }
+  
+  return url;
 }
 
 /**
@@ -37,11 +41,12 @@ export async function forwardRequest(
   req: FastifyRequest,
   reply: FastifyReply,
   proxy: ProxyConfig,
+  resolved: ResolvedEndpoint
 ): Promise<void> {
-  const targetUrl = buildTargetUrl(req.url, proxy);
+  const targetUrl = buildTargetUrl(req.url, resolved);
 
   req.log.info(
-    { targetUrl, proxyId: proxy.id, method: req.method },
+    { targetUrl, proxyId: proxy.id, endpointId: resolved.endpoint.id, method: req.method },
     'Forwarding request to backend',
   );
 
@@ -61,7 +66,7 @@ export async function forwardRequest(
         ...req.headers,
         // ...pero sobreescribimos host para que el backend reciba su propio host,
         // no el del gateway. Sin esto, algunos backends rechazan la request.
-        host: new URL(proxy.targetUrl).host,
+        host: new URL(resolved.endpoint.targetUrl).host,
         // Headers de trazabilidad estándar: permiten rastrear la request
         // a través de múltiples servicios en los logs.
         'x-forwarded-for': req.ip,

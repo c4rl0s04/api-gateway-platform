@@ -1,4 +1,4 @@
-import type { ProxyConfig } from '@api-gateway/shared';
+import type { ProxyConfig, EndpointConfig } from '@api-gateway/shared';
 
 /**
  * Registro en memoria de proxies activos.
@@ -22,6 +22,47 @@ export function loadProxies(proxies: ProxyConfig[]): void {
       registry.set(proxy.basePath, proxy);
     }
   }
+}
+
+/**
+ * Convierte un path con parámetros (ej. "/users/:id") en una RegExp.
+ */
+function compileEndpointPath(path: string): { regex: RegExp; keys: string[] } {
+  const keys: string[] = [];
+  const regexStr = path.replace(/:([a-zA-Z0-9_]+)/g, (_, key) => {
+    keys.push(key);
+    return '([^/]+)';
+  });
+  // Match estricto, permitiendo un trailing slash opcional
+  return { regex: new RegExp(`^${regexStr}/?$`), keys };
+}
+
+export interface ResolvedEndpoint {
+  endpoint: EndpointConfig;
+  params: Record<string, string>;
+}
+
+/**
+ * Busca un endpoint dentro de un proxy usando el sufijo de la URL.
+ * Soporta variables en el path (ej. "/:id") extrayéndolas en "params".
+ */
+export function resolveEndpoint(proxy: ProxyConfig, requestSuffix: string): ResolvedEndpoint | null {
+  const suffix = requestSuffix || '/';
+
+  for (const endpoint of proxy.endpoints) {
+    const { regex, keys } = compileEndpointPath(endpoint.path);
+    const match = suffix.match(regex);
+    
+    if (match) {
+      const params: Record<string, string> = {};
+      keys.forEach((key, index) => {
+        params[key] = match[index + 1];
+      });
+      return { endpoint, params };
+    }
+  }
+
+  return null;
 }
 
 /**
