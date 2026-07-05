@@ -1,10 +1,40 @@
 {
-  "users": [
-    { "id": 1, "name": "Ana García", "role": "admin" },
-    { "id": 2, "name": "Carlos López", "role": "viewer" }
+  "health": [
+    { "status": "ok", "uptime": 9999 }
+  ],
+  "ping": [
+    { "pong": true }
   ],
   "accounts": [
-    { "id": "acc-001", "owner": 1, "balance": 1500.00 },
-    { "id": "acc-002", "owner": 2, "balance": 320.50 }
+    { "id": "1", "balance": 1500, "currency": "EUR" },
+    { "id": "2", "balance": 250, "currency": "EUR" }
+  ],
+  "cards": [
+    { "id": "c1", "type": "credit", "status": "active" }
+  ],
+  "shipments": [
+    { "id": "s1", "status": "in_transit", "destination": "London" }
+  ],
+  "products": [
+    { "id": "p1", "name": "Laptop", "price": 999 },
+    { "id": "p2", "name": "Phone", "price": 499 }
+  ],
+  "orders": [
+    { "id": "o1", "total": 999, "status": "delivered" }
+  ],
+  "patients": [
+    { "id": "pat1", "name": "Hans", "status": "discharged" }
+  ],
+  "users": [
+    { "id": "u1", "email": "admin@test.com", "verified": true }
+  ],
+  "devices": [
+    { "id": "d1", "type": "sensor", "battery": 85 }
+  ],
+  "catalog": [
+    { "id": "mov1", "title": "Inception", "genre": "Sci-Fi" }
+  ],
+  "leaderboards": [
+    { "id": "lb1", "player": "Faker", "score": 9999 }
   ]
 }
