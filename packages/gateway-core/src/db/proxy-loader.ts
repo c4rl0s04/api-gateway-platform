@@ -24,18 +24,18 @@ export async function loadProxiesFromDatabase(): Promise<ProxyConfig[]> {
     },
   });
 
-  return rows.map((row): ProxyConfig => ({
+  return rows.map((row: any): ProxyConfig => ({
     id:             row.id,
     name:           row.name,
     basePath:       row.basePath,
     organizationId: row.environment.organizationId,
     environmentId:  row.environmentId,
     active:         row.active,
-    endpoints:      row.endpoints.map((ep): EndpointConfig => ({
+    endpoints:      row.endpoints.map((ep: any): EndpointConfig => ({
       id:        ep.id,
       path:      ep.path,
       targetUrl: ep.targetUrl,
-      policies:  ep.policies.map((pol): PolicyConfig => ({
+      policies:  ep.policies.map((pol: any): PolicyConfig => ({
         type:    pol.type as PolicyType,
         order:   pol.order,
         enabled: pol.enabled,

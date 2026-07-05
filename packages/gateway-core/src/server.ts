@@ -1,13 +1,9 @@
+import crypto from 'node:crypto';
 import Fastify from 'fastify';
 import type { ProxyConfig } from '@api-gateway/shared';
 import { loadProxies, resolveProxy, getRegistrySize, resolveEndpoint } from './proxy/resolver';
 import { forwardRequest } from './proxy/forwarder';
-
-/**
- * Proxies hardcodeados para semana 1.
- *
- * IMPORTANTE: En semana 2 esto se reemplazará por una carga desde Postgres.
-import { loadProxiesFromDatabase } from './db/proxy-loader';
+import { loadProxiesFromDatabase } from './db/proxy-loader.js';
 
 /**
  * Construye y configura el servidor Fastify.
