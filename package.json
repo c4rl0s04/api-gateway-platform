@@ -10,7 +10,7 @@
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
-    "mock-backend": "json-server --port 4000 --watch mock-backend.json"
+    "mock-backend": "node mock-backend.js"
   },
   "devDependencies": {
     "json-server": "^1.0.0-beta.15"

@@ -16,16 +16,49 @@ import { loadProxiesFromDatabase } from './db/proxy-loader.js';
  */
 export async function buildServer() {
   const server = Fastify({
+    disableRequestLogging: true, // Desactivamos el log por defecto (ruidoso)
     logger: {
       level: process.env.LOG_LEVEL ?? 'info',
-      // pino-pretty solo en desarrollo: formatea los logs en JSON para producción
       transport:
         process.env.NODE_ENV !== 'production'
-          ? { target: 'pino-pretty', options: { translateTime: 'HH:MM:ss' } }
+          ? { target: 'pino-pretty', options: { translateTime: 'HH:MM:ss', ignore: 'pid,hostname' } }
           : undefined,
     },
-    // Cada request recibe un ID único para trazabilidad en logs
-    genReqId: () => crypto.randomUUID(),
+    // Leemos el Correlation ID del cliente o generamos uno nuevo
+    genReqId: (req) => {
+      const existingId = req.headers['x-correlation-id'] || req.headers['x-request-id'];
+      if (existingId && typeof existingId === 'string') return existingId;
+      return crypto.randomUUID();
+    },
+  });
+
+  // ─── Logging Hooks ─────────────────────────────────────────────────────────
+
+  server.addHook('onRequest', (req, reply, done) => {
+    req.log.info(
+      {
+        method: req.method,
+        url: req.url,
+        hostname: req.hostname,
+        remoteAddress: req.ip,
+      },
+      'incoming request'
+    );
+    done();
+  });
+
+  server.addHook('onResponse', (req, reply, done) => {
+    req.log.info(
+      {
+        proxyId: (req as any).proxyId,
+        endpointId: (req as any).endpointId,
+        targetUrl: (req as any).targetUrl,
+        statusCode: reply.statusCode,
+        responseTime: reply.getResponseTime(),
+      },
+      'request completed'
+    );
+    done();
   });
 
   // Carga los proxies activos desde PostgreSQL al arrancar.
@@ -83,6 +116,11 @@ export async function buildServer() {
         hint: 'Check the explicit endpoints configured for this proxy',
       });
     }
+
+    // Guardamos contexto para los logs
+    (req as any).proxyId = proxy.id;
+    (req as any).endpointId = resolved.endpoint.id;
+    (req as any).targetUrl = resolved.targetUrl;
 
     await forwardRequest(req, reply, proxy, resolved);
   });
