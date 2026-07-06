@@ -23,7 +23,7 @@ export function loadProxies(proxies: ProxyConfig[]): void {
       // 1. Rutas estáticas primero (no contienen ':')
       // 2. Rutas dinámicas después
       // 3. A igualdad de tipo, las más largas (específicas) van primero
-      proxy.endpoints.sort((a, b) => {
+      proxy.endpoints.sort((a: EndpointConfig, b: EndpointConfig) => {
         const aDynamic = a.path.includes(':');
         const bDynamic = b.path.includes(':');
         

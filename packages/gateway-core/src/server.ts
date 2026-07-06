@@ -120,7 +120,7 @@ export async function buildServer() {
     // Guardamos contexto para los logs
     (req as any).proxyId = proxy.id;
     (req as any).endpointId = resolved.endpoint.id;
-    (req as any).targetUrl = resolved.targetUrl;
+    (req as any).targetUrl = resolved.endpoint.targetUrl;
 
     await forwardRequest(req, reply, proxy, resolved);
   });
