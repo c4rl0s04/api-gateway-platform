@@ -1,36 +1,36 @@
 import type { ProxyConfig, EndpointConfig } from '@api-gateway/shared';
 
 /**
- * Registro en memoria de proxies activos.
- * Clave: basePath del proxy (ej: "/api/users")
- * Valor: configuración completa del proxy
+ * In-memory active proxies registry.
+ * Key: proxy basePath (e.g. "/api/users")
+ * Value: full proxy configuration
  *
- * En semana 2, este Map se poblará desde Postgres al arrancar.
- * La interfaz pública de este módulo NO cambiará cuando hagamos ese cambio.
+ * In week 2, this Map will be populated from Postgres on startup.
+ * The public interface of this module will NOT change when we make that change.
  */
 const registry = new Map<string, ProxyConfig>();
 
 /**
- * Carga (o recarga) el registro de proxies en memoria.
- * Llamar a esta función con una lista nueva reemplaza el registro completo.
- * Solo se registran proxies con active=true.
+ * Loads (or reloads) the proxies registry in memory.
+ * Calling this function with a new list replaces the entire registry.
+ * Only proxies with active=true are registered.
  */
 export function loadProxies(proxies: ProxyConfig[]): void {
   registry.clear();
   for (const proxy of proxies) {
     if (proxy.active) {
-      // Ordenar automáticamente los endpoints:
-      // 1. Rutas estáticas primero (no contienen ':')
-      // 2. Rutas dinámicas después
-      // 3. A igualdad de tipo, las más largas (específicas) van primero
+      // Automatically sort endpoints:
+      // 1. Static routes first (do not contain ':')
+      // 2. Dynamic routes after
+      // 3. On tie, the longest (most specific) go first
       proxy.endpoints.sort((a: EndpointConfig, b: EndpointConfig) => {
         const aDynamic = a.path.includes(':');
         const bDynamic = b.path.includes(':');
         
-        if (aDynamic && !bDynamic) return 1; // b va antes que a
-        if (!aDynamic && bDynamic) return -1; // a va antes que b
+        if (aDynamic && !bDynamic) return 1; // b goes before a
+        if (!aDynamic && bDynamic) return -1; // a goes before b
         
-        return b.path.length - a.path.length; // más largo primero
+        return b.path.length - a.path.length; // longest first
       });
 
       registry.set(proxy.basePath, proxy);
@@ -39,7 +39,7 @@ export function loadProxies(proxies: ProxyConfig[]): void {
 }
 
 /**
- * Convierte un path con parámetros (ej. "/users/:id") en una RegExp.
+ * Converts a path with parameters (e.g. "/users/:id") into a RegExp.
  */
 function compileEndpointPath(path: string): { regex: RegExp; keys: string[] } {
   const keys: string[] = [];
@@ -47,7 +47,7 @@ function compileEndpointPath(path: string): { regex: RegExp; keys: string[] } {
     keys.push(key);
     return '([^/]+)';
   });
-  // Match estricto, permitiendo un trailing slash opcional
+  // Strict match, allowing an optional trailing slash
   return { regex: new RegExp(`^${regexStr}/?$`), keys };
 }
 
@@ -57,8 +57,8 @@ export interface ResolvedEndpoint {
 }
 
 /**
- * Busca un endpoint dentro de un proxy usando el sufijo de la URL.
- * Soporta variables en el path (ej. "/:id") extrayéndolas en "params".
+ * Finds an endpoint within a proxy using the URL suffix.
+ * Supports variables in the path (e.g. "/:id") extracting them into "params".
  */
 export function resolveEndpoint(proxy: ProxyConfig, requestSuffix: string): ResolvedEndpoint | null {
   const suffix = requestSuffix || '/';
@@ -80,15 +80,15 @@ export function resolveEndpoint(proxy: ProxyConfig, requestSuffix: string): Reso
 }
 
 /**
- * Resuelve qué proxy corresponde a un path de request entrante.
- * Usa matching por prefijo: /api/users/1 matchea el proxy con basePath "/api/users".
+ * Resolves which proxy corresponds to an incoming request path.
+ * Uses prefix matching: /api/users/1 matches the proxy with basePath "/api/users".
  *
- * Si hay múltiples proxies cuyos basePaths son prefijos del path solicitado,
- * gana el más específico (mayor longitud). Esto es importante para casos como:
+ * If there are multiple proxies whose basePaths are prefixes of the requested path,
+ * the most specific one (longest length) wins. This is important for cases like:
  *   - /api/users     → proxy A
- *   - /api/users/admin → proxy B (más específico)
+ *   - /api/users/admin → proxy B (more specific)
  *
- * @returns El ProxyConfig que corresponde, o null si ningún proxy matchea.
+ * @returns The ProxyConfig that matches, or null if no proxy matches.
  */
 export function resolveProxy(requestPath: string): ProxyConfig | null {
   let bestMatch: ProxyConfig | null = null;
@@ -107,7 +107,7 @@ export function resolveProxy(requestPath: string): ProxyConfig | null {
   return bestMatch;
 }
 
-/** Devuelve el número de proxies activos registrados. Útil para health checks y logs. */
+/** Returns the number of active registered proxies. Useful for health checks and logs. */
 export function getRegistrySize(): number {
   return registry.size;
 }

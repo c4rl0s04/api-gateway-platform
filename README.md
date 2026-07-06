@@ -19,12 +19,12 @@ npm install
 npm run dev
 ```
 
-## 📅 Roadmap de Implementación
+## 📅 Implementation Roadmap
 
-> **Nota de Diseño (Políticas):** En la semana 4, el motor de políticas se diseñará simulando el comportamiento exacto de Apigee. Las configuraciones de las políticas (AssignMessage, OAuth, etc.) se almacenarán y definirán usando formato **XML**. El `gateway-core` se encargará de parsear este XML a JSON en tiempo de carga y ejecutar la lógica en el flujo correspondiente (Request PreFlow, Target PostFlow, etc.).
+> **Design Note (Policies):** In week 4, the policy engine will be designed simulating the exact behavior of Apigee. Policy configurations (AssignMessage, OAuth, etc.) will be stored and defined using **XML** format. The `gateway-core` will be in charge of parsing this XML to JSON at load time and executing the logic in the corresponding flow (Request PreFlow, Target PostFlow, etc.).
 
-### Semana 1: Setup y Gateway Core (Data Plane)
-- [x] Estructura del monorepo (`npm workspaces`).
+### Week 1: Setup and Gateway Core (Data Plane)
+- [x] Monorepo structure (`npm workspaces`).
 
 ## Roadmap
 - [ ] Week 1: Gateway Core base & Proxy Forwarding

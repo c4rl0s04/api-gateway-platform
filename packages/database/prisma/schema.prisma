@@ -8,7 +8,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/// Tenant raíz del sistema. Cada organización tiene sus propios entornos y proxies.
+/// Root tenant of the system. Each organization has its own environments and proxies.
 model Organization {
   id           String        @id @default(uuid())
   name         String
@@ -16,8 +16,8 @@ model Organization {
   environments Environment[]
 }
 
-/// Entorno de despliegue dentro de una organización.
-/// Los proxies se despliegan siempre en un entorno concreto.
+/// Deployment environment within an organization.
+/// Proxies are always deployed in a specific environment.
 model Environment {
   id             String       @id @default(uuid())
   name           String       // "dev" | "staging" | "prod"
@@ -26,12 +26,12 @@ model Environment {
   proxies        ApiProxy[]
 }
 
-/// API Proxy: contenedor lógico con un basePath público único.
-/// Agrupa endpoints con rutas específicas que apuntan a backends reales.
+/// API Proxy: logical container with a unique public basePath.
+/// Groups endpoints with specific routes pointing to real backends.
 model ApiProxy {
   id            String     @id @default(uuid())
   name          String
-  /// Prefijo público único. Ej: "/es/banking/v1"
+  /// Unique public prefix. Ex: "/es/banking/v1"
   basePath      String     @unique
   active        Boolean    @default(true)
   environmentId String
@@ -41,14 +41,14 @@ model ApiProxy {
   updatedAt     DateTime   @updatedAt
 }
 
-/// Endpoint individual dentro de un proxy.
-/// Define el path exacto (con posibles parámetros como ":id")
-/// y la URL del backend al que se reenvía la request.
+/// Individual endpoint within a proxy.
+/// Defines the exact path (with possible parameters like ":id")
+/// and the backend URL to which the request is forwarded.
 model Endpoint {
   id        String           @id @default(uuid())
-  /// Sufijo de ruta relativo al basePath. Admite parámetros: "/accounts/:id"
+  /// Route suffix relative to the basePath. Supports parameters: "/accounts/:id"
   path      String
-  /// URL completa del backend para este endpoint. Ej: "http://backend:8080/accounts/:id"
+  /// Full backend URL for this endpoint. Ex: "http://backend:8080/accounts/:id"
   targetUrl String
   proxyId   String
   proxy     ApiProxy         @relation(fields: [proxyId], references: [id], onDelete: Cascade)
@@ -56,16 +56,16 @@ model Endpoint {
   createdAt DateTime         @default(now())
 }
 
-/// Política aplicada a un endpoint concreto.
-/// `config` es JSON libre — cada tipo de política tiene sus propios parámetros.
-/// Semana 3 rellenará estas filas con configuraciones reales.
+/// Policy applied to a specific endpoint.
+/// `config` is free JSON — each policy type has its own parameters.
+/// Week 3 will fill these rows with real configurations.
 model EndpointPolicy {
   id         String   @id @default(uuid())
-  /// Valor de PolicyType: "api-key-auth" | "rate-limit" | "jwt-auth" | etc.
+  /// Value of PolicyType: "api-key-auth" | "rate-limit" | "jwt-auth" | etc.
   type       String
   order      Int
   enabled    Boolean  @default(true)
-  /// Parámetros específicos de la política. Ej: { "limit": 100, "windowSeconds": 60 }
+  /// Specific policy parameters. Ex: { "limit": 100, "windowSeconds": 60 }
   config     Json     @default("{}")
   endpointId String
   endpoint   Endpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)

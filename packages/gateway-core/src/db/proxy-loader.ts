@@ -2,22 +2,22 @@ import type { ProxyConfig, EndpointConfig, PolicyConfig, PolicyType } from '@api
 import { prisma } from '@api-gateway/database';
 
 /**
- * Carga todos los proxies activos desde PostgreSQL y los convierte
- * al formato en memoria que usa el registry del gateway.
+ * Loads all active proxies from PostgreSQL and converts them
+ * to the in-memory format used by the gateway registry.
  *
- * Es el único punto de contacto entre el gateway y la base de datos.
- * Se ejecuta una vez al arrancar. En una iteración futura se añadirá
- * refresco periódico vía Redis pub/sub cuando el panel admin edite un proxy.
+ * This is the only point of contact between the gateway and the database.
+ * It is executed once on startup. In a future iteration, periodic refresh
+ * via Redis pub/sub will be added when the admin panel edits a proxy.
  */
 export async function loadProxiesFromDatabase(): Promise<ProxyConfig[]> {
   const rows = await prisma.apiProxy.findMany({
     where: { active: true },
     include: {
-      // Necesitamos environment para obtener organizationId
+      // We need environment to get organizationId
       environment: true,
       endpoints: {
         include: {
-          // Políticas ordenadas: el orden de ejecución del pipeline viene de la DB
+          // Ordered policies: the execution order of the pipeline comes from the DB
           policies: { orderBy: { order: 'asc' } },
         },
       },

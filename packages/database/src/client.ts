@@ -1,11 +1,11 @@
 import { PrismaClient } from './generated/index.js';
 
 /**
- * Singleton de PrismaClient compartido por toda la aplicación.
+ * PrismaClient singleton shared throughout the application.
  *
- * El bloqueo en globalThis evita que el hot-reload de desarrollo cree múltiples
- * pools de conexión (problema conocido de Node.js con módulos con estado).
- * En producción, siempre se crea una instancia nueva limpia.
+ * The lock on globalThis prevents development hot-reload from creating multiple
+ * connection pools (known Node.js issue with stateful modules).
+ * In production, a clean new instance is always created.
  */
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 

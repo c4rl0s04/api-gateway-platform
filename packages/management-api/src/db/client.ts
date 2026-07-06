@@ -1,9 +1,9 @@
 /**
- * Re-exporta el cliente Prisma desde el paquete centralizado @api-gateway/database.
+ * Re-exports the Prisma client from the centralized @api-gateway/database package.
  *
- * El schema, las migraciones y el seed viven en packages/database.
- * Este archivo permite que las rutas de management-api hagan:
+ * The schema, migrations and seed live in packages/database.
+ * This file allows management-api routes to do:
  *   import { prisma } from '../db/client'
- * sin cambiar sus imports cuando centralizamos Prisma.
+ * without changing their imports when we centralize Prisma.
  */
 export { prisma } from '@api-gateway/database';

@@ -2,7 +2,7 @@ import { PrismaClient } from './generated';
 
 const prisma = new PrismaClient();
 
-// ─── Datos de seed ────────────────────────────────────────────────────────────
+// ─── Seed data ────────────────────────────────────────────────────────────────
 
 const ORGANIZATIONS = [
   { id: 'org-bank-dev',   name: 'Bank Corp (Dev)' },
@@ -15,14 +15,14 @@ const ORGANIZATIONS = [
   { id: 'org-game-dev',   name: 'Gaming Korea (Dev)' },
 ];
 
-// Un entorno "dev" por organización con ID determinista para idempotencia
+// One "dev" environment per organization with deterministic ID for idempotency
 const ENVIRONMENTS = ORGANIZATIONS.map(org => ({
   id:             `${org.id}-env-dev`,
   name:           'dev',
   organizationId: org.id,
 }));
 
-// Espejo exacto de DEV_SEED_PROXIES que vivía en server.ts
+// Exact mirror of DEV_SEED_PROXIES that lived in server.ts
 const PROXIES = [
   {
     id: 'proxy-es-banking', name: 'ES Banking', basePath: '/es/banking/v1',
