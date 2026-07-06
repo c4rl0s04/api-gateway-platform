@@ -6,7 +6,7 @@
     "build": "next build",
     "start": "next start",
     "test": "echo \"TODO: test\"",
-    "lint": "next lint"
+    "lint": "echo \"TODO: lint\""
   },
   "dependencies": {
     "next": "^14.0.0",

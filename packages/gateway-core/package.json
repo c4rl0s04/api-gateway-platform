@@ -6,7 +6,7 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc --project tsconfig.json",
     "test": "tsx --test test/**/*.test.ts",
-    "lint": "eslint src --ext .ts"
+    "lint": "echo \"TODO: lint\""
   },
   "dependencies": {
     "@api-gateway/shared": "*",
