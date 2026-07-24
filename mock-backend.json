@@ -1,0 +1,10 @@
+{
+  "users": [
+    { "id": 1, "name": "Ana García", "role": "admin" },
+    { "id": 2, "name": "Carlos López", "role": "viewer" }
+  ],
+  "accounts": [
+    { "id": "acc-001", "owner": 1, "balance": 1500.00 },
+    { "id": "acc-002", "owner": 2, "balance": 320.50 }
+  ]
+}

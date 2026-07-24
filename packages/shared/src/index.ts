@@ -1,1 +1,1 @@
-export * from './types/common';
+export type { ProxyConfig, PolicyConfig, PolicyType } from './types/common';
