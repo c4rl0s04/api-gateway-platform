@@ -26,21 +26,29 @@ export interface PolicyConfig {
   config: Record<string, unknown>;
 }
 
+export interface EndpointConfig {
+  id: string;
+  /** El sufijo exacto de la ruta. Ej: "/health", "/users", o con variables "/users/:id" */
+  path: string;
+  /** A dónde redirigir esta llamada específica. Ej: "http://localhost:4000/users/:id" */
+  targetUrl: string;
+  /** Políticas específicas de este endpoint */
+  policies: PolicyConfig[];
+}
+
 /**
  * Configuración completa de un API Proxy.
- * Representa la unidad básica del gateway: un endpoint público que enruta
- * a un backend real y aplica un pipeline de políticas en el camino.
+ * Representa la unidad básica del gateway: un contenedor lógico que agrupa
+ * varios endpoints bajo un mismo prefijo público.
  */
 export interface ProxyConfig {
   id: string;
   name: string;
-  /** Prefijo de ruta pública que activa este proxy. Ejemplo: "/api/users" */
+  /** Prefijo público que activa este proxy. Ejemplo: "/api" */
   basePath: string;
-  /** URL base del backend real. Ejemplo: "http://payments-service:8080" */
-  targetUrl: string;
+  /** Lista estricta de endpoints permitidos dentro de este proxy. */
+  endpoints: EndpointConfig[];
   organizationId: string;
   environmentId: string;
-  /** Lista ordenada de políticas a aplicar. En semana 1 siempre es []. */
-  policies: PolicyConfig[];
   active: boolean;
 }

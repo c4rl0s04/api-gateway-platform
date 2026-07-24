@@ -1,6 +1,6 @@
 import Fastify from 'fastify';
 import type { ProxyConfig } from '@api-gateway/shared';
-import { loadProxies, resolveProxy, getRegistrySize } from './proxy/resolver';
+import { loadProxies, resolveProxy, getRegistrySize, resolveEndpoint } from './proxy/resolver';
 import { forwardRequest } from './proxy/forwarder';
 
 /**
@@ -20,20 +20,38 @@ const DEV_SEED_PROXIES: ProxyConfig[] = [
     id: 'proxy-users-dev',
     name: 'Users API',
     basePath: '/api/users',
-    targetUrl: 'http://localhost:4000/users',
+    endpoints: [
+      {
+        id: 'ep-users-list',
+        path: '/',
+        targetUrl: 'http://localhost:4000/users',
+        policies: [],
+      },
+      {
+        id: 'ep-users-get',
+        path: '/:id',
+        targetUrl: 'http://localhost:4000/users/:id',
+        policies: [],
+      }
+    ],
     organizationId: 'org-bank-dev',
     environmentId: 'env-dev',
-    policies: [],
     active: true,
   },
   {
     id: 'proxy-accounts-dev',
     name: 'Accounts API',
     basePath: '/api/accounts',
-    targetUrl: 'http://localhost:4000/accounts',
+    endpoints: [
+      {
+        id: 'ep-accounts-list',
+        path: '/',
+        targetUrl: 'http://localhost:4000/accounts',
+        policies: [],
+      }
+    ],
     organizationId: 'org-bank-dev',
     environmentId: 'env-dev',
-    policies: [],
     active: true,
   },
 ];
@@ -94,17 +112,30 @@ export async function buildServer() {
    * 3. Si hay proxy → Forwarder: reenviar al backend
    */
   server.all('/*', async (req, reply) => {
-    const proxy = resolveProxy(req.url);
+    // req.url contains query params. We need just the path for resolution.
+    const pathWithoutQuery = req.url.split('?')[0];
+    const proxy = resolveProxy(pathWithoutQuery);
 
     if (!proxy) {
       return reply.status(404).send({
         error: 'Not Found',
-        message: `No proxy is configured for path: ${req.url}`,
+        message: `No proxy is configured for path: ${pathWithoutQuery}`,
         hint: 'Check that the proxy exists and is active in the gateway configuration',
       });
     }
 
-    await forwardRequest(req, reply, proxy);
+    const requestSuffix = pathWithoutQuery.slice(proxy.basePath.length);
+    const resolved = resolveEndpoint(proxy, requestSuffix);
+
+    if (!resolved) {
+      return reply.status(404).send({
+        error: 'Not Found',
+        message: `Endpoint not found in proxy ${proxy.id} for path suffix: ${requestSuffix || '/'}`,
+        hint: 'Check the explicit endpoints configured for this proxy',
+      });
+    }
+
+    await forwardRequest(req, reply, proxy, resolved);
   });
 
   return server;

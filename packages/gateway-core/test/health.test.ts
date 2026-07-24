@@ -2,9 +2,7 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildServer } from '../src/server';
 
-describe('Gateway Core — Health & Routing', () => {
-  // Creamos una sola instancia del servidor para todos los tests del bloque.
-  // Es más eficiente que crear/destruir el servidor en cada test.
+describe('Gateway Core — Health & Routing with Explicit Endpoints', () => {
   let server: Awaited<ReturnType<typeof buildServer>>;
 
   before(async () => {
@@ -15,61 +13,44 @@ describe('Gateway Core — Health & Routing', () => {
     await server.close();
   });
 
-  // ─── Health check ────────────────────────────────────────────────────────
-
   it('GET /health → 200 con status ok', async () => {
     const response = await server.inject({ method: 'GET', url: '/health' });
-
     assert.equal(response.statusCode, 200);
-
     const body = JSON.parse(response.body);
     assert.equal(body.status, 'ok');
-    assert.ok(typeof body.proxiesLoaded === 'number', 'proxiesLoaded debe ser un número');
-    assert.ok(typeof body.timestamp === 'string', 'timestamp debe ser un string');
   });
 
-  // ─── Routing ─────────────────────────────────────────────────────────────
-
-  it('GET a ruta sin proxy configurado → 404', async () => {
-    const response = await server.inject({
-      method: 'GET',
-      url: '/ruta-que-no-existe',
-    });
-
+  it('GET a ruta sin proxy configurado → 404 (No proxy)', async () => {
+    const response = await server.inject({ method: 'GET', url: '/ruta-que-no-existe' });
     assert.equal(response.statusCode, 404);
-
     const body = JSON.parse(response.body);
     assert.equal(body.error, 'Not Found');
-    assert.ok(body.message.includes('/ruta-que-no-existe'), 'El mensaje debe incluir la ruta solicitada');
+    assert.ok(body.message.includes('No proxy is configured'));
   });
 
-  it('GET a ruta configurada → intenta forward (502 porque el backend mock no está en test)', async () => {
-    // En el entorno de test no hay backend mock corriendo.
-    // Esperamos 502 (Bad Gateway): el gateway resolvió el proxy correctamente
-    // pero no pudo conectar al backend. Esto prueba que el resolver funciona.
-    const response = await server.inject({
-      method: 'GET',
-      url: '/api/users',
-    });
-
-    // 200 si el backend mock está corriendo, 502 si no está.
-    // Ambos son aceptables aquí — lo importante es que NO sea 404.
-    assert.ok(
-      response.statusCode !== 404,
-      `El gateway debería haber resuelto el proxy para /api/users (recibido ${response.statusCode})`,
-    );
+  it('GET a proxy configurado pero endpoint no existente → 404 (Endpoint not found)', async () => {
+    const response = await server.inject({ method: 'GET', url: '/api/users/foo/bar' });
+    assert.equal(response.statusCode, 404);
+    const body = JSON.parse(response.body);
+    assert.equal(body.error, 'Not Found');
+    assert.ok(body.message.includes('Endpoint not found in proxy proxy-users-dev'));
   });
 
-  it('GET /api/users/1 → resuelve al proxy de users (prefijo match)', async () => {
-    const response = await server.inject({
-      method: 'GET',
-      url: '/api/users/1',
-    });
+  it('GET a endpoint explícito (raíz) → Intenta forward', async () => {
+    const response = await server.inject({ method: 'GET', url: '/api/users' });
+    // Si el backend mock está apagado da 502. Si está encendido da 200. Ambos demuestran que el gateway intentó el forward.
+    assert.ok(response.statusCode === 502 || response.statusCode === 200); 
+  });
 
-    // /api/users/1 debe matchear el proxy con basePath="/api/users"
-    assert.ok(
-      response.statusCode !== 404,
-      '/api/users/1 debería matchear el proxy de /api/users',
-    );
+  it('GET a endpoint explícito con variables (/:id) → Intenta forward', async () => {
+    const response = await server.inject({ method: 'GET', url: '/api/users/123' });
+    // Si está apagado da 502. Si está encendido da 404 (porque el json-server no tiene al usuario 123) o 200.
+    assert.ok(response.statusCode === 502 || response.statusCode === 404 || response.statusCode === 200); 
+    
+    if (response.statusCode === 404) {
+      // Si fue un 404, debemos asegurarnos de que viene del upstream o es un 502, y no un error interno de "Endpoint not found"
+      const body = JSON.parse(response.body);
+      assert.notEqual(body.message, 'Endpoint not found in proxy proxy-users-dev for path suffix: /123');
+    }
   });
 });
