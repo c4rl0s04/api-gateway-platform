@@ -54,7 +54,7 @@ export async function buildServer() {
         endpointId: (req as any).endpointId,
         targetUrl: (req as any).targetUrl,
         statusCode: reply.statusCode,
-        responseTime: reply.getResponseTime(),
+        responseTime: reply.elapsedTime,
       },
       'request completed'
     );
