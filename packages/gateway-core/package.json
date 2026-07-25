@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@api-gateway/shared": "*",
+    "@api-gateway/database": "*",
     "fastify": "^4.29.1",
     "undici": "^8.7.0",
     "zod": "^3.22.4"
