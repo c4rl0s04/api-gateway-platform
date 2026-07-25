@@ -1,4 +1,4 @@
-import { PrismaClient } from './generated';
+import { PrismaClient } from './generated/index.js';
 
 /**
  * Singleton de PrismaClient compartido por toda la aplicación.
