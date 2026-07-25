@@ -19,6 +19,20 @@ export function loadProxies(proxies: ProxyConfig[]): void {
   registry.clear();
   for (const proxy of proxies) {
     if (proxy.active) {
+      // Ordenar automáticamente los endpoints:
+      // 1. Rutas estáticas primero (no contienen ':')
+      // 2. Rutas dinámicas después
+      // 3. A igualdad de tipo, las más largas (específicas) van primero
+      proxy.endpoints.sort((a, b) => {
+        const aDynamic = a.path.includes(':');
+        const bDynamic = b.path.includes(':');
+        
+        if (aDynamic && !bDynamic) return 1; // b va antes que a
+        if (!aDynamic && bDynamic) return -1; // a va antes que b
+        
+        return b.path.length - a.path.length; // más largo primero
+      });
+
       registry.set(proxy.basePath, proxy);
     }
   }
