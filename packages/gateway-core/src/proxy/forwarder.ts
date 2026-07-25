@@ -4,8 +4,8 @@ import type { ProxyConfig, EndpointConfig } from '@api-gateway/shared';
 import type { ResolvedEndpoint } from './resolver';
 
 /**
- * Sustituye las variables en la URL de destino (ej. "http://backend/users/:id" -> "http://backend/users/123")
- * y añade los query parameters originales si existen.
+ * Replaces variables in the target URL (e.g. "http://backend/users/:id" -> "http://backend/users/123")
+ * and adds the original query parameters if they exist.
  */
 function buildTargetUrl(requestUrl: string, resolved: ResolvedEndpoint): string {
   let url = resolved.endpoint.targetUrl;
@@ -23,19 +23,19 @@ function buildTargetUrl(requestUrl: string, resolved: ResolvedEndpoint): string 
 }
 
 /**
- * Determina si una request lleva body que hay que reenviar al backend.
- * GET y HEAD nunca llevan body según la especificación HTTP.
+ * Determines if a request has a body that needs to be forwarded to the backend.
+ * GET and HEAD never have a body according to the HTTP specification.
  */
 function hasBody(method: string): boolean {
   return method !== 'GET' && method !== 'HEAD';
 }
 
 /**
- * Reenvía una request de Fastify al backend configurado en el proxy.
- * Escribe la respuesta del backend directamente en el reply de Fastify.
+ * Forwards a Fastify request to the backend configured in the proxy.
+ * Writes the backend response directly to the Fastify reply.
  *
- * En caso de error de conexión al backend, responde 502 Bad Gateway
- * sin exponer detalles internos al cliente.
+ * In case of a connection error to the backend, responds 502 Bad Gateway
+ * without exposing internal details to the client.
  */
 export async function forwardRequest(
   req: FastifyRequest,
@@ -62,19 +62,19 @@ export async function forwardRequest(
         | 'HEAD',
 
       headers: {
-        // Pasamos los headers originales del cliente al backend...
+        // Pass the original client headers to the backend...
         ...req.headers,
-        // ...pero sobreescribimos host para que el backend reciba su propio host,
-        // no el del gateway. Sin esto, algunos backends rechazan la request.
+        // ...but overwrite host so the backend receives its own host,
+        // not the gateway's. Without this, some backends reject the request.
         host: new URL(resolved.endpoint.targetUrl).host,
-        // Headers de trazabilidad estándar: permiten rastrear la request
-        // a través de múltiples servicios en los logs.
+        // Standard traceability headers: allow tracking the request
+        // across multiple services in the logs.
         'x-forwarded-for': req.ip,
         'x-forwarded-host': req.hostname,
         'x-request-id': req.id as string,
         'x-correlation-id': req.id as string,
-        // Header custom del gateway: útil para que el backend sepa
-        // qué proxy procesó la request (auditoría, debugging).
+        // Custom gateway header: useful for the backend to know
+        // which proxy processed the request (auditing, debugging).
         'x-proxy-id': proxy.id,
       },
 
@@ -82,31 +82,31 @@ export async function forwardRequest(
         ? JSON.stringify(req.body)
         : null,
 
-      // Timeout razonable: si el backend no responde en 30s, cortamos.
-      // En semana 4 esto será configurable por proxy.
+      // Reasonable timeout: if the backend doesn't respond in 30s, we cut it.
+      // In week 4 this will be configurable per proxy.
       bodyTimeout: 30_000,
       headersTimeout: 30_000,
     });
 
-    // Pasamos el status code del backend al cliente sin modificarlo
+    // Pass the backend's status code to the client without modifying it
     reply.status(upstream.statusCode);
 
-    // Pasamos el content-type del backend para que el cliente sepa
-    // cómo interpretar el body (JSON, text, etc.)
+    // Pass the backend's content-type so the client knows
+    // how to interpret the body (JSON, text, etc.)
     const contentType = upstream.headers['content-type'];
     if (contentType) {
       reply.header('content-type', contentType as string);
     }
 
-    // Header informativo: el cliente puede ver qué proxy procesó su request
+    // Informational header: the client can see which proxy processed their request
     reply.header('x-gateway-proxy', proxy.id);
 
     const body = await upstream.body.text();
     reply.send(body);
 
   } catch (err) {
-    // Error de conexión: el backend no está disponible.
-    // Logueamos el error interno con detalle, pero al cliente solo le decimos 502.
+    // Connection error: the backend is not available.
+    // We log the internal error with detail, but only tell the client 502.
     req.log.error(
       { err, targetUrl, proxyId: proxy.id },
       'Backend unreachable or returned an error',

@@ -6,17 +6,17 @@ import { forwardRequest } from './proxy/forwarder';
 import { loadProxiesFromDatabase } from './db/proxy-loader.js';
 
 /**
- * Construye y configura el servidor Fastify.
+ * Builds and configures the Fastify server.
  *
- * Devuelve la instancia sin haberla iniciado (sin listen()) para que:
- * - En producción: index.ts llame a server.listen()
- * - En tests: se use server.inject() sin abrir un puerto real
+ * Returns the instance without starting it (without listen()) so that:
+ * - In production: index.ts calls server.listen()
+ * - In tests: server.inject() is used without opening a real port
  *
- * Esta separación es una buena práctica que hace el servidor completamente testeable.
+ * This separation is a good practice that makes the server completely testable.
  */
 export async function buildServer() {
   const server = Fastify({
-    disableRequestLogging: true, // Desactivamos el log por defecto (ruidoso)
+    disableRequestLogging: true, // Disable default logging (noisy)
     logger: {
       level: process.env.LOG_LEVEL ?? 'info',
       transport:
@@ -24,7 +24,7 @@ export async function buildServer() {
           ? { target: 'pino-pretty', options: { translateTime: 'HH:MM:ss', ignore: 'pid,hostname' } }
           : undefined,
     },
-    // Leemos el Correlation ID del cliente o generamos uno nuevo
+    // Read the Correlation ID from the client or generate a new one
     genReqId: (req) => {
       const existingId = req.headers['x-correlation-id'] || req.headers['x-request-id'];
       if (existingId && typeof existingId === 'string') return existingId;
@@ -61,8 +61,8 @@ export async function buildServer() {
     done();
   });
 
-  // Carga los proxies activos desde PostgreSQL al arrancar.
-  // El registry en memoria se actualiza aquí; resolver.ts y forwarder.ts no cambian.
+  // Load active proxies from PostgreSQL on startup.
+  // The in-memory registry is updated here; resolver.ts and forwarder.ts do not change.
   const dbProxies = await loadProxiesFromDatabase();
   loadProxies(dbProxies);
   server.log.info(
@@ -70,13 +70,13 @@ export async function buildServer() {
     'Gateway proxy registry initialized',
   );
 
-  // ─── Rutas ────────────────────────────────────────────────────────────────
+  // ─── Routes ────────────────────────────────────────────────────────────────
 
   /**
-   * Health check del gateway.
-   * Responde 200 si el servidor está vivo y el registro de proxies está cargado.
-   * Docker, Kubernetes y load balancers usan este endpoint para saber si el
-   * servicio está listo para recibir tráfico.
+   * Gateway health check.
+   * Responds 200 if the server is alive and the proxy registry is loaded.
+   * Docker, Kubernetes, and load balancers use this endpoint to know if the
+   * service is ready to receive traffic.
    */
   server.get('/health', async () => ({
     status: 'ok',
@@ -85,13 +85,13 @@ export async function buildServer() {
   }));
 
   /**
-   * Ruta catch-all: captura TODAS las requests que no sean /health.
-   * El método `all` acepta cualquier verbo HTTP (GET, POST, PUT, DELETE...).
+   * Catch-all route: captures ALL requests that are not /health.
+   * The `all` method accepts any HTTP verb (GET, POST, PUT, DELETE...).
    *
-   * Flujo de cada request:
-   * 1. Resolver: ¿qué proxy corresponde a este path?
-   * 2. Si no hay proxy → 404 con mensaje claro
-   * 3. Si hay proxy → Forwarder: reenviar al backend
+   * Request flow:
+   * 1. Resolver: which proxy corresponds to this path?
+   * 2. If no proxy → 404 with clear message
+   * 3. If there is a proxy → Forwarder: forward to backend
    */
   server.all('/*', async (req, reply) => {
     // req.url contains query params. We need just the path for resolution.
@@ -117,7 +117,7 @@ export async function buildServer() {
       });
     }
 
-    // Guardamos contexto para los logs
+    // Save context for logs
     (req as any).proxyId = proxy.id;
     (req as any).endpointId = resolved.endpoint.id;
     (req as any).targetUrl = resolved.endpoint.targetUrl;

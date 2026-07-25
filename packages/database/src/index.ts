@@ -1,5 +1,5 @@
-// Cliente singleton — importar esto en gateway-core y management-api
+// Singleton client — import this in gateway-core and management-api
 export { prisma } from './client.js';
 
-// Tipos de Prisma — útiles para anotar resultados de queries en management-api
+// Prisma types — useful for annotating query results in management-api
 export { PrismaClient, Prisma } from './generated/index.js';
