@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc --project tsconfig.json",
-    "test": "tsx --test test/**/*.test.ts",
+    "test": "tsx --test \"test/**/*.test.ts\"",
     "lint": "echo \"TODO: lint\""
   },
   "dependencies": {
