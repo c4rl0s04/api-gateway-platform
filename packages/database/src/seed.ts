@@ -158,9 +158,9 @@ async function main() {
   }
   console.log(`✓ ${PROXIES.length} proxies with endpoints`);
 
-  console.log('✅ Seed complete');
+  console.log('Seed complete');
 }
 
 main()
-  .catch(err => { console.error('❌ Seed failed:', err); process.exit(1); })
+  .catch(err => { console.error('Seed failed:', err); process.exit(1); })
   .finally(() => prisma.$disconnect());

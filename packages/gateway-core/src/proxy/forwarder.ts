@@ -72,6 +72,7 @@ export async function forwardRequest(
         'x-forwarded-for': req.ip,
         'x-forwarded-host': req.hostname,
         'x-request-id': req.id as string,
+        'x-correlation-id': req.id as string,
         // Header custom del gateway: útil para que el backend sepa
         // qué proxy procesó la request (auditoría, debugging).
         'x-proxy-id': proxy.id,
