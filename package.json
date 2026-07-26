@@ -13,9 +13,13 @@
     "build": "npm run build -w packages/shared && npm run build -w packages/database && npm run build -w packages/gateway-core && npm run build -w packages/management-api && npm run build -w packages/admin-panel",
     "test": "npm run test --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
+    "docs:index": "node scripts/docs/generate-index.mjs",
+    "docs:check": "node scripts/docs/check-docs.mjs",
+    "docs:test": "node --test scripts/docs/docs-tools.test.mjs",
     "mock-backend": "node mock-backend.js"
   },
   "devDependencies": {
-    "json-server": "^1.0.0-beta.15"
+    "json-server": "^1.0.0-beta.15",
+    "yaml": "^2.8.1"
   }
 }

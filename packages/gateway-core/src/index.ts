@@ -1,15 +1,13 @@
 import { buildServer } from './server';
-
-const PORT = Number(process.env.PORT ?? 3000);
-const HOST = process.env.HOST ?? '0.0.0.0';
+import { loadEnv } from './config/env';
 
 (async () => {
-  const server = await buildServer();
-
   try {
-    await server.listen({ port: PORT, host: HOST });
+    const config = loadEnv();
+    const server = await buildServer({ config });
+    await server.listen({ port: config.PORT, host: config.HOST });
   } catch (err) {
-    server.log.fatal({ err }, 'Failed to start gateway server');
+    console.error('Failed to start gateway server', err);
     process.exit(1);
   }
 })();

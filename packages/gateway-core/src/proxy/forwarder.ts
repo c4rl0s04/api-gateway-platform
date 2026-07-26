@@ -1,33 +1,138 @@
-import { request as undiciRequest } from 'undici';
+import { request as undiciRequest, type Dispatcher } from 'undici';
 import type { FastifyRequest, FastifyReply } from 'fastify';
-import type { ProxyConfig, EndpointConfig } from '@api-gateway/shared';
+import type { ProxyConfig } from '@api-gateway/shared';
 import type { ResolvedEndpoint } from './resolver';
+
+const HOP_BY_HOP_HEADERS = new Set([
+  'connection',
+  'keep-alive',
+  'proxy-authenticate',
+  'proxy-authorization',
+  'te',
+  'trailer',
+  'transfer-encoding',
+  'upgrade',
+]);
 
 /**
  * Replaces variables in the target URL (e.g. "http://backend/users/:id" -> "http://backend/users/123")
  * and adds the original query parameters if they exist.
  */
-function buildTargetUrl(requestUrl: string, resolved: ResolvedEndpoint): string {
-  let url = resolved.endpoint.targetUrl;
-  
+export function buildTargetUrl(
+  requestUrl: string,
+  proxy: ProxyConfig,
+  resolved: ResolvedEndpoint,
+): string {
+  let targetPath = resolved.endpoint.targetPath;
+  if (!targetPath || !proxy.upstreamBaseUrl) {
+    throw new Error('Forwarding requires targetPath and upstreamBaseUrl');
+  }
+
   for (const [key, value] of Object.entries(resolved.params)) {
-    url = url.replace(`:${key}`, value);
+    targetPath = targetPath.replace(`:${key}`, value);
   }
-  
-  const queryIndex = requestUrl.indexOf('?');
-  if (queryIndex !== -1) {
-    url += requestUrl.slice(queryIndex);
+
+  const target = new URL(proxy.upstreamBaseUrl);
+  target.pathname = [
+    target.pathname.replace(/\/+$/, ''),
+    targetPath.replace(/^\/+/, ''),
+  ].filter(Boolean).join('/');
+  if (!target.pathname.startsWith('/')) {
+    target.pathname = `/${target.pathname}`;
   }
-  
-  return url;
+
+  const incoming = new URL(requestUrl, 'http://gateway.local');
+  for (const [key, value] of incoming.searchParams) {
+    target.searchParams.append(key, value);
+  }
+
+  return target.toString();
 }
 
 /**
  * Determines if a request has a body that needs to be forwarded to the backend.
  * GET and HEAD never have a body according to the HTTP specification.
  */
-function hasBody(method: string): boolean {
+export function hasBody(method: string): boolean {
   return method !== 'GET' && method !== 'HEAD';
+}
+
+function connectionSpecificHeaders(
+  headers: FastifyRequest['headers'],
+): Set<string> {
+  const result = new Set(HOP_BY_HOP_HEADERS);
+  const connection = headers.connection;
+  if (typeof connection === 'string') {
+    for (const name of connection.split(',')) {
+      result.add(name.trim().toLowerCase());
+    }
+  }
+  return result;
+}
+
+export function buildUpstreamHeaders(
+  req: FastifyRequest,
+  targetUrl: string,
+  proxyId: string,
+): Record<string, string | string[]> {
+  const excluded = connectionSpecificHeaders(req.headers);
+  excluded.add('host');
+  excluded.add('content-length');
+
+  const headers: Record<string, string | string[]> = {};
+  for (const [name, value] of Object.entries(req.headers)) {
+    if (!excluded.has(name.toLowerCase()) && value !== undefined) {
+      headers[name] = value;
+    }
+  }
+
+  const previousForwardedFor = req.headers['x-forwarded-for'];
+  const forwardedFor = Array.isArray(previousForwardedFor)
+    ? previousForwardedFor.join(', ')
+    : previousForwardedFor;
+
+  headers.host = new URL(targetUrl).host;
+  headers['x-forwarded-for'] = forwardedFor
+    ? `${forwardedFor}, ${req.ip}`
+    : req.ip;
+  headers['x-forwarded-host'] = req.hostname;
+  headers['x-forwarded-proto'] = req.protocol;
+  headers['x-request-id'] = String(req.id);
+  headers['x-correlation-id'] = String(req.id);
+  headers['x-proxy-id'] = proxyId;
+
+  return headers;
+}
+
+export function getUpstreamBody(
+  method: string,
+  body: unknown,
+): Buffer | string | Uint8Array | null {
+  if (!hasBody(method) || body === undefined || body === null) {
+    return null;
+  }
+  if (Buffer.isBuffer(body) || typeof body === 'string' || body instanceof Uint8Array) {
+    return body;
+  }
+
+  // Kept for direct programmatic usage. Normal gateway traffic is parsed as a
+  // Buffer in server.ts and therefore remains byte-for-byte unchanged.
+  return JSON.stringify(body);
+}
+
+function copyUpstreamHeaders(
+  reply: FastifyReply,
+  headers: Record<string, string | string[] | undefined>,
+): void {
+  for (const [name, value] of Object.entries(headers)) {
+    if (
+      value !== undefined
+      && !HOP_BY_HOP_HEADERS.has(name.toLowerCase())
+      && name.toLowerCase() !== 'content-length'
+    ) {
+      reply.header(name, value);
+    }
+  }
 }
 
 /**
@@ -43,7 +148,8 @@ export async function forwardRequest(
   proxy: ProxyConfig,
   resolved: ResolvedEndpoint
 ): Promise<void> {
-  const targetUrl = buildTargetUrl(req.url, resolved);
+  const targetUrl = buildTargetUrl(req.url, proxy, resolved);
+  (req as any).targetUrl = targetUrl;
 
   req.log.info(
     { targetUrl, proxyId: proxy.id, endpointId: resolved.endpoint.id, method: req.method },
@@ -52,35 +158,9 @@ export async function forwardRequest(
 
   try {
     const upstream = await undiciRequest(targetUrl, {
-      method: req.method as
-        | 'GET'
-        | 'POST'
-        | 'PUT'
-        | 'DELETE'
-        | 'PATCH'
-        | 'OPTIONS'
-        | 'HEAD',
-
-      headers: {
-        // Pass the original client headers to the backend...
-        ...req.headers,
-        // ...but overwrite host so the backend receives its own host,
-        // not the gateway's. Without this, some backends reject the request.
-        host: new URL(resolved.endpoint.targetUrl).host,
-        // Standard traceability headers: allow tracking the request
-        // across multiple services in the logs.
-        'x-forwarded-for': req.ip,
-        'x-forwarded-host': req.hostname,
-        'x-request-id': req.id as string,
-        'x-correlation-id': req.id as string,
-        // Custom gateway header: useful for the backend to know
-        // which proxy processed the request (auditing, debugging).
-        'x-proxy-id': proxy.id,
-      },
-
-      body: hasBody(req.method) && req.body
-        ? JSON.stringify(req.body)
-        : null,
+      method: req.method as Dispatcher.HttpMethod,
+      headers: buildUpstreamHeaders(req, targetUrl, proxy.id),
+      body: getUpstreamBody(req.method, req.body),
 
       // Reasonable timeout: if the backend doesn't respond in 30s, we cut it.
       // In week 4 this will be configurable per proxy.
@@ -88,21 +168,10 @@ export async function forwardRequest(
       headersTimeout: 30_000,
     });
 
-    // Pass the backend's status code to the client without modifying it
     reply.status(upstream.statusCode);
-
-    // Pass the backend's content-type so the client knows
-    // how to interpret the body (JSON, text, etc.)
-    const contentType = upstream.headers['content-type'];
-    if (contentType) {
-      reply.header('content-type', contentType as string);
-    }
-
-    // Informational header: the client can see which proxy processed their request
+    copyUpstreamHeaders(reply, upstream.headers);
     reply.header('x-gateway-proxy', proxy.id);
-
-    const body = await upstream.body.text();
-    reply.send(body);
+    await reply.send(upstream.body);
 
   } catch (err) {
     // Connection error: the backend is not available.
@@ -112,10 +181,12 @@ export async function forwardRequest(
       'Backend unreachable or returned an error',
     );
 
-    reply.status(502).send({
-      error: 'Bad Gateway',
-      message: 'The upstream service is temporarily unavailable',
-      requestId: req.id,
-    });
+    if (!reply.sent) {
+      reply.status(502).send({
+        error: 'Bad Gateway',
+        message: 'The upstream service is temporarily unavailable',
+        requestId: req.id,
+      });
+    }
   }
 }

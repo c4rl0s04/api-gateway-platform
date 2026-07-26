@@ -9,6 +9,7 @@ import type { ProxyConfig, EndpointConfig } from '@api-gateway/shared';
  * The public interface of this module will NOT change when we make that change.
  */
 const registry = new Map<string, ProxyConfig>();
+let registryInitialized = false;
 
 /**
  * Loads (or reloads) the proxies registry in memory.
@@ -36,6 +37,7 @@ export function loadProxies(proxies: ProxyConfig[]): void {
       registry.set(proxy.basePath, proxy);
     }
   }
+  registryInitialized = true;
 }
 
 /**
@@ -110,4 +112,9 @@ export function resolveProxy(requestPath: string): ProxyConfig | null {
 /** Returns the number of active registered proxies. Useful for health checks and logs. */
 export function getRegistrySize(): number {
   return registry.size;
+}
+
+/** Indicates that the initial proxy configuration load completed successfully. */
+export function isRegistryReady(): boolean {
+  return registryInitialized;
 }
