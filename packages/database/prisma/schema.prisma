@@ -67,6 +67,12 @@ enum CertificateSource {
   legacy
 }
 
+enum AdminRole {
+  platformAdmin
+  organizationAdmin
+  viewer
+}
+
 /// Root tenant of the system. Owns logical proxies, products and applications.
 model Organization {
   id                     String                 @id @default(uuid())
@@ -76,6 +82,8 @@ model Organization {
   apps                   DeveloperApp[]
   products               ApiProduct[]
   certificateAuthorities CertificateAuthority[]
+  adminMemberships       AdminMembership[]
+  auditEvents            AuditEvent[]
 }
 
 /// Global deployment target selected from closed stage and region values.
@@ -310,4 +318,44 @@ model CertificateIssuance {
 
   @@index([authorityId, createdAt])
   @@index([credentialId, createdAt])
+}
+
+/// Maps an OIDC principal to a platform-wide or organization-scoped role.
+/// `scopeKey` is "platform" for platform admins and the organization ID for
+/// organization-scoped roles, making uniqueness explicit even when the
+/// organization relation is null.
+model AdminMembership {
+  id             String        @id @default(uuid())
+  oidcIssuer     String
+  oidcSubject    String
+  role           AdminRole
+  scopeKey       String
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  displayName    String?
+  email          String?
+  active         Boolean       @default(true)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@unique([oidcIssuer, oidcSubject, scopeKey])
+  @@index([organizationId, role])
+}
+
+/// Append-only record of security-sensitive control-plane operations.
+model AuditEvent {
+  id             String        @id @default(uuid())
+  actorIssuer    String
+  actorSubject   String
+  actorRole      AdminRole
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  action         String
+  resourceType   String
+  resourceId     String
+  metadata       Json          @default("{}")
+  createdAt      DateTime      @default(now())
+
+  @@index([organizationId, createdAt])
+  @@index([resourceType, resourceId, createdAt])
 }

@@ -25,6 +25,9 @@ CREATE TYPE "CertificateAuthorityStatus" AS ENUM ('draft', 'active', 'retiring',
 -- CreateEnum
 CREATE TYPE "CertificateSource" AS ENUM ('managed', 'external', 'legacy');
 
+-- CreateEnum
+CREATE TYPE "AdminRole" AS ENUM ('platformAdmin', 'organizationAdmin', 'viewer');
+
 -- CreateTable
 CREATE TABLE "Organization" (
     "id" TEXT NOT NULL,
@@ -229,6 +232,39 @@ CREATE TABLE "CertificateIssuance" (
 );
 
 -- CreateTable
+CREATE TABLE "AdminMembership" (
+    "id" TEXT NOT NULL,
+    "oidcIssuer" TEXT NOT NULL,
+    "oidcSubject" TEXT NOT NULL,
+    "role" "AdminRole" NOT NULL,
+    "scopeKey" TEXT NOT NULL,
+    "organizationId" TEXT,
+    "displayName" TEXT,
+    "email" TEXT,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "AdminMembership_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AuditEvent" (
+    "id" TEXT NOT NULL,
+    "actorIssuer" TEXT NOT NULL,
+    "actorSubject" TEXT NOT NULL,
+    "actorRole" "AdminRole" NOT NULL,
+    "organizationId" TEXT,
+    "action" TEXT NOT NULL,
+    "resourceType" TEXT NOT NULL,
+    "resourceId" TEXT NOT NULL,
+    "metadata" JSONB NOT NULL DEFAULT '{}',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "AuditEvent_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "_ApiProductToApiProxy" (
     "A" TEXT NOT NULL,
     "B" TEXT NOT NULL
@@ -278,6 +314,18 @@ CREATE INDEX "CertificateIssuance_authorityId_createdAt_idx" ON "CertificateIssu
 
 -- CreateIndex
 CREATE INDEX "CertificateIssuance_credentialId_createdAt_idx" ON "CertificateIssuance"("credentialId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "AdminMembership_organizationId_role_idx" ON "AdminMembership"("organizationId", "role");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "AdminMembership_oidcIssuer_oidcSubject_scopeKey_key" ON "AdminMembership"("oidcIssuer", "oidcSubject", "scopeKey");
+
+-- CreateIndex
+CREATE INDEX "AuditEvent_organizationId_createdAt_idx" ON "AuditEvent"("organizationId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "AuditEvent_resourceType_resourceId_createdAt_idx" ON "AuditEvent"("resourceType", "resourceId", "createdAt");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "_ApiProductToApiProxy_AB_unique" ON "_ApiProductToApiProxy"("A", "B");
@@ -341,6 +389,12 @@ ALTER TABLE "CertificateIssuance" ADD CONSTRAINT "CertificateIssuance_credential
 
 -- AddForeignKey
 ALTER TABLE "CertificateIssuance" ADD CONSTRAINT "CertificateIssuance_certificateId_fkey" FOREIGN KEY ("certificateId") REFERENCES "AppCertificate"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AdminMembership" ADD CONSTRAINT "AdminMembership_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AuditEvent" ADD CONSTRAINT "AuditEvent_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "_ApiProductToApiProxy" ADD CONSTRAINT "_ApiProductToApiProxy_A_fkey" FOREIGN KEY ("A") REFERENCES "ApiProduct"("id") ON DELETE CASCADE ON UPDATE CASCADE;
