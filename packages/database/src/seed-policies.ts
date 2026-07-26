@@ -6,6 +6,18 @@ import {
 import { hashConsumerSecret } from './credentials.js';
 
 const prisma = new PrismaClient();
+const DEFAULT_DEV_CLIENT_PUBLIC_JWK = {
+  kty: 'RSA',
+  n: 'w7H7s7ANk9hYBcJY6cLOUqGCGj-UWapwAY09a4tcR9AgHR20RTH_h-XD8VXN-BPTmDWCNulTn4JJ0FFVRj3_pd3Y686cPLyz8Yl6IUSdDm4oYp-6fHzCf9lzH7UbuLvrUaAbJ3yCMg8HFRGTiBpgX8PCji5xHxRh2yumfHed7x4VGYJ3odGnzfD2rA1p4G-jjyAYD_6xAfBdnGP0vhPRp-9xn6P-qCDEelkbnChEvo6v9t8pvKd-3QnfvKFakjFFiy7gg4_XrqY10_sIMjtEFPOv2kW4Y71pxAfYfnDAd4KXSeyn-KT8tXO_-GMz8lTNUynol4FcER1z9YlecTGbdQ',
+  e: 'AQAB',
+};
+const DEV_CLIENT_PUBLIC_JWK = process.env.DEV_CLIENT_PUBLIC_JWK
+  ? JSON.parse(process.env.DEV_CLIENT_PUBLIC_JWK)
+  : DEFAULT_DEV_CLIENT_PUBLIC_JWK;
+const DEV_MTLS_CERT_FINGERPRINT = (
+  process.env.DEV_MTLS_CERT_FINGERPRINT
+  ?? '40256508874067631b709b5daf539b60b6b29dc1a5a5b377dc4e6a0c6d066997'
+).toLowerCase();
 
 // ─── API Products ─────────────────────────────────────────────────────────────
 // Products bundle proxies into consumable units.
@@ -272,33 +284,26 @@ async function main() {
     },
     update: {
       status: AuthorizationStatus.approved,
-      jwk: {
-        kty: 'RSA',
-        n: 'w7H7s7ANk9hYBcJY6cLOUqGCGj-UWapwAY09a4tcR9AgHR20RTH_h-XD8VXN-BPTmDWCNulTn4JJ0FFVRj3_pd3Y686cPLyz8Yl6IUSdDm4oYp-6fHzCf9lzH7UbuLvrUaAbJ3yCMg8HFRGTiBpgX8PCji5xHxRh2yumfHed7x4VGYJ3odGnzfD2rA1p4G-jjyAYD_6xAfBdnGP0vhPRp-9xn6P-qCDEelkbnChEvo6v9t8pvKd-3QnfvKFakjFFiy7gg4_XrqY10_sIMjtEFPOv2kW4Y71pxAfYfnDAd4KXSeyn-KT8tXO_-GMz8lTNUynol4FcER1z9YlecTGbdQ',
-        e: 'AQAB',
-      },
+      jwk: DEV_CLIENT_PUBLIC_JWK,
     },
     create: {
       id: 'public-key-bank-dev-1',
       credentialId: 'cred-bank-001',
       kid: 'dev-bank-jwt-1',
-      jwk: {
-        kty: 'RSA',
-        n: 'w7H7s7ANk9hYBcJY6cLOUqGCGj-UWapwAY09a4tcR9AgHR20RTH_h-XD8VXN-BPTmDWCNulTn4JJ0FFVRj3_pd3Y686cPLyz8Yl6IUSdDm4oYp-6fHzCf9lzH7UbuLvrUaAbJ3yCMg8HFRGTiBpgX8PCji5xHxRh2yumfHed7x4VGYJ3odGnzfD2rA1p4G-jjyAYD_6xAfBdnGP0vhPRp-9xn6P-qCDEelkbnChEvo6v9t8pvKd-3QnfvKFakjFFiy7gg4_XrqY10_sIMjtEFPOv2kW4Y71pxAfYfnDAd4KXSeyn-KT8tXO_-GMz8lTNUynol4FcER1z9YlecTGbdQ',
-        e: 'AQAB',
-      },
+      jwk: DEV_CLIENT_PUBLIC_JWK,
       status: AuthorizationStatus.approved,
     },
   });
   await prisma.appCertificate.upsert({
-    where: {
-      fingerprintSha256: '40256508874067631b709b5daf539b60b6b29dc1a5a5b377dc4e6a0c6d066997',
+    where: { id: 'certificate-bank-dev-1' },
+    update: {
+      fingerprintSha256: DEV_MTLS_CERT_FINGERPRINT,
+      status: AuthorizationStatus.approved,
     },
-    update: { status: AuthorizationStatus.approved },
     create: {
       id: 'certificate-bank-dev-1',
       credentialId: 'cred-bank-001',
-      fingerprintSha256: '40256508874067631b709b5daf539b60b6b29dc1a5a5b377dc4e6a0c6d066997',
+      fingerprintSha256: DEV_MTLS_CERT_FINGERPRINT,
       serialNumber: 'DEV-001',
       subject: 'CN=Bank Partner Development',
       issuer: 'CN=Development CA',

@@ -10,6 +10,9 @@
   },
   "scripts": {
     "dev": "npm run dev --workspaces --if-present",
+    "dev:local": "bash scripts/dev-local.sh",
+    "dev:local:detached": "bash scripts/dev-local.sh -d",
+    "dev:local:down": "docker compose --env-file .local-secrets/compose.env down",
     "build": "npm run build -w packages/shared && npm run build -w packages/database && npm run build -w packages/gateway-core && npm run build -w packages/management-api && npm run build -w packages/admin-panel",
     "test": "npm run test --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",

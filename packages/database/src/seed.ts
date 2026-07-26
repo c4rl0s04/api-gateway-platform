@@ -5,6 +5,8 @@ import {
 } from './generated';
 
 const prisma = new PrismaClient();
+const DEV_UPSTREAM_BASE_URL =
+  process.env.DEV_UPSTREAM_BASE_URL ?? 'http://localhost:4000';
 
 const ORGANIZATIONS = [
   { id: 'org-platform', name: 'API Gateway Platform' },
@@ -52,7 +54,7 @@ const PROXIES = [
         DeploymentStage.qual,
         DeploymentRegion.es,
       ),
-      upstreamBaseUrl: 'http://localhost:4000',
+      upstreamBaseUrl: DEV_UPSTREAM_BASE_URL,
     },
     endpoints: [
       { id: 'ep-esb-health', path: '/health', targetPath: '/health' },
@@ -70,7 +72,7 @@ const PROXIES = [
         DeploymentStage.qual,
         DeploymentRegion.us,
       ),
-      upstreamBaseUrl: 'http://localhost:4000',
+      upstreamBaseUrl: DEV_UPSTREAM_BASE_URL,
     },
     endpoints: [
       { id: 'ep-usb-ping', path: '/ping', targetPath: '/ping' },
@@ -88,7 +90,7 @@ const PROXIES = [
         DeploymentStage.qual,
         DeploymentRegion.uk,
       ),
-      upstreamBaseUrl: 'http://localhost:4000',
+      upstreamBaseUrl: DEV_UPSTREAM_BASE_URL,
     },
     endpoints: [
       { id: 'ep-ukl-health', path: '/health', targetPath: '/health' },
@@ -106,7 +108,7 @@ const PROXIES = [
         DeploymentStage.qual,
         DeploymentRegion.fr,
       ),
-      upstreamBaseUrl: 'http://localhost:4000',
+      upstreamBaseUrl: DEV_UPSTREAM_BASE_URL,
     },
     endpoints: [
       { id: 'ep-fre-ping', path: '/ping', targetPath: '/ping' },
@@ -124,7 +126,7 @@ const PROXIES = [
         DeploymentStage.qual,
         DeploymentRegion.es,
       ),
-      upstreamBaseUrl: 'http://localhost:4000',
+      upstreamBaseUrl: DEV_UPSTREAM_BASE_URL,
     },
     endpoints: [
       { id: 'ep-ese-health', path: '/health', targetPath: '/health' },
@@ -142,7 +144,7 @@ const PROXIES = [
         DeploymentStage.qual,
         DeploymentRegion.de,
       ),
-      upstreamBaseUrl: 'http://localhost:4000',
+      upstreamBaseUrl: DEV_UPSTREAM_BASE_URL,
     },
     endpoints: [
       { id: 'ep-deh-ping', path: '/ping', targetPath: '/ping' },
@@ -160,7 +162,7 @@ const PROXIES = [
         DeploymentStage.qual,
         DeploymentRegion.us,
       ),
-      upstreamBaseUrl: 'http://localhost:4000',
+      upstreamBaseUrl: DEV_UPSTREAM_BASE_URL,
     },
     endpoints: [
       { id: 'ep-usi-health', path: '/health', targetPath: '/health' },
@@ -178,7 +180,7 @@ const PROXIES = [
         DeploymentStage.qual,
         DeploymentRegion.jp,
       ),
-      upstreamBaseUrl: 'http://localhost:4000',
+      upstreamBaseUrl: DEV_UPSTREAM_BASE_URL,
     },
     endpoints: [
       { id: 'ep-jpi-ping', path: '/ping', targetPath: '/ping' },
@@ -196,7 +198,7 @@ const PROXIES = [
         DeploymentStage.qual,
         DeploymentRegion.br,
       ),
-      upstreamBaseUrl: 'http://localhost:4000',
+      upstreamBaseUrl: DEV_UPSTREAM_BASE_URL,
     },
     endpoints: [
       { id: 'ep-brs-health', path: '/health', targetPath: '/health' },
@@ -214,7 +216,7 @@ const PROXIES = [
         DeploymentStage.qual,
         DeploymentRegion.kr,
       ),
-      upstreamBaseUrl: 'http://localhost:4000',
+      upstreamBaseUrl: DEV_UPSTREAM_BASE_URL,
     },
     endpoints: [
       { id: 'ep-krg-ping', path: '/ping', targetPath: '/ping' },

@@ -72,7 +72,7 @@ aliases: []
 | [[04-guides/How to Configure Application Authentication|How to Configure Application Authentication]] | current | implemented | 2026-07-27 |
 | [[04-guides/How to Document the Project|How to Document the Project]] | current | not-applicable | 2026-07-27 |
 | [[04-guides/How to Run Tests|How to Run Tests]] | current | implemented | 2026-07-27 |
-| [[04-guides/How to Start the Project|How to Start the Project]] | current | partial | 2026-07-27 |
+| [[04-guides/How to Start the Project|How to Start the Project]] | current | implemented | 2026-07-27 |
 | [[04-guides/How to Use Prisma Studio|How to Use Prisma Studio]] | current | implemented | 2026-07-27 |
 
 ## Decisions
@@ -94,7 +94,7 @@ aliases: []
 | [[06-reference/Environment Variables|Environment Variables]] | current | implemented | 2026-07-27 |
 | [[06-reference/policies/README|Policy Reference Index]] | current | partial | 2026-07-27 |
 | [[06-reference/Policy Types|Policy Types]] | current | partial | 2026-07-27 |
-| [[06-reference/Ports|Ports]] | current | partial | 2026-07-27 |
+| [[06-reference/Ports|Ports]] | current | implemented | 2026-07-27 |
 
 ## Policies
 

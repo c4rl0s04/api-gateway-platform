@@ -2,14 +2,14 @@
 title: Ports
 type: reference
 doc_status: current
-implementation_status: partial
+implementation_status: implemented
 last_verified: 2026-07-27
 tags:
   - type/reference
   - area/operations
 sources:
   - docker-compose.yml
-  - .env.example
+  - scripts/dev-local.sh
   - packages/gateway-core/src/config/env.ts
   - packages/management-api/src/server.ts
   - packages/admin-panel/package.json
@@ -19,36 +19,36 @@ aliases: []
 # Ports
 
 > [!summary] At a glance
-> Current defaults contain real host-port collisions, so start only the required services or override configurable processes.
+> The local Compose data plane has non-conflicting ports; optional observability runs under a separate profile.
 
 ## Current Support
 
 | Component | Host port | Source | Configurable now |
 | --- | --- | --- | --- |
-| PostgreSQL | `5432` | Docker Compose | Through Compose edit |
-| Redis | `6379` | Docker Compose | Through Compose edit |
-| Prometheus | `9090` | Docker Compose | Through Compose edit |
-| Grafana | `3000` | Docker Compose | Through Compose edit |
-| `gateway-core` | `3000` | `PORT` default | Yes, with `PORT` |
+| PostgreSQL | `5432` | Default local Compose service | Through Compose edit |
+| Redis | `6379` | Default local Compose service | Through Compose edit |
+| `gateway-core` | `3000` | Default local Compose service | Yes, with `PORT` outside Compose |
+| mTLS ingress | `3443` | Default local Compose service | Through Compose edit |
+| Mock backend | Internal `4000` | Default local Compose service | Not published to the host |
+| Prometheus | `9090` | Optional `observability` profile | Through Compose edit |
+| Grafana | `3001` | Optional `observability` profile | Through Compose edit |
 | `management-api` | `3002` | Hard-coded server | No |
 | `admin-panel` | `3000` | Next.js default | Yes, with Next.js CLI/environment conventions |
-| Mock backend | `4000` | Root script | Defined by the mock backend script |
 | Prisma Studio | `5555` | Prisma default | Through Prisma CLI options |
 
 ## Known Collisions
 
-Grafana, `gateway-core`, and `admin-panel` all default to host port `3000`.
-`docker compose up` with Grafana prevents the default gateway port from binding.
-The root `npm run dev` can also start gateway and Admin Panel with conflicting
-defaults.
+The default `npm run dev:local` environment has no internal host-port
+collisions. The root `npm run dev` remains a workspace-level command and can
+still collide because the standalone Admin Panel and gateway both default to
+port `3000`.
 
 ## Examples
 
-For data-plane development, start only PostgreSQL and Redis:
+Start the complete local data plane:
 
 ```bash
-docker compose up -d postgres redis
-npm run dev --workspace=packages/gateway-core
+npm run dev:local
 ```
 
 ## Source Files

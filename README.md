@@ -24,19 +24,19 @@ npm run docs:check
 ## Development
 
 ```bash
-npm install
-docker compose up -d postgres redis
-npm run db:migrate:deploy --workspace=packages/database
-npm run db:seed --workspace=packages/database
-npm run db:seed:policies --workspace=packages/database
+npm run dev:local
 ```
 
-Start the mock upstream and gateway in separate terminals:
+This single command generates reusable local signing keys and mTLS certificates,
+builds the application image, migrates and seeds PostgreSQL, and starts
+PostgreSQL, Redis, the mock upstream, `gateway-core`, and the mTLS ingress.
+Stop the foreground environment with `Ctrl+C`.
 
 ```bash
-npm run mock-backend
-npm run dev --workspace=packages/gateway-core
+npm run dev:local:detached
+npm run dev:local:down
 ```
 
-Do not start all workspaces together until the current local port collisions are
-resolved. See [Ports](docs/06-reference/Ports.md).
+The detached variant returns control to the terminal. See
+[How to Start the Project](docs/04-guides/How%20to%20Start%20the%20Project.md)
+for verification, data persistence, and troubleshooting.

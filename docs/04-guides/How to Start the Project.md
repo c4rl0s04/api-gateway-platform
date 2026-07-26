@@ -2,7 +2,7 @@
 title: How to Start the Project
 type: guide
 doc_status: current
-implementation_status: partial
+implementation_status: implemented
 last_verified: 2026-07-27
 tags:
   - type/guide
@@ -11,6 +11,8 @@ sources:
   - package.json
   - .env.example
   - docker-compose.yml
+  - scripts/dev-local.sh
+  - infra/docker/Dockerfile.dev
   - packages/database/package.json
   - packages/gateway-core/package.json
 aliases: []
@@ -19,11 +21,11 @@ aliases: []
 # How to Start the Project
 
 > [!summary] At a glance
-> Start infrastructure, prepare PostgreSQL, run the mock upstream, and then start `gateway-core`; avoid the root development command until port collisions are resolved.
+> Run `npm run dev:local` to prepare cryptographic material, migrate and seed PostgreSQL, and start the complete local data plane.
 
 ## Goal
 
-Run the implemented data-plane flow locally.
+Run the implemented data-plane flow locally with one command.
 
 ## Prerequisites
 
@@ -35,40 +37,41 @@ Run the implemented data-plane flow locally.
 
 ## Steps
 
-1. Install dependencies and create `.env` from `.env.example`. Replace the
-   signing-key placeholder with a base64-encoded PKCS#8 RSA private key.
+1. Start the complete environment in the foreground.
 
 ```bash
-npm install
-cp .env.example .env
+npm run dev:local
 ```
 
-2. Start PostgreSQL and Redis.
+The bootstrap script generates reusable local-only files under
+`.local-secrets/`, builds one application image, waits for PostgreSQL and Redis,
+applies pending migrations, loads both idempotent seeds, and starts:
+
+| Service | Purpose |
+| --- | --- |
+| `postgres` | Persistent gateway configuration |
+| `redis` | Rate limits and JWT assertion replay protection |
+| `database-setup` | One-shot migrations and seeds |
+| `mock-backend` | Local forwarding target |
+| `gateway` | Data plane on port `3000` |
+| `mtls-ingress` | Trusted TLS boundary on port `3443` |
+
+The first execution downloads images and dependencies. Later executions reuse
+Docker's build cache and the generated keys and certificates.
+
+2. Stop the foreground environment with `Ctrl+C`. To run it in the background
+instead:
 
 ```bash
-docker compose up -d postgres redis
+npm run dev:local:detached
+npm run dev:local:down
 ```
 
-3. The rewritten baseline requires a reset for disposable existing local data,
-   then load both seeds.
+PostgreSQL uses a named volume, so a normal stop preserves local data. Remove
+containers and disposable database data explicitly with:
 
 ```bash
-npm run db:generate --workspace=packages/database
-npm run db:reset --workspace=packages/database
-npm run db:seed --workspace=packages/database
-npm run db:seed:policies --workspace=packages/database
-```
-
-4. Start the mock backend in one terminal.
-
-```bash
-npm run mock-backend
-```
-
-5. Start the gateway in another terminal.
-
-```bash
-npm run dev --workspace=packages/gateway-core
+npm run dev:local:down -- --volumes
 ```
 
 ## Verification
@@ -79,18 +82,26 @@ curl http://localhost:3000/ready
 curl http://localhost:3000/oauth/.well-known/jwks.json
 curl -H "x-api-key: dev-bank-key-abc123" \
   http://localhost:3000/es/banking/v1/accounts
+curl --cacert .local-secrets/mtls-ca.crt \
+  --cert .local-secrets/mtls-client.crt \
+  --key .local-secrets/mtls-client.key \
+  https://localhost:3443/es/banking/v1/health
 ```
 
-The first two requests should report a live and ready gateway. The protected
-banking endpoint should reach the mock backend when both seeds are loaded.
+The first two requests should report a live and ready gateway. Both protected
+banking requests should reach the mock backend.
 
 ## Troubleshooting or Rollback
 
-- Database refusal: verify the `postgres` container and `DATABASE_URL`.
-- `proxiesLoaded: 0`: apply migrations and run the base seed.
-- `502`: start the mock backend or check the deployment upstream.
-- `EADDRINUSE`: read [[Ports]] and start only the required service.
+- Docker refusal: start the Docker engine before running the command.
+- Database setup failure: inspect
+  `docker compose --env-file .local-secrets/compose.env logs database-setup`.
+- `502`: inspect
+  `docker compose --env-file .local-secrets/compose.env logs mock-backend gateway`.
+- `EADDRINUSE`: read [[Ports]] and release the reported host port.
 - Schema incompatibility in disposable local data: follow [[Reset Local Database]].
+- Invalid local material: stop the environment, remove `.local-secrets/`, and
+  start it again to regenerate keys and certificates.
 
 ## Related Notes
 

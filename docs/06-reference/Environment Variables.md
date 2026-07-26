@@ -9,6 +9,8 @@ tags:
   - area/operations
 sources:
   - .env.example
+  - docker-compose.yml
+  - scripts/dev-local.sh
   - packages/gateway-core/src/config/env.ts
   - packages/management-api/src/config/env.ts
 aliases: []
@@ -41,6 +43,22 @@ aliases: []
 The gateway parses these variables before loading configuration or listening.
 It imports the private key and parses every CIDR before readiness. The private
 key must come from a secret manager or local untracked `.env`, never Git.
+
+### Local Compose bootstrap
+
+`npm run dev:local` does not require developers to populate `.env`. The
+bootstrap creates `.local-secrets/compose.env` and injects the signing key,
+client public JWK, and client-certificate fingerprint into Compose. The
+directory is ignored by Git and its material is reused across local restarts.
+
+| Variable | Consumer | Purpose |
+| --- | --- | --- |
+| `DEV_UPSTREAM_BASE_URL` | Base seed | Replaces `localhost` with the Compose mock service |
+| `DEV_CLIENT_PUBLIC_JWK` | Policy seed | Registers the generated assertion verification key |
+| `DEV_MTLS_CERT_FINGERPRINT` | Policy seed and ingress | Keeps the registered certificate and normalized ingress header aligned |
+
+These three variables are development bootstrap inputs, not production gateway
+configuration.
 
 ### management-api
 

@@ -1,4 +1,6 @@
-version: '3.8'
+x-platform-app: &platform-app
+  image: api-gateway-platform-local:dev
+  pull_policy: never
 
 services:
   postgres:
@@ -9,14 +11,113 @@ services:
       POSTGRES_DB: apigw
     ports:
       - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d apigw"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
 
   redis:
     image: redis:7
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  database-setup:
+    <<: *platform-app
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.dev
+    command:
+      - sh
+      - -c
+      - >
+        npm run db:migrate:deploy --workspace=packages/database &&
+        npm run db:seed --workspace=packages/database &&
+        npm run db:seed:policies --workspace=packages/database
+    environment:
+      DATABASE_URL: postgresql://postgres:password@postgres:5432/apigw?schema=public
+      DEV_UPSTREAM_BASE_URL: http://mock-backend:4000
+      DEV_CLIENT_PUBLIC_JWK: ${DEV_CLIENT_PUBLIC_JWK:?Run through npm run dev:local}
+      DEV_MTLS_CERT_FINGERPRINT: ${DEV_MTLS_CERT_FINGERPRINT:?Run through npm run dev:local}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  mock-backend:
+    <<: *platform-app
+    command: ["node", "mock-backend.js"]
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://localhost:4000/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  gateway:
+    <<: *platform-app
+    command: ["node", "packages/gateway-core/dist/index.js"]
+    environment:
+      NODE_ENV: development
+      HOST: 0.0.0.0
+      PORT: 3000
+      DATABASE_URL: postgresql://postgres:password@postgres:5432/apigw?schema=public
+      REDIS_URL: redis://redis:6379
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      GATEWAY_ENVIRONMENT_ID: env-qual-es
+      OAUTH_ISSUER: http://localhost:3000
+      OAUTH_TOKEN_ENDPOINT_AUDIENCE: http://localhost:3000/oauth/token
+      OAUTH_SIGNING_KEY_ID: local-gateway-1
+      OAUTH_SIGNING_PRIVATE_KEY_BASE64: ${OAUTH_SIGNING_PRIVATE_KEY_BASE64:?Run through npm run dev:local}
+      MTLS_TRUSTED_PROXY_CIDRS: 172.30.0.250/32
+    ports:
+      - "3000:3000"
+    depends_on:
+      database-setup:
+        condition: service_completed_successfully
+      mock-backend:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://localhost:3000/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  mtls-ingress:
+    image: nginx:1.27-alpine
+    environment:
+      DEV_MTLS_CERT_FINGERPRINT: ${DEV_MTLS_CERT_FINGERPRINT:?Run through npm run dev:local}
+    ports:
+      - "3443:443"
+    volumes:
+      - ./infra/nginx/templates:/etc/nginx/templates:ro
+      - ./.local-secrets:/certs:ro
+    networks:
+      default:
+        ipv4_address: 172.30.0.250
+    depends_on:
+      gateway:
+        condition: service_healthy
 
   prometheus:
     image: prom/prometheus
+    profiles: ["observability"]
     volumes:
       - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
     ports:
@@ -24,6 +125,7 @@ services:
 
   grafana:
     image: grafana/grafana
+    profiles: ["observability"]
     environment:
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
@@ -31,8 +133,13 @@ services:
       - ./infra/grafana/provisioning:/etc/grafana/provisioning
       - ./infra/grafana/dashboards:/var/lib/grafana/dashboards
     ports:
-      - "3000:3000"
+      - "3001:3000"
 
-  # TODO: gateway-core
-  # TODO: management-api
-  # TODO: admin-panel
+volumes:
+  postgres-data:
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
