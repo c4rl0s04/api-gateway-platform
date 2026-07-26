@@ -16,6 +16,15 @@ CREATE TYPE "AuthorizationStatus" AS ENUM ('pending', 'approved', 'revoked');
 -- CreateEnum
 CREATE TYPE "PublicKeyAlgorithm" AS ENUM ('RS256');
 
+-- CreateEnum
+CREATE TYPE "CertificateAuthorityKind" AS ENUM ('managed', 'external');
+
+-- CreateEnum
+CREATE TYPE "CertificateAuthorityStatus" AS ENUM ('draft', 'active', 'retiring', 'revoked');
+
+-- CreateEnum
+CREATE TYPE "CertificateSource" AS ENUM ('managed', 'external', 'legacy');
+
 -- CreateTable
 CREATE TABLE "Organization" (
     "id" TEXT NOT NULL,
@@ -159,17 +168,64 @@ CREATE TABLE "AppPublicKey" (
 CREATE TABLE "AppCertificate" (
     "id" TEXT NOT NULL,
     "credentialId" TEXT NOT NULL,
+    "authorityId" TEXT,
     "fingerprintSha256" TEXT NOT NULL,
+    "certificatePem" TEXT,
+    "chainPem" TEXT,
+    "source" "CertificateSource" NOT NULL DEFAULT 'legacy',
     "serialNumber" TEXT,
     "subject" TEXT,
     "issuer" TEXT,
     "status" "AuthorizationStatus" NOT NULL DEFAULT 'approved',
     "validFrom" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "expiresAt" TIMESTAMP(3),
+    "revokedAt" TIMESTAMP(3),
+    "revocationReason" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "AppCertificate_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CertificateAuthority" (
+    "id" TEXT NOT NULL,
+    "organizationId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "kind" "CertificateAuthorityKind" NOT NULL,
+    "status" "CertificateAuthorityStatus" NOT NULL DEFAULT 'draft',
+    "isDefaultIssuer" BOOLEAN NOT NULL DEFAULT false,
+    "certificatePem" TEXT NOT NULL,
+    "chainPem" TEXT,
+    "fingerprintSha256" TEXT NOT NULL,
+    "subject" TEXT NOT NULL,
+    "serialNumber" TEXT NOT NULL,
+    "validFrom" TIMESTAMP(3) NOT NULL,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "keyRef" TEXT,
+    "crlPem" TEXT,
+    "crlThisUpdate" TIMESTAMP(3),
+    "crlNextUpdate" TIMESTAMP(3),
+    "crlDistributionUrl" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "CertificateAuthority_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CertificateIssuance" (
+    "id" TEXT NOT NULL,
+    "authorityId" TEXT NOT NULL,
+    "credentialId" TEXT NOT NULL,
+    "csrSha256" TEXT NOT NULL,
+    "requestedDays" INTEGER NOT NULL,
+    "certificateId" TEXT,
+    "errorCode" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "completedAt" TIMESTAMP(3),
+
+    CONSTRAINT "CertificateIssuance_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -204,6 +260,24 @@ CREATE UNIQUE INDEX "AppPublicKey_credentialId_kid_key" ON "AppPublicKey"("crede
 
 -- CreateIndex
 CREATE UNIQUE INDEX "AppCertificate_fingerprintSha256_key" ON "AppCertificate"("fingerprintSha256");
+
+-- CreateIndex
+CREATE INDEX "AppCertificate_authorityId_idx" ON "AppCertificate"("authorityId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CertificateAuthority_fingerprintSha256_key" ON "CertificateAuthority"("fingerprintSha256");
+
+-- CreateIndex
+CREATE INDEX "CertificateAuthority_organizationId_status_idx" ON "CertificateAuthority"("organizationId", "status");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CertificateIssuance_certificateId_key" ON "CertificateIssuance"("certificateId");
+
+-- CreateIndex
+CREATE INDEX "CertificateIssuance_authorityId_createdAt_idx" ON "CertificateIssuance"("authorityId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "CertificateIssuance_credentialId_createdAt_idx" ON "CertificateIssuance"("credentialId", "createdAt");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "_ApiProductToApiProxy_AB_unique" ON "_ApiProductToApiProxy"("A", "B");
@@ -252,6 +326,21 @@ ALTER TABLE "AppPublicKey" ADD CONSTRAINT "AppPublicKey_credentialId_fkey" FOREI
 
 -- AddForeignKey
 ALTER TABLE "AppCertificate" ADD CONSTRAINT "AppCertificate_credentialId_fkey" FOREIGN KEY ("credentialId") REFERENCES "AppCredential"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AppCertificate" ADD CONSTRAINT "AppCertificate_authorityId_fkey" FOREIGN KEY ("authorityId") REFERENCES "CertificateAuthority"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CertificateAuthority" ADD CONSTRAINT "CertificateAuthority_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CertificateIssuance" ADD CONSTRAINT "CertificateIssuance_authorityId_fkey" FOREIGN KEY ("authorityId") REFERENCES "CertificateAuthority"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CertificateIssuance" ADD CONSTRAINT "CertificateIssuance_credentialId_fkey" FOREIGN KEY ("credentialId") REFERENCES "AppCredential"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CertificateIssuance" ADD CONSTRAINT "CertificateIssuance_certificateId_fkey" FOREIGN KEY ("certificateId") REFERENCES "AppCertificate"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "_ApiProductToApiProxy" ADD CONSTRAINT "_ApiProductToApiProxy_A_fkey" FOREIGN KEY ("A") REFERENCES "ApiProduct"("id") ON DELETE CASCADE ON UPDATE CASCADE;

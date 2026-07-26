@@ -49,14 +49,33 @@ enum PublicKeyAlgorithm {
   RS256
 }
 
+enum CertificateAuthorityKind {
+  managed
+  external
+}
+
+enum CertificateAuthorityStatus {
+  draft
+  active
+  retiring
+  revoked
+}
+
+enum CertificateSource {
+  managed
+  external
+  legacy
+}
+
 /// Root tenant of the system. Owns logical proxies, products and applications.
 model Organization {
-  id        String         @id @default(uuid())
-  name      String
-  createdAt DateTime       @default(now())
-  proxies   ApiProxy[]
-  apps      DeveloperApp[]
-  products  ApiProduct[]
+  id                     String                 @id @default(uuid())
+  name                   String
+  createdAt              DateTime               @default(now())
+  proxies                ApiProxy[]
+  apps                   DeveloperApp[]
+  products               ApiProduct[]
+  certificateAuthorities CertificateAuthority[]
 }
 
 /// Global deployment target selected from closed stage and region values.
@@ -168,23 +187,24 @@ model DeveloperApp {
 /// Generated client secrets are returned once and cannot be read back.
 /// A single app can have multiple credentials for key rotation without downtime.
 model AppCredential {
-  id                 String                   @id @default(uuid())
-  appId              String
-  app                DeveloperApp             @relation(fields: [appId], references: [id], onDelete: Cascade)
+  id                   String                   @id @default(uuid())
+  appId                String
+  app                  DeveloperApp             @relation(fields: [appId], references: [id], onDelete: Cascade)
   /// The API Key / Client ID. Sent by the client in the x-api-key header.
-  consumerKey        String                   @unique
+  consumerKey          String                   @unique
   /// Scrypt hash. The generated secret is returned only once.
-  consumerSecretHash String?
-  authMethods        CredentialAuthMethod[]   @default([])
-  status             AuthorizationStatus      @default(approved)
-  attributes         Json                     @default("{}")
-  issuedAt           DateTime                 @default(now())
-  expiresAt          DateTime?
-  createdAt          DateTime                 @default(now())
-  updatedAt          DateTime                 @updatedAt
-  productGrants      CredentialProductGrant[]
-  publicKeys         AppPublicKey[]
-  certificates       AppCertificate[]
+  consumerSecretHash   String?
+  authMethods          CredentialAuthMethod[]   @default([])
+  status               AuthorizationStatus      @default(approved)
+  attributes           Json                     @default("{}")
+  issuedAt             DateTime                 @default(now())
+  expiresAt            DateTime?
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
+  productGrants        CredentialProductGrant[]
+  publicKeys           AppPublicKey[]
+  certificates         AppCertificate[]
+  certificateIssuances CertificateIssuance[]
 }
 
 model CredentialProductGrant {
@@ -218,16 +238,76 @@ model AppPublicKey {
 }
 
 model AppCertificate {
-  id                String              @id @default(uuid())
+  id                String                @id @default(uuid())
   credentialId      String
-  credential        AppCredential       @relation(fields: [credentialId], references: [id], onDelete: Cascade)
-  fingerprintSha256 String              @unique
+  credential        AppCredential         @relation(fields: [credentialId], references: [id], onDelete: Cascade)
+  authorityId       String?
+  authority         CertificateAuthority? @relation(fields: [authorityId], references: [id], onDelete: Restrict)
+  fingerprintSha256 String                @unique
+  certificatePem    String?
+  chainPem          String?
+  source            CertificateSource     @default(legacy)
   serialNumber      String?
   subject           String?
   issuer            String?
-  status            AuthorizationStatus @default(approved)
-  validFrom         DateTime            @default(now())
+  status            AuthorizationStatus   @default(approved)
+  validFrom         DateTime              @default(now())
   expiresAt         DateTime?
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
+  revokedAt         DateTime?
+  revocationReason  String?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  issuance          CertificateIssuance?
+
+  @@index([authorityId])
+}
+
+/// A trust anchor owned by one organization. Managed authorities can issue
+/// client certificates; external authorities contribute public trust only.
+model CertificateAuthority {
+  id                 String                     @id @default(uuid())
+  organizationId     String
+  organization       Organization               @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  name               String
+  kind               CertificateAuthorityKind
+  status             CertificateAuthorityStatus @default(draft)
+  isDefaultIssuer    Boolean                    @default(false)
+  certificatePem     String
+  chainPem           String?
+  fingerprintSha256  String                     @unique
+  subject            String
+  serialNumber       String
+  validFrom          DateTime
+  expiresAt          DateTime
+  keyRef             String?
+  crlPem             String?
+  crlThisUpdate      DateTime?
+  crlNextUpdate      DateTime?
+  crlDistributionUrl String?
+  certificates       AppCertificate[]
+  issuances          CertificateIssuance[]
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+
+  @@index([organizationId, status])
+}
+
+/// Audit record for a CSR signing attempt. The client private key never enters
+/// this model or any other platform persistence surface.
+model CertificateIssuance {
+  id            String               @id @default(uuid())
+  authorityId   String
+  authority     CertificateAuthority @relation(fields: [authorityId], references: [id], onDelete: Restrict)
+  credentialId  String
+  credential    AppCredential        @relation(fields: [credentialId], references: [id], onDelete: Restrict)
+  csrSha256     String
+  requestedDays Int
+  certificateId String?              @unique
+  certificate   AppCertificate?      @relation(fields: [certificateId], references: [id], onDelete: SetNull)
+  errorCode     String?
+  createdAt     DateTime             @default(now())
+  completedAt   DateTime?
+
+  @@index([authorityId, createdAt])
+  @@index([credentialId, createdAt])
 }
