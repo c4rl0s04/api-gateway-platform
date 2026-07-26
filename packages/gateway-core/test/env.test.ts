@@ -1,0 +1,62 @@
+import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
+import { loadEnv } from '../src/config/env';
+
+describe('gateway environment', () => {
+  it('applies documented defaults and coerces PORT', () => {
+    const env = loadEnv({
+      NODE_ENV: 'test',
+      DATABASE_URL: 'postgresql://user:pass@localhost:5432/gateway',
+      PORT: '4100',
+    });
+
+    assert.equal(env.PORT, 4100);
+    assert.equal(env.HOST, '0.0.0.0');
+    assert.equal(env.REDIS_URL, 'redis://localhost:6379');
+    assert.equal(env.LOG_LEVEL, 'info');
+  });
+
+  it('rejects missing or malformed required configuration', () => {
+    assert.throws(() => loadEnv({}), /DATABASE_URL/);
+    assert.throws(
+      () => loadEnv({
+        NODE_ENV: 'test',
+        DATABASE_URL: 'postgresql://user:pass@localhost:5432/gateway',
+        PORT: '70000',
+      }),
+      /less than or equal to 65535/,
+    );
+    assert.throws(
+      () => loadEnv({
+        NODE_ENV: 'test',
+        DATABASE_URL: 'postgresql://user:pass@localhost:5432/gateway',
+        REDIS_URL: 'https://redis.example.com',
+      }),
+      /redis:\/\/ or rediss:\/\//,
+    );
+  });
+
+  it('requires an explicit gateway environment in production', () => {
+    assert.throws(
+      () => loadEnv({
+        NODE_ENV: 'production',
+        DATABASE_URL: 'postgresql://user:pass@localhost:5432/gateway',
+      }),
+      /GATEWAY_ENVIRONMENT_ID is required outside tests/,
+    );
+
+    assert.equal(
+      loadEnv({
+        NODE_ENV: 'production',
+        DATABASE_URL: 'postgresql://user:pass@localhost:5432/gateway',
+        GATEWAY_ENVIRONMENT_ID: 'env-prod-es',
+        OAUTH_ISSUER: 'https://gateway.example.com',
+        OAUTH_TOKEN_ENDPOINT_AUDIENCE: 'https://gateway.example.com/oauth/token',
+        OAUTH_SIGNING_PRIVATE_KEY_BASE64: 'placeholder',
+        OAUTH_SIGNING_KEY_ID: 'gateway-1',
+        MTLS_TRUSTED_PROXY_CIDRS: '10.0.0.0/8',
+      }).GATEWAY_ENVIRONMENT_ID,
+      'env-prod-es',
+    );
+  });
+});
