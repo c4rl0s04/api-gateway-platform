@@ -1,0 +1,16 @@
+{
+  "name": "@api-gateway/pki",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc --project tsconfig.json",
+    "test": "tsx --test test/*.test.ts",
+    "lint": "echo \"TODO: lint\""
+  },
+  "devDependencies": {
+    "@types/node": "^20.8.7",
+    "tsx": "^4.23.0",
+    "typescript": "^5.2.2"
+  }
+}

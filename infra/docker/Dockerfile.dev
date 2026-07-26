@@ -6,6 +6,7 @@ WORKDIR /app
 
 COPY package.json package-lock.json ./
 COPY packages/shared/package.json packages/shared/package.json
+COPY packages/pki/package.json packages/pki/package.json
 COPY packages/database/package.json packages/database/package.json
 COPY packages/gateway-core/package.json packages/gateway-core/package.json
 COPY packages/management-api/package.json packages/management-api/package.json
@@ -14,11 +15,13 @@ RUN npm ci
 
 COPY tsconfig.base.json ./
 COPY packages/shared packages/shared
+COPY packages/pki packages/pki
 COPY packages/database packages/database
 COPY packages/gateway-core packages/gateway-core
 COPY mock-backend.js mock-backend.json ./
 
 RUN npm run build --workspace=packages/shared \
+    && npm run build --workspace=packages/pki \
     && npm run build --workspace=packages/database \
     && npm run build --workspace=packages/gateway-core
 
