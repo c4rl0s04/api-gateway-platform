@@ -5,6 +5,9 @@
   "workspaces": [
     "packages/*"
   ],
+  "engines": {
+    "node": ">=22.19.0"
+  },
   "scripts": {
     "dev": "npm run dev --workspaces --if-present",
     "build": "npm run build -w packages/shared && npm run build -w packages/database && npm run build -w packages/gateway-core && npm run build -w packages/management-api && npm run build -w packages/admin-panel",
