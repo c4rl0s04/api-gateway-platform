@@ -1,62 +1,71 @@
-# 🔄 Hot Reload Sync
-
-> [!WARNING]
-> 🔲 **Not Yet Implemented** — This feature is planned but has not been built yet.
-
-## Overview
-
-Hot Reload Sync is the mechanism that will allow the gateway to **automatically reload its routing configuration** when changes are made through the Management API, without requiring a restart.
-
+---
+title: Hot Reload Sync
+type: architecture
+doc_status: current
+implementation_status: planned
+last_verified: 2026-07-27
+tags:
+  - type/architecture
+  - area/gateway-core
+sources:
+  - packages/gateway-core/src/db/proxy-loader.ts
+  - packages/gateway-core/src/redis/client.ts
+  - packages/gateway-core/src/proxy/resolver.ts
+aliases: []
 ---
 
-## Planned Architecture: Redis Pub/Sub
+# Hot Reload Sync
 
-The synchronization between the Control Plane and Data Plane will use **Redis Pub/Sub** as a lightweight message bus.
+> [!summary] At a glance
+> Configuration hot reload is a planned Redis-based design; the gateway currently loads configuration only during startup.
 
-### Flow
+## Context
+
+Administrative changes eventually need to reach running data-plane instances
+without interrupting traffic. Current code provides a replaceable in-memory
+registry but no configuration subscriber or Management API publisher.
+
+## Components
 
 ```mermaid
 sequenceDiagram
     participant Admin as Admin Panel
-    participant MAPI as management-api
-    participant PG as PostgreSQL
-    participant Redis as Redis
-    participant GW as gateway-core
+    participant API as management-api
+    participant DB as PostgreSQL
+    participant Redis
+    participant Gateway as gateway-core
 
-    Admin->>MAPI: Save proxy configuration
-    MAPI->>PG: Write changes to database
-    MAPI->>Redis: PUBLISH "config:updated"
-    Redis->>GW: Message received on subscription
-    GW->>PG: Re-read proxy configuration
-    GW->>GW: Rebuild routing table
-    Note over GW: New requests use updated routes
+    Admin->>API: Submit validated change
+    API->>DB: Commit transaction
+    API->>Redis: Publish versioned invalidation
+    Redis-->>Gateway: Receive invalidation
+    Gateway->>DB: Load complete snapshot
+    Gateway->>Gateway: Validate and atomically replace registry
 ```
 
-### Step-by-Step
+Every arrow in this sequence is planned.
 
-1. **Admin saves** — A user modifies a proxy, endpoint, or policy via the admin panel
-2. **management-api writes to PostgreSQL** — The change is persisted to the database
-3. **management-api publishes to Redis** — A notification is sent to the `config:updated` channel
-4. **gateway-core subscribes** — The gateway receives the notification via its Redis subscription
-5. **gateway-core reloads** — The gateway re-reads all proxy configurations from PostgreSQL and rebuilds its routing table
+## Data Flow
 
-> [!NOTE]
-> During the reload, the gateway continues serving requests with the **previous** configuration. The switch is atomic — once the new routing table is built, it replaces the old one.
+The database remains the source of truth. Redis should carry an invalidation or
+version signal, not the full canonical configuration. Each gateway should build
+and validate a complete replacement registry before swapping it into service.
 
----
+## Failure Modes
 
-## Why Redis?
+- A lost Pub/Sub message can leave a gateway stale.
+- Publishing before transaction commit can expose incomplete configuration.
+- Invalid snapshots must not replace the last known-good registry.
+- Multiple rapid changes require coalescing or version comparison.
+- Reconnection must trigger reconciliation because Redis Pub/Sub is not durable.
 
-| Alternative | Why Not |
-| ----------- | ------- |
-| Polling the database | Wasteful, adds latency, hammers PostgreSQL |
-| Webhooks | Requires the gateway to expose an HTTP endpoint for control |
-| File watching | Not suitable for distributed deployments |
-| **Redis Pub/Sub** | ✅ Lightweight, real-time, already in the stack |
+## Constraints
 
----
+The existing Redis client is lazy and policy-focused. Implementing this design
+requires a separate long-lived subscription lifecycle and tests across multiple
+gateway instances.
 
-## Related Pages
+## Sources
 
-- [[Global Architecture]]
-- [[Data Plane vs Control Plane]]
+See [[Control Plane Flow]], [[Data Plane vs Control Plane]], and
+[[Current Status]].

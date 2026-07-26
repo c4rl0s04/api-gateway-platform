@@ -1,104 +1,62 @@
+---
+title: Data Plane vs Control Plane
+type: concept
+doc_status: current
+implementation_status: partial
+last_verified: 2026-07-27
+tags:
+  - type/concept
+  - area/project
+sources:
+  - packages/gateway-core/src/server.ts
+  - packages/management-api/src/server.ts
+  - packages/admin-panel/app
+aliases: []
+---
+
 # Data Plane vs Control Plane
 
-The **Data Plane / Control Plane** separation is a fundamental architectural pattern in API gateways (and networking in general). Our platform follows this pattern to keep live traffic handling completely decoupled from administrative operations.
+> [!summary] At a glance
+> The data plane handles live API traffic, while the partially built control plane is intended to manage configuration.
 
----
+## Definition
 
-## Data Plane — `gateway-core`
+The data plane is the latency-sensitive path followed by API requests. The
+control plane is the administrative path used to create, validate, and deploy
+the configuration consumed by the data plane.
 
-The Data Plane is the **fast path**. It handles every single client request in real time.
+## Why It Matters
 
-**Responsibilities:**
-- Receive incoming HTTP requests
-- Match requests to proxies via **Longest Prefix Match** on basePaths
-- Forward requests to the correct backend (reverse proxy)
-- Apply policies (rate limiting, auth, transformation) — *future*
-- Return responses to clients
+Separating the planes allows request processing to remain independent from the
+availability and scaling profile of administration tools.
 
-**Key design decision:** The Data Plane loads all proxy/endpoint configuration **into memory (RAM)** at startup. It **never queries the database per request**. This ensures:
-- Ultra-low latency routing
-- No database dependency during live traffic
-- Database outages don't crash the gateway
+| Plane | Package | Current responsibility | Maturity |
+| --- | --- | --- | --- |
+| Data | `gateway-core` | Load configuration, route, execute policies, forward | Implemented |
+| Control API | `management-api` | Health endpoint; CRUD is intended | Partial |
+| Control UI | `admin-panel` | Placeholder Next.js pages | Partial |
 
-```
-┌─────────────────────────────────────────┐
-│              DATA PLANE                 │
-│           (gateway-core)                │
-│                                         │
-│   ┌─────────────┐   ┌───────────────┐  │
-│   │  In-Memory   │   │   Routing     │  │
-│   │  Registry    │──►│   Engine      │  │
-│   │  (proxies +  │   │  (LPM match)  │  │
-│   │  endpoints)  │   └───────┬───────┘  │
-│   └──────▲───────┘           │          │
-│          │              Forward to      │
-│     Load at startup     backend URL     │
-│          │                   │          │
-└──────────┼───────────────────┼──────────┘
-           │                   ▼
-     ┌─────┴─────┐      ┌──────────┐
-     │ PostgreSQL │      │ Backend  │
-     │   (read)   │      │ Services │
-     └────────────┘      └──────────┘
+## Project Mapping
+
+```mermaid
+flowchart LR
+    CLIENT["API client"] --> DATA["gateway-core"]
+    DATA --> BACKEND["Backend"]
+    DATA --> DATABASE["PostgreSQL snapshot source"]
+    DATA --> REDIS["Redis rate limiting"]
+
+    ADMIN["Administrator"] -. "planned" .-> PANEL["admin-panel"]
+    PANEL -. "planned" .-> CONTROL["management-api"]
+    CONTROL -. "planned writes" .-> DATABASE
 ```
 
----
+The gateway does not query PostgreSQL per request, but it does depend on the
+database during startup. Runtime configuration changes require a restart
+because synchronization between the planes is not implemented.
 
-## Control Plane — `management-api` + `admin-panel`
+## Related Notes
 
-The Control Plane is the **admin path**. It handles configuration, not traffic.
-
-**Responsibilities:**
-- CRUD operations on proxies, endpoints, and policies
-- Persist all configuration to **PostgreSQL** via Prisma ORM
-- Provide a REST API for programmatic access (`management-api`)
-- Provide a web dashboard for visual management (`admin-panel`) — *future*
-
-```
-┌─────────────────────────────────────────┐
-│            CONTROL PLANE                │
-│                                         │
-│   ┌──────────────┐  ┌───────────────┐   │
-│   │ admin-panel   │  │ management-   │   │
-│   │ (React UI)    │─►│ api (Express) │   │
-│   └──────────────┘  └───────┬───────┘   │
-│                             │           │
-│                        CRUD ops         │
-│                             │           │
-└─────────────────────────────┼───────────┘
-                              ▼
-                       ┌────────────┐
-                       │ PostgreSQL │
-                       │ (read/write)│
-                       └────────────┘
-```
-
----
-
-## Synchronization Between Planes
-
-When an admin creates or updates a proxy via the Control Plane, the Data Plane needs to know about it.
-
-| Strategy            | Status    | How It Works                                              |
-| ------------------- | --------- | --------------------------------------------------------- |
-| **Restart**         | ✅ Current | Restart `gateway-core` to reload all config from DB       |
-| **Hot Reload API**  | 🔲 Planned | Hit a `POST /reload` endpoint on gateway-core to refresh  |
-| **Redis Pub/Sub**   | 🔲 Future  | Control Plane publishes events, Data Plane subscribes     |
-| **Webhook/Polling** | 🔲 Future  | Data Plane polls or receives webhook on config changes    |
-
----
-
-## Why This Matters
-
-1. **Independent Scaling** — Scale the Data Plane (more gateway instances) without touching the Control Plane, and vice versa.
-2. **Fault Isolation** — If the admin panel crashes, live API traffic is **completely unaffected**.
-3. **Performance** — The Data Plane never waits on database queries during request handling.
-4. **Security** — The Data Plane doesn't need write access to the database. Smaller attack surface.
-
----
-
-## See Also
-
-- [[Global Architecture]] — Full system architecture diagram
-- [[Hot Reload Sync]] — Detailed plan for real-time config synchronization
-- [[gateway-core]] — Data Plane implementation details
+- [[Global Architecture]]
+- [[Control Plane Flow]]
+- [[Hot Reload Sync]]
+- [[gateway-core]]

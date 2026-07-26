@@ -1,4 +1,21 @@
+---
+title: "ADR-001: Longest Prefix Match"
+type: decision
+doc_status: current
+implementation_status: implemented
+decision_status: accepted
+last_verified: 2026-07-27
+tags:
+  - type/decision
+  - area/gateway-core
+sources:
+  - packages/gateway-core/src/proxy/resolver.ts
+aliases: []
+---
 # ADR-001: Longest Prefix Match
+
+> [!summary] At a glance
+> The gateway resolves overlapping proxy base paths by choosing the longest boundary-safe match.
 
 | Field | Value |
 | ----- | ----- |
@@ -58,13 +75,13 @@ Require the `basePath` to match the URL exactly (no prefix matching).
 
 ## Consequences
 
-### ✅ Positive
+### Positive
 
 - **Deterministic** — Same request always matches the same proxy, regardless of insertion order
 - **Intuitive** — More specific paths naturally take priority over general ones
 - **Industry standard** — Follows Apigee and router conventions
 
-### ⚠️ Constraints
+### Constraints
 
 - **Base paths must be unique** — Two proxies cannot have the same `basePath`
 - **Path design matters** — Proxy base paths should be designed with a clear hierarchy

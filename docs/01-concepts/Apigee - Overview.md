@@ -1,4 +1,20 @@
-# Apigee — Overview
+---
+title: "Apigee - Overview"
+type: concept
+doc_status: current
+implementation_status: not-applicable
+last_verified: 2026-07-27
+tags:
+  - type/concept
+  - area/project
+sources: []
+aliases:
+  - "Apigee — Overview"
+---
+# Apigee - Overview
+
+> [!summary] At a glance
+> This note introduces the Apigee resource model and maps its vocabulary to this project without implying feature parity.
 
 **Google Apigee** is a full-lifecycle API management platform. It lets organizations design, secure, deploy, monitor, and scale APIs. Our project takes heavy inspiration from Apigee's architecture — specifically its resource hierarchy, proxy model, and policy engine.
 
@@ -51,15 +67,16 @@ Policies are **reusable units of logic** attached to flows. Examples: rate limit
 
 | Apigee Concept    | Our Equivalent                      | Notes                                           |
 | ----------------- | ----------------------------------- | ------------------------------------------------ |
-| Organization      | (single-tenant for now)             | Future: multi-org support                        |
-| Environment       | (single env for now)                | Future: dev/staging/prod environments            |
-| API Proxy         | `Proxy` model in Prisma             | Stored in PostgreSQL, loaded into memory         |
+| Organization      | `Organization` model                | Owns proxies, products and apps                  |
+| Environment       | `Environment` model                 | Closed stage and country/region target           |
+| API Proxy         | `ApiProxy` model                    | Logical definition independent of deployment    |
+| Deployment        | `ProxyDeployment` model             | Links proxy, environment and upstream server     |
 | ProxyEndpoint     | `Endpoint` model in Prisma          | Each proxy has multiple endpoints with basePaths |
-| TargetEndpoint    | `targetUrl` field on Endpoint       | The backend URL to forward requests to           |
-| BasePath          | `basePath` field on Endpoint        | Used for Longest Prefix Match routing            |
-| Flows             | (not yet implemented)               | Future: PreFlow / PostFlow pipeline              |
-| Policies          | (not yet implemented)               | Future: JSON-based policy engine                 |
-| Policy XML Config | JSON config (planned)               | We'll convert Apigee's XML model to JSON         |
+| TargetEndpoint    | `upstreamBaseUrl` + `targetPath`    | Deployment server plus endpoint path             |
+| BasePath          | `basePath` field on ApiProxy        | Used for Longest Prefix Match routing            |
+| Flows             | Policy pipeline                     | Ordered request policies implemented             |
+| Policies          | `EndpointPolicy` + registry         | JSON configuration validated at startup          |
+| XML policy input  | Planned compatibility layer         | Current persistence and runtime config are JSON  |
 
 ---
 

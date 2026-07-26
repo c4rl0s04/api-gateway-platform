@@ -1,89 +1,69 @@
-# 📦 Monorepo and Packages
-
-## What is a Monorepo?
-
-A **monorepo** (monolithic repository) is a single Git repository that contains multiple related projects or packages. Instead of having separate repositories for the gateway, the database layer, and the management API, everything lives together under one roof.
-
-### Benefits
-
-- **Shared code**: Common types and utilities are shared without publishing to npm
-- **Atomic changes**: A single commit can update the gateway and the database schema together
-- **Unified tooling**: One `tsconfig`, one linter config, one CI pipeline
-- **Simplified dependency management**: Internal packages reference each other directly
-
+---
+title: Monorepo and Packages
+type: architecture
+doc_status: current
+implementation_status: partial
+last_verified: 2026-07-27
+tags:
+  - type/architecture
+  - area/project
+sources:
+  - package.json
+  - packages/shared/package.json
+  - packages/database/package.json
+  - packages/gateway-core/package.json
+  - packages/management-api/package.json
+  - packages/admin-panel/package.json
+aliases: []
 ---
 
-## npm Workspaces
+# Monorepo and Packages
 
-This project uses **npm workspaces** (built into npm 7+) to manage the monorepo. The root `package.json` declares workspace paths:
+> [!summary] At a glance
+> npm workspaces coordinate five packages with a deliberate dependency direction from shared contracts and persistence toward runtime applications.
 
-```json
-{
-  "workspaces": [
-    "packages/*"
-  ]
-}
-```
+## Context
 
-This means:
-- Running `npm install` at the root installs dependencies for **all** packages
-- Internal packages (e.g., `@api-gateway/shared`) are symlinked automatically
-- Scripts can target specific workspaces: `npm run dev --workspace=packages/gateway-core`
+The root `package.json` includes every directory under `packages/*`. Root
+scripts delegate build, test, lint, and development tasks to those workspaces.
 
----
-
-## Package Dependency Graph
+## Components
 
 ```mermaid
-graph LR
-    shared["@api-gateway/shared<br/><i>Types only</i>"]
-    db["@api-gateway/database<br/><i>Prisma + DB access</i>"]
-    gw["@api-gateway/gateway-core<br/><i>Data Plane</i>"]
-    mapi["@api-gateway/management-api<br/><i>Control Plane API</i>"]
-    admin["admin-panel<br/><i>React Dashboard</i>"]
-
-    gw --> db
-    gw --> shared
-    db --> shared
-    mapi --> db
-    mapi --> shared
-    admin -->|HTTP| mapi
+flowchart TD
+    SHARED["@api-gateway/shared"] --> DATABASE["@api-gateway/database"]
+    SHARED --> GATEWAY["gateway-core"]
+    DATABASE --> GATEWAY
+    DATABASE --> MANAGEMENT["management-api"]
+    MANAGEMENT -. "planned HTTP API" .-> PANEL["admin-panel"]
 ```
 
-> [!NOTE]
-> All arrows represent **compile-time dependencies** (npm workspace links) except `admin-panel → management-api`, which is an **HTTP runtime dependency**.
+| Package | Current responsibility | Status |
+| --- | --- | --- |
+| [[shared]] | Routing, deployment, and policy contracts | Implemented |
+| [[database]] | Prisma schema, client, seeds, and deployment operation | Implemented |
+| [[gateway-core]] | Routing, policy execution, and forwarding | Implemented |
+| [[management-api]] | Health endpoint and control-plane scaffold | Partial |
+| [[admin-panel]] | Next.js page scaffold | Partial |
 
----
+## Data Flow
 
-## Package Summary
+`shared` must not depend on runtime packages. `database` owns persistence.
+`gateway-core` consumes validated configuration. The future Management API
+should call database domain operations rather than duplicating invariants.
 
-| Package | Path | Status | Description |
-| ------- | ---- | ------ | ----------- |
-| **shared** | `packages/shared/` | ✅ Active | Shared TypeScript types used by all other packages |
-| **database** | `packages/database/` | ✅ Active | Prisma schema, migrations, seed data, DB singleton |
-| **gateway-core** | `packages/gateway-core/` | ✅ Active | Data Plane — receives and forwards API traffic |
-| **management-api** | `packages/management-api/` | 🔲 Minimal | Control Plane API — planned CRUD endpoints |
-| **admin-panel** | `packages/admin-panel/` | 🔲 Not Started | React dashboard for managing the gateway |
+## Failure Modes
 
----
+- Building a consumer before its internal dependencies can leave stale `dist` output.
+- Root `dev` starts all available workspace dev scripts and can encounter port collisions.
+- Placeholder test and lint scripts can produce a successful command without meaningful coverage.
 
-## Root-Level Files
+## Constraints
 
-| File | Purpose |
-| ---- | ------- |
-| `package.json` | Workspace definitions, root scripts |
-| `tsconfig.base.json` | Shared TypeScript configuration |
-| `docker-compose.yml` | PostgreSQL, Redis, Prometheus, Grafana |
-| `.env` | Environment variables (DATABASE_URL, etc.) |
-| `.gitignore` | Ignores node_modules, dist, generated files |
-| `README.md` | Project overview and quick start |
+Package names are not fully uniform: internal libraries use the
+`@api-gateway/*` scope while application packages currently use unscoped names.
+This is existing behavior, not a documentation convention.
 
----
+## Sources
 
-## Related Pages
-
-- [[gateway-core]]
-- [[database]]
-- [[shared]]
-- [[management-api]]
-- [[admin-panel]]
+See each package note for boundaries and public contracts.

@@ -1,4 +1,19 @@
+---
+title: "What is an API Gateway?"
+type: concept
+doc_status: current
+implementation_status: not-applicable
+last_verified: 2026-07-27
+tags:
+  - type/concept
+  - area/project
+sources: []
+aliases: []
+---
 # What is an API Gateway?
+
+> [!summary] At a glance
+> An API gateway centralizes routing and cross-cutting controls between API clients and backend services.
 
 An **API Gateway** is a server that acts as the single entry point for all client requests to your backend services. Instead of clients communicating directly with multiple microservices, they send everything through the gateway, which routes, transforms, secures, and monitors each request before forwarding it to the appropriate backend.
 

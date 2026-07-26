@@ -1,38 +1,53 @@
+---
+title: API Gateway Platform
+type: map
+doc_status: current
+implementation_status: partial
+last_verified: 2026-07-27
+tags:
+  - type/map
+  - area/project
+sources:
+  - package.json
+  - docker-compose.yml
+aliases:
+  - Documentation Home
+---
+
 # API Gateway Platform
 
-We're building an enterprise-grade API Gateway inspired by Google Apigee. It acts as a reverse proxy sitting between client applications and backend services, handling routing, security policies, rate limiting, and request transformation.
+> [!summary] At a glance
+> This vault is the entry point for understanding, running, changing, and troubleshooting the API Gateway Platform.
 
-The platform follows a **Control Plane / Data Plane** separation. The Data Plane (`gateway-core`) handles real-time traffic routing using an in-memory registry loaded from PostgreSQL. The Control Plane (`management-api` + `admin-panel`) will let administrators configure proxies, endpoints, and policies via a web dashboard.
+The project is a TypeScript monorepo for a lightweight API gateway inspired by
+Google Apigee. It separates real-time request processing in the data plane from
+configuration management in the control plane.
 
-This documentation vault serves as the single source of truth for architecture decisions, concepts, and implementation guides. Whether you're onboarding, reviewing design choices, or looking up how a specific component works — start here.
+## Start Here
 
----
+- [[00-map/Project Map|Project Map]] - navigate by domain or task.
+- [[00-map/Current Status|Current Status]] - see what is implemented, partial, or planned.
+- [[00-map/Documentation Index|Documentation Index]] - browse every note and its metadata.
+- [[04-guides/How to Start the Project|How to Start the Project]] - run the project locally.
+- [[04-guides/How to Run Tests|How to Run Tests]] - execute workspace and documentation checks.
+- [[04-guides/How to Document the Project|How to Document the Project]] - create and maintain notes.
 
-## Current Status
+## Main Areas
 
-| Week | Milestone            | Status |
-| ---- | -------------------- | ------ |
-| 1    | Routing Engine       | ✅      |
-| 2    | PostgreSQL Integration | ✅      |
-| 3    | Management API       | 🔲      |
-| 4    | Policy Engine        | 🔲      |
-| 5    | Admin Panel          | 🔲      |
-| 6    | Metrics & Monitoring | 🔲      |
+| Area | Purpose |
+| --- | --- |
+| [[01-concepts/What is an API Gateway|Concepts]] | Domain vocabulary and the Apigee model |
+| [[02-architecture/Global Architecture|Architecture]] | Components, boundaries, data flows, and failure modes |
+| [[03-packages/gateway-core|Packages]] | Ownership and public contracts for each workspace |
+| [[04-guides/How to Start the Project|Guides]] | Reproducible development procedures |
+| [[05-decisions/ADR-001 Longest Prefix Match|Decisions]] | Accepted architecture decisions |
+| [[06-reference/Environment Variables|Reference]] | Exact values derived from code and configuration |
+| [[07-runbooks/Debug Gateway 404|Runbooks]] | Operational diagnosis and recovery |
 
----
+## Documentation Contract
 
-## Quick Navigation
+Every content note starts with validated frontmatter and an `At a glance`
+summary. Current behavior must cite repository sources. Planned behavior must be
+labelled as planned and kept separate from implemented behavior.
 
-- [[01-concepts]] — Core concepts: what an API Gateway is, Apigee model, Data Plane vs Control Plane
-- [[02-architecture]] — System architecture, diagrams, and component breakdown
-- [[03-adr]] — Architecture Decision Records (ADRs)
-- [[04-guides]] — How-to guides for setup, development, and deployment
-- [[05-weekly-log]] — Weekly progress logs and retrospectives
-- [[06-policies]] — Policy definitions and implementation details
-- [[07-references]] — External links, specs, and research notes
-
----
-
-## Quick Start
-
-👉 **New here?** Start with [[How to Start the Project]] to get the platform running locally.
+Run `npm run docs:check` before committing documentation changes.

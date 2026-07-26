@@ -1,70 +1,57 @@
-# 🔍 How to Use Prisma Studio
-
-## What is Prisma Studio?
-
-Prisma Studio is a **visual database browser** that lets you view and edit data in your PostgreSQL database through a web interface. It's like phpMyAdmin or pgAdmin, but designed specifically for Prisma schemas.
-
 ---
+title: How to Use Prisma Studio
+type: guide
+doc_status: current
+implementation_status: implemented
+last_verified: 2026-07-27
+tags:
+  - type/guide
+  - area/database
+sources:
+  - packages/database/package.json
+  - packages/database/prisma/schema.prisma
+aliases: []
+---
+
+# How to Use Prisma Studio
+
+> [!summary] At a glance
+> Prisma Studio is useful for inspecting local configuration, but manual writes can bypass domain invariants and are not reloaded by a running gateway.
+
+## Goal
+
+Inspect local PostgreSQL records through Prisma's browser interface.
 
 ## Prerequisites
 
-1. ✅ PostgreSQL is running (`docker-compose up postgres -d`)
-2. ✅ Database is migrated (`npm run db:migrate --workspace=packages/database`)
-3. ✅ Prisma Client is generated (`npm run db:generate --workspace=packages/database`)
+- PostgreSQL is running.
+- Migrations are applied.
+- `DATABASE_URL` points to the intended local database.
 
----
-
-## Launch Command
+## Steps
 
 ```bash
 npm run db:studio --workspace=packages/database
 ```
 
-This opens Prisma Studio in your browser at:
+Prisma Studio normally opens on `http://localhost:5555`.
 
-> **http://localhost:5555**
+Use it to inspect organizations, environments, proxies, deployments,
+endpoints, policies, products, applications, and credentials.
 
----
+## Verification
 
-## What You Can Do
+Confirm that each active proxy has an active deployment and explicit endpoints.
+For protected endpoints, verify the policy order and enabled state.
 
-| Action | Description |
-| ------ | ----------- |
-| **Browse tables** | View all records in Organization, Environment, ApiProxy, Endpoint, EndpointPolicy |
-| **Filter data** | Search and filter records by any column |
-| **Edit records** | Click on any cell to edit values inline |
-| **Add records** | Create new rows directly in the UI |
-| **Delete records** | Remove records (be careful with cascading deletes!) |
-| **View relations** | Navigate between related records (e.g., from a Proxy to its Endpoints) |
+## Troubleshooting or Rollback
 
----
+Do not create deployments manually: that bypasses `createProxyDeployment()` and
+its stage progression. A running gateway will not see changes until it restarts.
+Use [[Reset Local Database]] only for disposable local data.
 
-## Useful Actions
+## Related Notes
 
-### Inspect seed data
-
-After seeding, open Prisma Studio to verify that all sample proxies, endpoints, and policies were created correctly.
-
-### Quick debugging
-
-If the gateway shows `proxiesLoaded: 0`, use Prisma Studio to check whether any active proxies exist in the `ApiProxy` table.
-
-### Manual configuration
-
-While the Management API is not yet built, you can use Prisma Studio as a temporary admin panel to add or modify proxy configurations.
-
----
-
-## ⚠️ Important Notes
-
-> [!CAUTION]
-> If you modify data in Prisma Studio while the gateway is running, the gateway will **not** automatically pick up the changes. You need to **restart the gateway** for it to reload the proxy configuration from the database.
->
-> This limitation will be resolved when [[Hot Reload Sync]] is implemented.
-
----
-
-## Related Pages
-
-- [[Database and Prisma]]
-- [[database]]
+- [[Data Model]]
+- [[Database Schema]]
+- [[Hot Reload Sync]]

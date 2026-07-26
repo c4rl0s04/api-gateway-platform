@@ -1,37 +1,42 @@
 # API Gateway Platform
 
-A multi-tenant API Gateway inspired by Apigee.
+A TypeScript monorepo for a lightweight API gateway inspired by Google Apigee.
 
-## Architecture
-- **Data Plane (gateway-core)**: Fastify server handling proxying, policies, and rate-limiting.
-- **Control Plane (management-api)**: Fastify server providing CRUD for organizations, proxies, products, and apps.
-- **Admin Panel (admin-panel)**: Next.js dashboard for configuration.
+The implemented data plane loads proxy deployments from PostgreSQL, resolves
+explicit endpoints, executes API key and rate-limit policies, and forwards HTTP
+traffic. The Management API and Admin Panel are partial scaffolds.
 
-## Getting Started
+## Documentation
+
+Open [`docs/`](docs/README.md) as an Obsidian vault or browse it directly:
+
+- [Project Map](docs/00-map/Project%20Map.md)
+- [Current Status](docs/00-map/Current%20Status.md)
+- [How to Start the Project](docs/04-guides/How%20to%20Start%20the%20Project.md)
+
+Validate documentation with:
+
 ```bash
-# Start infrastructure (Postgres, Redis, Prometheus, Grafana)
-docker-compose up -d
-
-# Install dependencies
-npm install
-
-# Run services
-npm run dev
+npm run docs:index
+npm run docs:check
 ```
 
-## 📅 Implementation Roadmap
+## Development
 
-> **Design Note (Policies):** In week 4, the policy engine will be designed simulating the exact behavior of Apigee. Policy configurations (AssignMessage, OAuth, etc.) will be stored and defined using **XML** format. The `gateway-core` will be in charge of parsing this XML to JSON at load time and executing the logic in the corresponding flow (Request PreFlow, Target PostFlow, etc.).
+```bash
+npm install
+docker compose up -d postgres redis
+npm run db:migrate:deploy --workspace=packages/database
+npm run db:seed --workspace=packages/database
+npm run db:seed:policies --workspace=packages/database
+```
 
-### Week 1: Setup and Gateway Core (Data Plane)
-- [x] Monorepo structure (`npm workspaces`).
+Start the mock upstream and gateway in separate terminals:
 
-## Roadmap
-- [ ] Week 1: Gateway Core base & Proxy Forwarding
-- [ ] Week 2: Management API base & Data Model
-- [ ] Week 3: Admin Panel scaffolding
-- [ ] Week 4: Policies execution engine (Auth, Rate-Limit)
-- [ ] Week 5: CI/CD Setup
-- [ ] Week 6: Metrics & Monitoring integration
-- [ ] Week 7: Advanced Policies (Transform, Validation)
-- [ ] Week 8: Polish & Documentation
+```bash
+npm run mock-backend
+npm run dev --workspace=packages/gateway-core
+```
+
+Do not start all workspaces together until the current local port collisions are
+resolved. See [Ports](docs/06-reference/Ports.md).

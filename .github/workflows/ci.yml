@@ -33,6 +33,8 @@ jobs:
         with:
           node-version: 22.19.0
       - run: npm install
+      - run: npm run docs:test
+      - run: npm run docs:check
       - run: npm run lint
       - run: npm run build
       - name: Setup Database

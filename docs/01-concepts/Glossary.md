@@ -1,4 +1,19 @@
+---
+title: "Glossary"
+type: concept
+doc_status: current
+implementation_status: not-applicable
+last_verified: 2026-07-27
+tags:
+  - type/concept
+  - area/project
+sources: []
+aliases: []
+---
 # Glossary
+
+> [!summary] At a glance
+> This glossary defines the project vocabulary used across architecture, package, guide, and reference notes.
 
 Quick reference for key terms used throughout this documentation vault.
 
@@ -9,14 +24,15 @@ Quick reference for key terms used throughout this documentation vault.
 | **API Gateway**             | A server that acts as the single entry point for client requests, routing them to backend services while applying security, rate limiting, and transformations. See [[What is an API Gateway]]. |
 | **API Proxy**               | The core configuration unit that defines how incoming requests are received, processed, and forwarded to a backend. See [[Apigee - Overview]].     |
 | **BasePath**                | The URL prefix (e.g., `/api/users`) used to match incoming requests to a specific proxy or endpoint. Matched via Longest Prefix Match.             |
-| **Endpoint**                | A specific route within a proxy, defined by a basePath and a targetUrl. Each proxy can have multiple endpoints.                                     |
-| **TargetURL**               | The backend service URL that the gateway forwards requests to after matching and policy execution.                                                  |
+| **Endpoint**                | A route within a logical proxy, with a public path, backend targetPath and policies.                                                                 |
+| **ProxyDeployment**         | Deployment of a logical proxy into one Environment. Contains the upstream server and activation state.                                               |
+| **UpstreamBaseUrl**         | Backend origin configured per deployment and combined with each endpoint targetPath.                                                                 |
 | **Policy**                  | A reusable, configurable unit of logic (e.g., rate limiting, auth) that executes during the request/response flow. See [[Policies in Apigee]].     |
 | **Flow**                    | A stage in the request processing pipeline where policies are executed. Includes PreFlow, Conditional Flows, and PostFlow.                          |
 | **PreFlow**                 | The first flow stage — policies here always execute on every request. Typically used for authentication and input validation.                        |
 | **PostFlow**                | The last flow stage — policies here always execute after conditional flows. Typically used for logging and response transformation.                  |
 | **Organization**            | In Apigee, the top-level container representing a company or team. Our project is currently single-tenant.                                          |
-| **Environment**             | A deployment context (dev, staging, prod) within an organization. Each environment has its own deployed proxies.                                    |
+| **Environment**             | Closed deployment target defined exclusively by stage and country/region.                                                                             |
 | **Data Plane**              | The component that handles real-time API traffic (`gateway-core`). Loads config into RAM, never queries the DB per request. See [[Data Plane vs Control Plane]]. |
 | **Control Plane**           | The component that handles administrative operations (`management-api` + `admin-panel`). Persists config to PostgreSQL. See [[Data Plane vs Control Plane]]. |
 | **Longest Prefix Match**    | The routing algorithm that selects the proxy/endpoint with the longest matching basePath for a given request path. E.g., `/api/users` beats `/api` for `/api/users/123`. |

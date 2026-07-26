@@ -1,60 +1,69 @@
-# ➕ How to Add a New Proxy
-
-> [!WARNING]
-> 🔲 **Will be completed when the Management API is built.** The proper workflow will be to use the admin panel or the Management API endpoints.
-
-## Current Workarounds
-
-Until the Management API is implemented, you can add new proxies using these methods:
-
+---
+title: How to Add a New Proxy
+type: guide
+doc_status: current
+implementation_status: implemented
+last_verified: 2026-07-27
+tags:
+  - type/guide
+  - area/database
+sources:
+  - packages/database/src/seed.ts
+  - packages/database/src/deployments.ts
+  - packages/database/prisma/schema.prisma
+aliases:
+  - How to Add and Deploy a Proxy
 ---
 
-### Option 1: Modify the Seed Script
+# How to Add a New Proxy
 
-Edit `packages/database/src/seed.ts` to include your new proxy, then re-run:
+> [!summary] At a glance
+> Until Management API CRUD exists, add reproducible development proxies through seeds and create deployments through the database domain operation.
 
-```bash
-npm run db:reset --workspace=packages/database
+## Goal
+
+Create a logical proxy, its explicit endpoints, and an environment-specific
+deployment without bypassing progression rules.
+
+## Prerequisites
+
+- PostgreSQL is running and migrated.
+- Prisma Client is generated.
+- The target organization and environment exist.
+
+## Steps
+
+1. Add the logical `ApiProxy` to `packages/database/src/seed.ts`.
+2. Define each public `path` and backend-relative `targetPath`.
+3. Choose a closed stage and region combination.
+4. Create the deployment through `createProxyDeployment()`:
+
+```typescript
+await createProxyDeployment({
+  proxyId: 'proxy-es-banking',
+  environmentId: 'env-qual-es',
+  upstreamBaseUrl: 'https://banking-qual.example.com',
+});
 ```
 
-> [!CAUTION]
-> `db:reset` will **delete all existing data** and re-seed from scratch. Use this only in development.
+5. Add `pprod` only after `qual`, and `prod` only after `pprod`, for the same region.
+6. Run the seed and restart `gateway-core`.
 
----
+## Verification
 
-### Option 2: Prisma Studio
+- `GET /ready` reports the expected number of loaded proxies.
+- A configured endpoint reaches the expected upstream.
+- An undeclared endpoint under the same base path returns an endpoint `404`.
 
-1. Open Prisma Studio: `npm run db:studio --workspace=packages/database`
-2. Navigate to the **ApiProxy** table
-3. Click **Add record**
-4. Fill in: `name`, `basePath`, `targetUrl`, `environmentId`, `isActive`
-5. Save the record
-6. Add related **Endpoint** records for the proxy
-7. **Restart the gateway** to pick up the new configuration
+## Troubleshooting or Rollback
 
-See [[How to Use Prisma Studio]] for more details.
+If progression is rejected, verify deployments for the same proxy and region.
+If the gateway loads duplicate base paths, set `GATEWAY_ENVIRONMENT_ID`.
+Reverting a seed definition does not remove existing rows automatically; use the
+local reset runbook only when data loss is acceptable.
 
----
+## Related Notes
 
-### Option 3: Raw SQL
-
-Connect to PostgreSQL directly and insert records:
-
-```bash
-docker exec -it api-gateway-postgres psql -U postgres -d gateway
-```
-
-```sql
-INSERT INTO "ApiProxy" (id, name, "basePath", "targetUrl", "environmentId", "isActive", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), 'my-new-proxy', '/my/api/v1', 'http://localhost:4000', '<env-id>', true, now(), now());
-```
-
-> [!NOTE]
-> Remember to also add Endpoint records, or the proxy will match but return 404 for all paths.
-
----
-
-## Related Pages
-
-- [[Management API]]
-- [[How to Use Prisma Studio]]
+- [[Data Model]]
+- [[Deployment Model]]
+- [[Reset Local Database]]

@@ -1,85 +1,80 @@
-# 🧪 How to Run Tests
+---
+title: How to Run Tests
+type: guide
+doc_status: current
+implementation_status: implemented
+last_verified: 2026-07-27
+tags:
+  - type/guide
+  - area/project
+sources:
+  - package.json
+  - packages/gateway-core/package.json
+  - packages/shared/package.json
+  - packages/database/package.json
+  - .github/workflows/ci.yml
+aliases: []
+---
+
+# How to Run Tests
+
+> [!summary] At a glance
+> The root test command runs implemented workspace suites; gateway, database, and shared tests use Node's test runner through `tsx`.
+
+## Goal
+
+Run the same build and test boundaries expected by CI.
 
 ## Prerequisites
 
-Before running tests, make sure:
+- Node.js `22.19.0` or newer.
+- Installed npm dependencies.
+- PostgreSQL and Redis only for tests or commands that explicitly use live infrastructure.
 
-1. ✅ Dependencies are installed (`npm install`)
-2. ✅ PostgreSQL is running (`docker-compose up postgres -d`)
-3. ✅ Database is migrated and seeded
-4. ✅ Prisma Client is generated (`npm run db:generate --workspace=packages/database`)
-5. ✅ Database package is built (`npm run build --workspace=packages/database`)
+Most gateway tests inject configuration and use fake policy dependencies, so
+they do not require a running database or Redis instance.
 
----
+## Steps
 
-## Running Tests
+```bash
+npm run docs:check
+npm run build
+npm test
+```
+
+Focused suites:
 
 ```bash
 npm test --workspace=packages/gateway-core
+npm test --workspace=packages/shared
+npm test --workspace=packages/database
+npm run docs:test
 ```
 
-> [!NOTE]
-> Tests are currently only in the `gateway-core` package. As other packages are implemented, they will have their own test suites.
+Management API and Admin Panel currently have placeholder test scripts and do
+not provide meaningful coverage.
 
----
+Authentication tests generate ephemeral RSA keys. Clean migration/seed
+validation requires disposable PostgreSQL and must never target retained data.
 
-## Test Descriptions
+## Verification
 
-The test suite validates the core routing engine behavior:
+The command must exit with status zero. Review the number of executed tests;
+placeholder scripts printing `TODO` are not evidence of coverage.
 
-| # | Test | What it verifies |
-| - | ---- | ---------------- |
-| 1 | **Longest prefix match** | The correct proxy is selected when multiple proxies share a common prefix |
-| 2 | **Static vs dynamic priority** | Static endpoints (`/accounts/summary`) match before dynamic ones (`/accounts/:id`) |
-| 3 | **Parameter extraction** | Dynamic segments (`:id`) are correctly extracted from the URL |
-| 4 | **No proxy found** | Returns 404 when no proxy matches the request path |
-| 5 | **No endpoint found** | Returns 404 when a proxy matches but no endpoint does |
+## Troubleshooting or Rollback
 
----
+Build internal libraries first if a test cannot resolve workspace output:
 
-## Expected Output
-
-```
- ✓ should select the proxy with the longest matching basePath
- ✓ should prioritize static endpoints over dynamic ones
- ✓ should extract parameters from dynamic segments
- ✓ should return 404 when no proxy matches
- ✓ should return 404 when no endpoint matches
-
- Test Files  1 passed (1)
-      Tests  5 passed (5)
-```
-
----
-
-## Troubleshooting
-
-### ❌ Tests fail with database connection errors
-
-Make sure PostgreSQL is running and the database is set up:
 ```bash
-docker-compose up postgres -d
-npm run db:migrate --workspace=packages/database
-npm run db:seed --workspace=packages/database
-```
-
-### ❌ `Cannot find module` errors
-
-Rebuild the dependencies:
-```bash
-npm run db:generate --workspace=packages/database
+npm run build --workspace=packages/shared
 npm run build --workspace=packages/database
 ```
 
-### ❌ Tests hang or timeout
+Do not reset the database to fix isolated gateway unit tests.
 
-Check that no other process is holding a database connection. Try resetting:
-```bash
-npm run db:reset --workspace=packages/database
-```
-
----
-
-## Related Pages
+## Related Notes
 
 - [[gateway-core]]
+- [[shared]]
+- [[How to Document the Project]]

@@ -1,108 +1,61 @@
+---
+title: "ADR-004: XML Policies"
+type: decision
+doc_status: current
+implementation_status: planned
+decision_status: accepted
+last_verified: 2026-07-27
+tags:
+  - type/decision
+  - area/policies
+sources:
+  - packages/database/prisma/schema.prisma
+  - packages/shared/src/policies/config.ts
+aliases: []
+---
+
 # ADR-004: XML Policies
 
-| Field | Value |
-| ----- | ----- |
-| **Status** | ✅ Accepted |
-| **Date** | 2026-07-06 |
-| **Category** | Policy Engine |
-
----
+> [!summary] At a glance
+> XML compatibility remains an accepted target decision, while the current runtime stores and validates JSON policy configuration.
 
 ## Context
 
-Apigee — the enterprise API management platform this project draws inspiration from — uses **XML** to define policies (rate limiting, authentication, CORS, etc.). A key design question is how this gateway should handle policy configuration.
+Apigee represents policies as XML. The project wants a migration path familiar
+to Apigee users without parsing XML on the request hot path.
 
-The challenge is to balance:
-- **Apigee compatibility** — Familiar format for teams migrating from Apigee
-- **Runtime performance** — Policies are evaluated on every request
-- **Developer experience** — Easy to create, edit, and validate policies
-
----
+Current implementation is JSON-only: `EndpointPolicy.config` is a Prisma JSON
+field and shared Zod schemas validate it during gateway startup.
 
 ## Decision
 
-Support XML as the **configuration format** for policies, but store and execute them as **JSON** internally.
-
-### Architecture
+Accept XML as a future control-plane input format, convert and validate it when
+configuration is saved, and continue storing and executing normalized JSON.
 
 ```mermaid
-graph LR
-    XML["XML Policy<br/>(admin panel editor)"] -->|Convert at save time| JSON["JSON<br/>(stored in PostgreSQL)"]
-    JSON -->|Read at runtime| GW["gateway-core<br/>(executes policy)"]
+flowchart LR
+    XML["XML authoring input"] -. "planned converter" .-> JSON["Validated JSON"]
+    JSON --> DATABASE["EndpointPolicy.config"]
+    DATABASE --> GATEWAY["gateway-core"]
 ```
 
-| Layer | Format | Purpose |
-| ----- | ------ | ------- |
-| **Admin Panel** | XML | User-facing editor with XML syntax |
-| **Save/Validation** | XML → JSON | Converted and validated when saving |
-| **Database** | JSON | Stored in `EndpointPolicy.configuration` column |
-| **Runtime** | JSON | gateway-core reads JSON, no XML parsing at request time |
+The dashed conversion step is not implemented.
 
-### Example
+## Alternatives
 
-**What the admin sees (XML):**
-```xml
-<RateLimit>
-  <Quota>100</Quota>
-  <Interval>1</Interval>
-  <TimeUnit>minute</TimeUnit>
-</RateLimit>
-```
-
-**What the database stores (JSON):**
-```json
-{
-  "quota": 100,
-  "interval": 1,
-  "timeUnit": "minute"
-}
-```
-
-**What the gateway reads:**
-The JSON object — no XML parsing on the hot path.
-
----
-
-## Alternatives Considered
-
-### JSON Only
-
-Use JSON for both configuration and storage.
-
-❌ **Rejected** — Loses Apigee compatibility. Teams familiar with Apigee expect XML-based policy configuration. JSON is less readable for complex nested policies.
-
-### YAML
-
-Use YAML as the configuration format.
-
-❌ **Rejected** — Not Apigee-like. While more readable than JSON, it doesn't provide the Apigee compatibility benefit that XML offers.
-
-### Execute XML Directly
-
-Parse and evaluate XML at runtime for every request.
-
-❌ **Rejected** — Too slow. XML parsing is significantly more expensive than JSON object access. On a hot path that runs for every API request, this overhead is unacceptable.
-
----
+- JSON only: simplest and matches current code, but does not provide an Apigee-oriented authoring experience.
+- YAML input: readable but does not improve Apigee compatibility.
+- Runtime XML parsing: rejected because request-time parsing adds avoidable work and failure modes.
 
 ## Consequences
 
-### ✅ Positive
+- Each supported XML policy will need a versioned parser and semantic validator.
+- The Admin Panel will need an XML-capable editor only when this authoring path is implemented.
+- JSON remains the canonical persistence and runtime format.
+- Documentation must not show XML examples as currently accepted Management API payloads.
 
-- **Apigee compatibility** — Familiar format for teams migrating from or working alongside Apigee
-- **Zero runtime overhead** — No XML parsing on the request hot path
-- **Validation at config time** — XML is validated and converted when saving, not at runtime
-- **Flexible storage** — JSON in PostgreSQL is queryable and indexable
-
-### ⚠️ Constraints
-
-- **XML-to-JSON converter needed** — Each policy type requires a conversion function
-- **Admin panel XML editor** — The admin panel must include an XML editor component
-- **Dual format complexity** — Developers must understand both the XML input format and the JSON storage format
-
----
-
-## Related Pages
+## Related Implementation
 
 - [[Policies in Apigee]]
-- [[Request Lifecycle in Apigee]]
+- [[Policy Types]]
+- [[Management API]]

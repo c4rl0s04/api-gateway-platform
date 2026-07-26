@@ -1,4 +1,22 @@
+---
+title: "ADR-002: Explicit Endpoints"
+type: decision
+doc_status: current
+implementation_status: implemented
+decision_status: accepted
+last_verified: 2026-07-27
+tags:
+  - type/decision
+  - area/gateway-core
+sources:
+  - packages/gateway-core/src/proxy/resolver.ts
+  - packages/database/prisma/schema.prisma
+aliases: []
+---
 # ADR-002: Explicit Endpoints
+
+> [!summary] At a glance
+> A matched proxy forwards only requests that also match an explicitly configured endpoint.
 
 | Field | Value |
 | ----- | ----- |
@@ -68,13 +86,13 @@ Require administrators to manually set the priority order of endpoints.
 
 ## Consequences
 
-### ✅ Positive
+### Positive
 
 - **Strict allowlist** — Only explicitly configured paths are forwarded. Acts as a security boundary
 - **Deterministic** — Auto-sort eliminates ordering ambiguity
 - **Auditable** — You can see exactly which paths are exposed by querying the database
 
-### ⚠️ Constraints
+### Constraints
 
 - **Every path needs a DB entry** — Can be verbose for APIs with many endpoints
 - **New paths require configuration** — Adding a backend endpoint isn't enough; it must also be registered in the gateway

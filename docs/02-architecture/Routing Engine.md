@@ -1,95 +1,85 @@
-# 🔀 Routing Engine
-
-## Overview
-
-The Routing Engine is the core algorithm inside `gateway-core` that determines how an incoming HTTP request is matched to a specific backend endpoint. It operates in four sequential steps, each narrowing down the match until a target URL is resolved.
-
+---
+title: Routing Engine
+type: architecture
+doc_status: current
+implementation_status: implemented
+last_verified: 2026-07-27
+tags:
+  - type/architecture
+  - area/gateway-core
+sources:
+  - packages/gateway-core/src/proxy/resolver.ts
+  - packages/gateway-core/src/proxy/forwarder.ts
+aliases: []
 ---
 
-## Routing Steps
+# Routing Engine
 
-### Step 1: Longest Prefix Match (Proxy Selection)
+> [!summary] At a glance
+> The routing engine selects the longest matching proxy prefix, resolves one explicit endpoint, and builds its deployment-specific upstream URL.
 
-The gateway maintains a list of configured API proxies, each with a `basePath` (e.g., `/es/banking/v1`). When a request arrives, the engine finds the proxy whose `basePath` is the **longest prefix** that matches the incoming URL.
+## Context
 
-```
-Incoming:  /es/banking/v1/accounts/42
+Routing is intentionally deterministic and acts as an allowlist. A matching
+proxy does not authorize arbitrary backend paths.
 
-Proxies:
-  /es              → ❌ matches, but shorter
-  /es/banking      → ❌ matches, but shorter
-  /es/banking/v1   → ✅ longest match!
-```
+## Components
 
-> [!IMPORTANT]
-> Base paths must be unique across all proxies. Ambiguous matches are not allowed — see [[ADR-001 Longest Prefix Match]].
+### Proxy Selection
 
-### Step 2: Endpoint Resolution
+`resolveProxy()` chooses the active proxy with the longest `basePath` that
+matches either the complete request path or a slash boundary.
 
-Once a proxy is selected, the remaining path suffix is matched against the proxy's configured **endpoints**. Endpoints are auto-sorted using two rules:
+```text
+Request: /es/banking/v1/accounts/42
 
-1. **Static segments before dynamic** — `/accounts/summary` matches before `/accounts/:id`
-2. **Longer paths before shorter** — `/accounts/:id/details` matches before `/accounts/:id`
-
-This ensures the most specific endpoint always wins.
-
-### Step 3: Parameter Extraction
-
-If the matched endpoint contains dynamic segments (prefixed with `:`), the engine extracts their values from the URL:
-
-```
-Endpoint pattern:  /accounts/:id
-Incoming suffix:   /accounts/42
-
-Extracted: { id: "42" }
+/es
+/es/banking
+/es/banking/v1  <- selected
 ```
 
-These parameters are available for policy evaluation and are forwarded to the backend.
+### Endpoint Selection
 
-### Step 4: Forwarding via undici
+The request suffix is matched against explicit endpoint paths. Static endpoints
+sort before dynamic endpoints, then longer patterns sort before shorter ones.
+Dynamic `:parameters` match one path segment and are extracted for forwarding.
 
-The resolved `targetUrl` from the endpoint is combined with the extracted path, and the request is forwarded to the backend service using the `undici` HTTP client.
+### Target Construction
 
+The resolved endpoint `targetPath` is combined with the deployment
+`upstreamBaseUrl`. Dynamic values and incoming query parameters are preserved.
+
+```text
+upstreamBaseUrl: http://localhost:4000
+targetPath:      /accounts/:id
+parameter:       id=42
+final URL:       http://localhost:4000/accounts/42
 ```
-Target URL:  http://localhost:4000
-Full path:   http://localhost:4000/accounts/42
-Method:      GET (preserved from original request)
-```
 
----
-
-## Example Walkthrough
-
-### Request: `GET /es/banking/v1/accounts/42`
+## Data Flow
 
 ```mermaid
-graph TD
-    REQ["GET /es/banking/v1/accounts/42"] --> S1
-    S1["Step 1: Longest Prefix Match<br/>/es/banking/v1 → Proxy: banking-v1"] --> S2
-    S2["Step 2: Endpoint Resolution<br/>suffix: /accounts/42<br/>match: /accounts/:id"] --> S3
-    S3["Step 3: Parameter Extraction<br/>{ id: '42' }"] --> S4
-    S4["Step 4: Forward via undici<br/>→ http://localhost:4000/accounts/42"]
+flowchart LR
+    PATH["Request path"] --> PROXY["Longest proxy prefix"]
+    PROXY --> SUFFIX["Remove base path"]
+    SUFFIX --> ENDPOINT["Explicit endpoint match"]
+    ENDPOINT --> PARAMS["Extract parameters"]
+    PARAMS --> TARGET["Build upstream URL"]
 ```
 
-| Step | Input | Output |
-| ---- | ----- | ------ |
-| 1. Proxy Selection | `/es/banking/v1/accounts/42` | Proxy `banking-v1` (basePath: `/es/banking/v1`) |
-| 2. Endpoint Match | `/accounts/42` (suffix) | Endpoint `/accounts/:id` |
-| 3. Params | `:id` | `{ id: "42" }` |
-| 4. Forward | Target URL + path | `GET http://localhost:4000/accounts/42` |
+## Failure Modes
 
----
+- No proxy: `404` with `No proxy is configured for path`.
+- Proxy but no endpoint: `404` with `Endpoint not found in proxy`.
+- Upstream connection failure: `502 Bad Gateway`.
+- Duplicate active base paths across loaded deployments: startup failure.
 
-## What Happens When No Match is Found?
+## Constraints
 
-- **No proxy matches** → `404 Not Found` with message "No proxy found for path"
-- **Proxy matches but no endpoint** → `404 Not Found` with message "No endpoint found"
-- **Backend is unreachable** → `502 Bad Gateway`
+Base paths are globally unique in Prisma. Endpoint patterns support named path
+segments but not wildcards, optional segments, or method-specific matching.
 
----
+## Sources
 
-## Related Pages
-
-- [[ADR-001 Longest Prefix Match]]
-- [[ADR-002 Explicit Endpoints]]
-- [[gateway-core]]
+See [[ADR-001 Longest Prefix Match]], [[ADR-002 Explicit Endpoints]],
+[[Runtime Request Flow]], and [[Debug Gateway 404]].

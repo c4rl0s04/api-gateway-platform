@@ -188,8 +188,12 @@ WORKDIR /app
 
 const server = Fastify({ logger: true });
 
-server.get('/health', async (request, reply) => {
-  return { status: 'ok' };
+server.get('/live', async () => {
+  return { status: 'alive' };
+});
+
+server.get('/ready', async () => {
+  return { status: 'ready' };
 });
 
 const start = async () => {
@@ -240,7 +244,7 @@ export const envSchema = z.object({
 """,
     "packages/gateway-core/src/types/proxy-config.ts": """export type ProxyConfig = {};
 """,
-    "packages/gateway-core/test/health.test.ts": """// test real: GET /health devuelve 200
+    "packages/gateway-core/test/server.test.ts": """// test real: GET /live y GET /ready devuelven 200
 """,
     "packages/management-api/package.json": """{
   "name": "management-api",
@@ -491,6 +495,8 @@ Entities:
 - Organization
 - Environment
 - APIProxy
+- ProxyDeployment
+- Endpoint
 - Product
 - DeveloperApp
 """,

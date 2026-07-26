@@ -1,92 +1,95 @@
-# 📦 gateway-core
+---
+title: gateway-core
+type: package
+doc_status: current
+implementation_status: implemented
+last_verified: 2026-07-27
+tags:
+  - type/package
+  - area/gateway-core
+sources:
+  - packages/gateway-core/package.json
+  - packages/gateway-core/src
+  - packages/gateway-core/test
+aliases: []
+---
+
+# gateway-core
+
+> [!summary] At a glance
+> `gateway-core` is the data-plane process that loads a configuration snapshot, resolves requests, executes policies, and forwards allowed traffic.
 
 ## Responsibility
 
-`gateway-core` is the **Data Plane** of the API Gateway Platform. It is the runtime component that:
+The package owns request-time behavior. It does not create or modify gateway
+configuration.
 
-1. **Receives** all incoming API traffic on port `3000`
-2. **Resolves** which proxy and endpoint match the request
-3. **Forwards** the request to the appropriate backend service
+## Boundaries
 
-> [!IMPORTANT]
-> `gateway-core` does **NOT** manage configuration or write to the database. It only **reads** proxy configurations at startup (and on hot-reload events).
+- Reads deployments from PostgreSQL once during startup.
+- Keeps active proxies and endpoints in an in-memory registry.
+- Connects to Redis lazily when a Redis-backed policy executes.
+- Imports the gateway signing key and trusted ingress CIDRs at startup.
+- Communicates with upstream services through `undici`.
+- Does not expose management CRUD or configuration reload endpoints.
 
----
+## Public Contracts
 
-## Key Files
+`buildServer()` returns a configured Fastify instance without listening, which
+allows deterministic injection tests. `loadEnv()` validates runtime
+configuration. The resolver exports registry and resolution functions used by
+the server and tests.
 
-| File | Purpose |
-| ---- | ------- |
-| `src/server.ts` | Fastify server setup, route registration, startup |
-| `src/proxy/resolver.ts` | Routing engine — longest prefix match, endpoint resolution |
-| `src/proxy/forwarder.ts` | HTTP forwarding via `undici` to backend services |
-| `src/db/proxy-loader.ts` | Loads proxy configurations from the database at startup |
-| `src/config/env.ts` | Environment variable parsing and validation (Zod) |
-| `src/index.ts` | Entry point |
-
----
-
-## Dependencies
-
-| Package | Type | Purpose |
-| ------- | ---- | ------- |
-| `@api-gateway/shared` | Internal | Shared TypeScript types |
-| `@api-gateway/database` | Internal | Prisma client for reading config |
-| `fastify` | External | HTTP server framework |
-| `undici` | External | HTTP client for forwarding requests |
-| `zod` | External | Environment variable validation |
-
----
-
-## Scripts
-
-| Script | Command | Purpose |
-| ------ | ------- | ------- |
-| `dev` | `npx tsx watch src/index.ts` | Start in dev mode with hot-reload |
-| `build` | `tsc` | Compile TypeScript to JavaScript |
-| `test` | `vitest` | Run test suite |
-
----
-
-## Environment Variables
-
-| Variable | Default | Description |
-| -------- | ------- | ----------- |
-| `PORT` | `3000` | Port the gateway listens on |
-| `DATABASE_URL` | — | PostgreSQL connection string |
-| `LOG_LEVEL` | `info` | Fastify log level |
-
----
-
-## How It Works
+## Runtime Flow
 
 ```mermaid
-graph LR
-    START["Server starts"] --> LOAD["Load proxies from DB"]
-    LOAD --> LISTEN["Listen on PORT"]
-    LISTEN --> REQ["Request arrives"]
-    REQ --> RESOLVE["Resolve proxy + endpoint"]
-    RESOLVE --> FWD["Forward to backend"]
-    FWD --> RES["Return response to client"]
+flowchart LR
+    ENV["Validate environment"] --> LOAD["Load deployments"]
+    LOAD --> REGISTRY["Build routing registry"]
+    REGISTRY --> REQUEST["Resolve request"]
+    REQUEST --> PIPELINE["Execute policies"]
+    PIPELINE --> RESULT{"Terminal or forward?"}
+    RESULT --> LOCAL["Local response"]
+    RESULT --> FORWARD["Forward upstream"]
 ```
 
-At startup, `gateway-core`:
-1. Parses environment variables
-2. Loads all active proxy configurations from PostgreSQL
-3. Builds a routing table in memory
-4. Starts the Fastify server
+Proxy matching uses the longest boundary-safe `basePath`. Endpoint matching is
+exact, supports named path parameters, allows a trailing slash, and prioritizes
+static routes before dynamic routes.
 
-For each request:
-1. The resolver finds the matching proxy (longest prefix match)
-2. The resolver finds the matching endpoint (static before dynamic)
-3. The forwarder sends the request to the backend via `undici`
-4. The backend response is returned to the client
+The forwarding layer preserves query parameters and arbitrary body bytes,
+removes hop-by-hop headers, adds forwarding and correlation headers, and returns
+`502` when the upstream connection fails.
 
----
+## Configuration
 
-## Related Pages
+See [[Environment Variables]]. Environment selection and cryptographic
+configuration are required in development and production.
 
+## Tests
+
+The package covers environment validation, routing, operational endpoints,
+byte-preserving forwarding, policy ordering, API key authorization, OAuth
+issuance and verification, assertion replay, mTLS trust boundaries, local
+responses, Redis failure modes, and rate-limit behavior.
+
+Run:
+
+```bash
+npm test --workspace=packages/gateway-core
+```
+
+## Limitations
+
+- Configuration reload requires a process restart.
+- Metrics are not exposed.
+- Forwarding timeouts are fixed at 30 seconds.
+
+## Related Notes
+
+- [[Runtime Request Flow]]
 - [[Routing Engine]]
-- [[Database and Prisma]]
-- [[shared]]
-- [[database]]
+- [[Policy Types]]
+- [[Debug Gateway 404]]
+- [[Debug Policy Failure]]
+- [[Authentication and Authorization]]

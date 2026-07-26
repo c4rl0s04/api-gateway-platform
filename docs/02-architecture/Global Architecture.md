@@ -1,111 +1,76 @@
-# 🏗️ Global Architecture
-
-## Overview
-
-The **API Gateway Platform** is a monorepo that implements a lightweight API Gateway inspired by enterprise platforms like Apigee. It consists of multiple packages that work together to receive, route, and forward API traffic to backend services while providing centralized configuration management.
-
-The platform follows a clear separation between the **Data Plane** (request processing) and the **Control Plane** (configuration management).
-
+---
+title: Global Architecture
+type: architecture
+doc_status: current
+implementation_status: partial
+last_verified: 2026-07-27
+tags:
+  - type/architecture
+  - area/project
+sources:
+  - package.json
+  - packages/gateway-core/src/server.ts
+  - packages/management-api/src/server.ts
+  - packages/admin-panel/app
+  - docker-compose.yml
+aliases: []
 ---
 
-## Architecture Diagram
+# Global Architecture
+
+> [!summary] At a glance
+> The platform separates request processing in `gateway-core` from a partially built control plane, with PostgreSQL as configuration storage and Redis currently used for rate limiting.
+
+## Context
+
+The repository is an npm-workspaces monorepo. Its target architecture follows
+the data-plane/control-plane split used by enterprise API gateways, but the two
+planes have different implementation maturity.
+
+## Components
 
 ```mermaid
-graph TB
-    subgraph Clients
-        CA[Client Apps]
-    end
+flowchart LR
+    CLIENT["API clients"] --> GATEWAY["gateway-core<br/>Data plane"]
+    GATEWAY --> BACKEND["Backend services"]
+    GATEWAY --> POSTGRES["PostgreSQL<br/>Configuration"]
+    GATEWAY --> REDIS["Redis<br/>Rate-limit counters"]
 
-    subgraph "Data Plane"
-        GW["gateway-core<br/>(port 3000)"]
-    end
+    ADMIN["Administrator"] --> PANEL["admin-panel<br/>Partial scaffold"]
+    PANEL -. "planned" .-> MANAGEMENT["management-api<br/>Health endpoint only"]
+    MANAGEMENT -. "planned CRUD" .-> POSTGRES
+    MANAGEMENT -. "planned invalidation" .-> REDIS
 
-    subgraph "Backend Services"
-        BS1[Backend Service A]
-        BS2[Backend Service B]
-        BS3[Backend Service N]
-    end
-
-    subgraph "Control Plane"
-        AP["admin-panel<br/>(React Dashboard)"]
-        MAPI["management-api<br/>(REST API)"]
-    end
-
-    subgraph "Data Stores"
-        PG["PostgreSQL<br/>(port 5432)"]
-        RD["Redis<br/>(port 6379)"]
-    end
-
-    subgraph "Observability"
-        PROM["Prometheus<br/>(port 9090)"]
-        GRAF["Grafana<br/>(port 3000)"]
-    end
-
-    CA -->|HTTP Requests| GW
-    GW -->|Forwarded Requests| BS1
-    GW -->|Forwarded Requests| BS2
-    GW -->|Forwarded Requests| BS3
-
-    AP -->|HTTP| MAPI
-    MAPI -->|Read/Write Config| PG
-    GW -->|Read Config| PG
-
-    MAPI -->|Publish Changes| RD
-    RD -->|Subscribe to Changes| GW
-
-    PROM -->|Scrape Metrics| GW
-    GRAF -->|Query| PROM
+    PROMETHEUS["Prometheus container"] -. "metrics not exposed" .-> GATEWAY
+    GRAFANA["Grafana container"] --> PROMETHEUS
 ```
 
----
+## Current Data Flow
 
-## Component Descriptions
+1. `gateway-core` validates its environment and loads active deployments from PostgreSQL.
+2. The gateway builds an in-memory registry of proxies, endpoints, and validated policy configuration.
+3. Incoming requests resolve against that registry.
+4. Registered policies may allow, reject, rate-limit, or degrade the request.
+5. Allowed requests are forwarded to the deployment-specific upstream.
 
-### 🔀 gateway-core (Data Plane)
+The configuration is not reloaded while the process is running.
 
-The runtime engine that receives all incoming API traffic. It resolves which proxy and endpoint match the request, then forwards it to the appropriate backend service using `undici`. It does **not** manage configuration — it only reads it.
+## Failure Modes
 
-- **Port:** `3000`
-- **Role:** Receive → Resolve → Forward
+- Invalid environment or policy configuration prevents gateway startup.
+- An unknown proxy or endpoint returns a gateway-generated `404`.
+- An unreachable upstream returns `502`.
+- Policy infrastructure failures follow each policy's `failureMode`.
+- Multiple active deployments with the same `basePath` require an explicit `GATEWAY_ENVIRONMENT_ID`.
 
-### 🛠️ management-api (Control Plane)
+## Constraints
 
-A REST API for managing gateway configuration (proxies, endpoints, policies). It reads and writes to PostgreSQL and publishes change notifications to Redis so the gateway can reload its configuration without restarting.
+- `gateway-core` reads configuration but does not provide management CRUD.
+- The Management API and Admin Panel are not usable control-plane products yet.
+- Docker Compose starts infrastructure only; application services are still TODO entries.
+- Local port defaults conflict and must be coordinated manually.
 
-### 🖥️ admin-panel (Control Plane UI)
+## Sources
 
-A React-based dashboard that communicates with the `management-api` over HTTP. Provides a visual interface for managing API proxies, endpoints, and policies.
-
-### 🐘 PostgreSQL
-
-Stores all gateway **configuration data** — organizations, environments, API proxies, endpoints, and policies. This is NOT a data store for API consumer data.
-
-### 🔴 Redis
-
-Acts as a **message bus** between the Control Plane and Data Plane. When configuration changes are saved via `management-api`, a notification is published to Redis. The `gateway-core` subscribes and reloads its routing configuration in real time.
-
-### 📊 Prometheus + Grafana
-
-Prometheus scrapes metrics from the gateway. Grafana provides dashboards and visualizations for monitoring gateway health, request rates, latencies, and errors.
-
----
-
-## Infrastructure (Docker Compose)
-
-| Service      | Port  | Purpose                    |
-| ------------ | ----- | -------------------------- |
-| PostgreSQL   | 5432  | Configuration database     |
-| Redis        | 6379  | Pub/Sub message bus        |
-| Prometheus   | 9090  | Metrics collection         |
-| Grafana      | 3000  | Metrics visualization      |
-| gateway-core | 3000  | API traffic processing     |
-| mock-backend | 4000  | json-server for dev/testing|
-
----
-
-## Related Pages
-
-- [[Data Plane vs Control Plane]]
-- [[Monorepo and Packages]]
-- [[database]]
-- [[gateway-core]]
+See [[Runtime Request Flow]], [[Control Plane Flow]], [[Deployment Model]],
+[[Observability]], and [[Current Status]] for focused views of the architecture.

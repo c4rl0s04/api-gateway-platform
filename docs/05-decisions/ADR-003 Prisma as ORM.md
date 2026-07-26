@@ -1,4 +1,22 @@
+---
+title: "ADR-003: Prisma as ORM"
+type: decision
+doc_status: current
+implementation_status: implemented
+decision_status: accepted
+last_verified: 2026-07-27
+tags:
+  - type/decision
+  - area/database
+sources:
+  - packages/database/prisma/schema.prisma
+  - packages/database/src/client.ts
+aliases: []
+---
 # ADR-003: Prisma as ORM
+
+> [!summary] At a glance
+> Prisma is the selected schema, migration, and database-client layer for gateway configuration.
 
 | Field | Value |
 | ----- | ----- |
@@ -66,14 +84,14 @@ A SQL query builder for Node.js.
 
 ## Consequences
 
-### ✅ Positive
+### Positive
 
 - **Centralized** — All database access is consolidated in the `@api-gateway/database` package
 - **Type-safe queries** — Compiler catches query errors at build time
 - **Easy schema evolution** — Migrations are tracked and versioned
 - **Great DX** — Prisma Studio, auto-completion, readable schema format
 
-### ⚠️ Constraints
+### Constraints
 
 - **Migrations required** — Every schema change requires running `prisma migrate dev`
 - **Generated folder gitignored** — `src/generated/` must be regenerated on each machine after cloning
@@ -83,5 +101,5 @@ A SQL query builder for Node.js.
 
 ## Related Pages
 
-- [[Database and Prisma]]
+- [[Data Model]]
 - [[database]]

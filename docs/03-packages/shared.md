@@ -1,101 +1,83 @@
-# 📦 shared
+---
+title: shared
+type: package
+doc_status: current
+implementation_status: implemented
+last_verified: 2026-07-27
+tags:
+  - type/package
+  - area/shared
+sources:
+  - packages/shared/package.json
+  - packages/shared/src
+  - packages/shared/test
+aliases: []
+---
+
+# shared
+
+> [!summary] At a glance
+> `@api-gateway/shared` defines runtime-neutral routing, deployment, and policy contracts consumed across the monorepo.
 
 ## Responsibility
 
-The `shared` package contains **shared TypeScript types** used across the entire monorepo. It provides a single source of truth for the data structures that flow between packages.
+The package centralizes values that multiple packages must interpret
+identically. It contains contract validation but no infrastructure access or
+policy execution.
 
-> [!IMPORTANT]
-> This package contains **only types** — no logic, no runtime code, no dependencies. It is a pure type library.
+## Boundaries
 
----
+- Defines `ProxyConfig` and `EndpointConfig`.
+- Defines stage and region catalogs.
+- Defines deployment progression helpers.
+- Defines policy type catalogs and configuration schemas.
+- Applies defaults and validates external policy configuration with Zod.
 
-## Key Types
-
-### `ProxyConfig`
-
-Represents a fully loaded API proxy with its endpoints and policies. Used by `gateway-core` to build the routing table.
+## Public Contracts
 
 ```typescript
 interface ProxyConfig {
   id: string;
   name: string;
   basePath: string;
-  targetUrl: string;
-  isActive: boolean;
+  deploymentId: string;
+  environment: EnvironmentConfig;
+  systemManaged: boolean;
+  upstreamBaseUrl: string | null;
   endpoints: EndpointConfig[];
+  organizationId: string;
+  active: boolean;
 }
 ```
 
-### `EndpointConfig`
+`EndpointConfig.mode` is `forward | local`; local endpoints have nullable
+`targetPath`. Use [[Policy Types]] to distinguish executable and planned types.
 
-Represents a single endpoint within a proxy.
+## Runtime Flow
 
-```typescript
-interface EndpointConfig {
-  id: string;
-  path: string;
-  method: string;
-  policies: PolicyConfig[];
-}
-```
+Database records are converted into shared contracts during gateway startup.
+`parsePolicyConfig()` selects the schema for each type before a policy reaches
+the execution registry.
 
-### `PolicyConfig`
+## Configuration
 
-Represents a policy attached to an endpoint.
+Policy configuration shares `failureMode: "open" | "closed"`.
+`api-key-auth` adds a header name; `rate-limit` requires positive `limit` and
+`windowSeconds` values. OAuth schemas enforce closed grants, maximum token TTL,
+audiences, and scope lists.
 
-```typescript
-interface PolicyConfig {
-  id: string;
-  name: string;
-  type: PolicyType;
-  configuration: Record<string, unknown>;
-  executionOrder: number;
-}
-```
+## Tests
 
-### `PolicyType`
+The package currently tests deployment catalogs and promotion progression.
+Policy schema behavior is exercised mainly through gateway tests.
 
-Enum of supported policy types.
+## Limitations
 
-```typescript
-enum PolicyType {
-  RATE_LIMIT = 'rate-limit',
-  API_KEY = 'api-key',
-  CORS = 'cors',
-  TRANSFORM = 'transform',
-  CACHE = 'cache',
-}
-```
+- A policy type in `POLICY_TYPES` does not mean its runtime factory exists.
+- Some source comments still describe examples in Spanish; they do not alter the public contract.
 
----
+## Related Notes
 
-## Package Structure
-
-```
-packages/shared/
-├── src/
-│   ├── index.ts          # Re-exports all types
-│   └── types/
-│       ├── proxy.ts       # ProxyConfig, EndpointConfig
-│       └── policy.ts      # PolicyConfig, PolicyType
-├── package.json
-└── tsconfig.json
-```
-
----
-
-## Used By
-
-| Package | How |
-| ------- | --- |
-| `gateway-core` | Types for proxy loading and routing |
-| `management-api` | Types for API request/response validation |
-| `database` | Types aligned with Prisma models |
-
----
-
-## Related Pages
-
-- [[gateway-core]]
-- [[database]]
 - [[Monorepo and Packages]]
+- [[Database Schema]]
+- [[Policy Types]]

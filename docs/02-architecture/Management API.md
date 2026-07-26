@@ -1,45 +1,64 @@
-# 🛠️ Management API
-
-> [!WARNING]
-> 🔲 **Not Yet Implemented** — This component is planned but has not been built yet.
-
-## Overview
-
-The Management API will be the **Control Plane** REST API for the API Gateway Platform. It will provide CRUD endpoints for managing all gateway configuration — organizations, environments, API proxies, endpoints, and policies.
-
+---
+title: Management API
+type: architecture
+doc_status: current
+implementation_status: partial
+last_verified: 2026-07-27
+tags:
+  - type/architecture
+  - area/management-api
+sources:
+  - packages/management-api/src/server.ts
+  - packages/management-api/src/routes
+  - packages/management-api/src/config/env.ts
+aliases: []
 ---
 
-## Planned Endpoints
+# Management API
 
-| Method | Path | Description |
-| ------ | ---- | ----------- |
-| `GET` | `/organizations` | List all organizations |
-| `POST` | `/organizations` | Create an organization |
-| `GET` | `/organizations/:id` | Get organization details |
-| `GET` | `/environments` | List environments |
-| `POST` | `/environments` | Create an environment |
-| `GET` | `/proxies` | List API proxies |
-| `POST` | `/proxies` | Create an API proxy |
-| `PUT` | `/proxies/:id` | Update an API proxy |
-| `DELETE` | `/proxies/:id` | Delete an API proxy |
-| `GET` | `/proxies/:id/endpoints` | List endpoints for a proxy |
-| `POST` | `/proxies/:id/endpoints` | Add an endpoint to a proxy |
-| `PUT` | `/endpoints/:id` | Update an endpoint |
-| `DELETE` | `/endpoints/:id` | Delete an endpoint |
-| `POST` | `/endpoints/:id/policies` | Add a policy to an endpoint |
+> [!summary] At a glance
+> The Management API is currently a Fastify scaffold with `GET /health`; its administrative CRUD surface is planned but not implemented.
 
----
+## Context
 
-## Technology Stack (Planned)
+The Management API is intended to own validated control-plane writes. It should
+not be documented as functional until route handlers, authentication, tests,
+and persistence behavior exist.
 
-- **Framework:** Fastify
-- **Validation:** Zod
-- **Database:** Prisma via `@api-gateway/database`
-- **Notifications:** Redis Pub/Sub for hot-reload
+## Current Components
 
----
+- `src/server.ts` creates a Fastify process and exposes `GET /health`.
+- `src/config/env.ts` defines `PORT` and `DATABASE_URL`, but the current server
+  does not call this loader and listens on hard-coded port `3002`.
+- `src/routes/*.routes.ts` files are stubs.
+- `admin-auth.middleware.ts` and the database wrapper are scaffolding only.
 
-## Related Pages
+## Planned Data Flow
 
-- [[Global Architecture]]
-- [[management-api]]
+```mermaid
+flowchart LR
+    CLIENT["Admin panel"] --> VALIDATION["Authentication and request validation"]
+    VALIDATION --> DOMAIN["Domain operation"]
+    DOMAIN --> DATABASE["Transactional database write"]
+    DATABASE --> EVENT["Configuration invalidation event"]
+```
+
+Planned resources include organizations, proxies, deployments, products,
+developer applications, credentials, endpoints, and policies. Exact routes are
+not a public contract until implemented.
+
+## Failure Modes
+
+- The current process will not honor the documented `PORT` environment value.
+- Route files can exist without exposing any HTTP endpoint.
+- Direct Prisma writes could bypass deployment progression rules.
+- Administrative authentication is not implemented.
+
+## Constraints
+
+Only `GET /health` belongs in the current route reference. Future endpoints
+must be added to [[API Routes]] from registered handlers, not design tables.
+
+## Sources
+
+See [[Control Plane Flow]], [[management-api]], and [[Current Status]].
