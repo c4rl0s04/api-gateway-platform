@@ -4,15 +4,18 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "npm run db:generate && tsc --project tsconfig.json && cp -r src/generated dist/generated",
+    "build": "npm run db:generate && tsc --project tsconfig.json && rm -rf dist/generated && cp -r src/generated dist/generated",
+    "test": "tsx --test test/*.test.ts",
     "db:generate": "prisma generate --schema=prisma/schema.prisma",
     "db:migrate": "prisma migrate dev --schema=prisma/schema.prisma",
     "db:migrate:deploy": "prisma migrate deploy --schema=prisma/schema.prisma",
     "db:seed": "tsx src/seed.ts",
+    "db:seed:policies": "tsx src/seed-policies.ts",
     "db:reset": "prisma migrate reset --schema=prisma/schema.prisma",
     "db:studio": "prisma studio --schema=prisma/schema.prisma"
   },
   "dependencies": {
+    "@api-gateway/shared": "*",
     "@prisma/client": "^5.5.2"
   },
   "devDependencies": {

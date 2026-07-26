@@ -8,60 +8,120 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/// Root tenant of the system. Each organization has its own environments and proxies.
+enum DeploymentStage {
+  qual
+  pprod
+  prod
+}
+
+enum DeploymentRegion {
+  ce
+  es
+  de
+  be
+  fr
+  us
+  uk
+  jp
+  br
+  kr
+}
+
+enum EndpointMode {
+  forward
+  local
+}
+
+enum CredentialAuthMethod {
+  apiKey
+  clientSecret
+  jwtBearer
+  mtls
+}
+
+enum AuthorizationStatus {
+  pending
+  approved
+  revoked
+}
+
+enum PublicKeyAlgorithm {
+  RS256
+}
+
+/// Root tenant of the system. Owns logical proxies, products and applications.
 model Organization {
-  id           String        @id @default(uuid())
-  name         String
-  createdAt    DateTime      @default(now())
-  environments Environment[]
+  id        String         @id @default(uuid())
+  name      String
+  createdAt DateTime       @default(now())
+  proxies   ApiProxy[]
+  apps      DeveloperApp[]
+  products  ApiProduct[]
 }
 
-/// Deployment environment within an organization.
-/// Proxies are always deployed in a specific environment.
+/// Global deployment target selected from closed stage and region values.
 model Environment {
-  id             String       @id @default(uuid())
-  name           String       // "dev" | "staging" | "prod"
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  proxies        ApiProxy[]
+  id          String            @id @default(uuid())
+  stage       DeploymentStage
+  region      DeploymentRegion
+  deployments ProxyDeployment[]
+  products    ApiProduct[]
+  createdAt   DateTime          @default(now())
+
+  @@unique([stage, region])
 }
 
-/// API Proxy: logical container with a unique public basePath.
-/// Groups endpoints with specific routes pointing to real backends.
+/// Logical API definition owned by an organization.
 model ApiProxy {
-  id            String     @id @default(uuid())
-  name          String
-  /// Unique public prefix. Ex: "/es/banking/v1"
-  basePath      String     @unique
-  active        Boolean    @default(true)
-  environmentId String
-  environment   Environment @relation(fields: [environmentId], references: [id])
-  endpoints     Endpoint[]
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  id             String            @id @default(uuid())
+  name           String
+  basePath       String            @unique
+  active         Boolean           @default(true)
+  systemManaged  Boolean           @default(false)
+  organizationId String
+  organization   Organization      @relation(fields: [organizationId], references: [id])
+  endpoints      Endpoint[]
+  deployments    ProxyDeployment[]
+  products       ApiProduct[]
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+}
+
+/// Concrete deployment of a logical proxy into one environment.
+model ProxyDeployment {
+  id              String      @id @default(uuid())
+  proxyId         String
+  proxy           ApiProxy    @relation(fields: [proxyId], references: [id], onDelete: Cascade)
+  environmentId   String
+  environment     Environment @relation(fields: [environmentId], references: [id])
+  /// Backend origin for this deployment. Ex: "https://accounts-qual.example.com".
+  upstreamBaseUrl String?
+  active          Boolean     @default(true)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@unique([proxyId, environmentId])
 }
 
 /// Individual endpoint within a proxy.
-/// Defines the exact path (with possible parameters like ":id")
-/// and the backend URL to which the request is forwarded.
 model Endpoint {
-  id        String           @id @default(uuid())
-  /// Route suffix relative to the basePath. Supports parameters: "/accounts/:id"
-  path      String
-  /// Full backend URL for this endpoint. Ex: "http://backend:8080/accounts/:id"
-  targetUrl String
-  proxyId   String
-  proxy     ApiProxy         @relation(fields: [proxyId], references: [id], onDelete: Cascade)
-  policies  EndpointPolicy[]
-  createdAt DateTime         @default(now())
+  id         String           @id @default(uuid())
+  mode       EndpointMode     @default(forward)
+  /// Public route suffix relative to the proxy basePath.
+  path       String
+  /// Backend path relative to ProxyDeployment.upstreamBaseUrl.
+  targetPath String?
+  proxyId    String
+  proxy      ApiProxy         @relation(fields: [proxyId], references: [id], onDelete: Cascade)
+  policies   EndpointPolicy[]
+  createdAt  DateTime         @default(now())
 }
 
 /// Policy applied to a specific endpoint.
 /// `config` is free JSON — each policy type has its own parameters.
-/// Week 3 will fill these rows with real configurations.
 model EndpointPolicy {
   id         String   @id @default(uuid())
-  /// Value of PolicyType: "api-key-auth" | "rate-limit" | "jwt-auth" | etc.
+  /// Value of the closed PolicyType catalog from @api-gateway/shared.
   type       String
   order      Int
   enabled    Boolean  @default(true)
@@ -69,4 +129,105 @@ model EndpointPolicy {
   config     Json     @default("{}")
   endpointId String
   endpoint   Endpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+}
+
+/// A consumable bundle of API Proxies.
+/// Products are the authorization bridge between developer apps and proxies.
+/// A product defines which proxies a credential can access.
+/// An empty environments relation means the product is available everywhere.
+model ApiProduct {
+  id               String                   @id @default(uuid())
+  name             String
+  active           Boolean                  @default(true)
+  scopes           String[]                 @default([])
+  organizationId   String
+  organization     Organization             @relation(fields: [organizationId], references: [id])
+  /// The proxies bundled into this product.
+  proxies          ApiProxy[]
+  /// Optional allowlist. Empty means all environments.
+  environments     Environment[]
+  /// Credential-specific grants, including approval state and scopes.
+  credentialGrants CredentialProductGrant[]
+  createdAt        DateTime                 @default(now())
+}
+
+/// Developer application registered in the gateway.
+/// Represents an external partner or internal team consuming APIs.
+model DeveloperApp {
+  id             String              @id @default(uuid())
+  name           String
+  status         AuthorizationStatus @default(approved)
+  organizationId String
+  organization   Organization        @relation(fields: [organizationId], references: [id])
+  credentials    AppCredential[]
+  createdAt      DateTime            @default(now())
+}
+
+/// Access credential for a DeveloperApp.
+/// Stores the consumerKey (Client ID) and an optional salted secret hash.
+/// Generated client secrets are returned once and cannot be read back.
+/// A single app can have multiple credentials for key rotation without downtime.
+model AppCredential {
+  id                 String                   @id @default(uuid())
+  appId              String
+  app                DeveloperApp             @relation(fields: [appId], references: [id], onDelete: Cascade)
+  /// The API Key / Client ID. Sent by the client in the x-api-key header.
+  consumerKey        String                   @unique
+  /// Scrypt hash. The generated secret is returned only once.
+  consumerSecretHash String?
+  authMethods        CredentialAuthMethod[]   @default([])
+  status             AuthorizationStatus      @default(approved)
+  attributes         Json                     @default("{}")
+  issuedAt           DateTime                 @default(now())
+  expiresAt          DateTime?
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+  productGrants      CredentialProductGrant[]
+  publicKeys         AppPublicKey[]
+  certificates       AppCertificate[]
+}
+
+model CredentialProductGrant {
+  id           String              @id @default(uuid())
+  credentialId String
+  credential   AppCredential       @relation(fields: [credentialId], references: [id], onDelete: Cascade)
+  productId    String
+  product      ApiProduct          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  status       AuthorizationStatus @default(pending)
+  scopes       String[]            @default([])
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@unique([credentialId, productId])
+}
+
+model AppPublicKey {
+  id           String              @id @default(uuid())
+  credentialId String
+  credential   AppCredential       @relation(fields: [credentialId], references: [id], onDelete: Cascade)
+  kid          String
+  algorithm    PublicKeyAlgorithm  @default(RS256)
+  jwk          Json
+  status       AuthorizationStatus @default(approved)
+  validFrom    DateTime            @default(now())
+  expiresAt    DateTime?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@unique([credentialId, kid])
+}
+
+model AppCertificate {
+  id                String              @id @default(uuid())
+  credentialId      String
+  credential        AppCredential       @relation(fields: [credentialId], references: [id], onDelete: Cascade)
+  fingerprintSha256 String              @unique
+  serialNumber      String?
+  subject           String?
+  issuer            String?
+  status            AuthorizationStatus @default(approved)
+  validFrom         DateTime            @default(now())
+  expiresAt         DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
 }

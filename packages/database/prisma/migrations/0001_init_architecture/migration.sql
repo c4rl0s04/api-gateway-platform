@@ -1,0 +1,266 @@
+-- CreateEnum
+CREATE TYPE "DeploymentStage" AS ENUM ('qual', 'pprod', 'prod');
+
+-- CreateEnum
+CREATE TYPE "DeploymentRegion" AS ENUM ('ce', 'es', 'de', 'be', 'fr', 'us', 'uk', 'jp', 'br', 'kr');
+
+-- CreateEnum
+CREATE TYPE "EndpointMode" AS ENUM ('forward', 'local');
+
+-- CreateEnum
+CREATE TYPE "CredentialAuthMethod" AS ENUM ('apiKey', 'clientSecret', 'jwtBearer', 'mtls');
+
+-- CreateEnum
+CREATE TYPE "AuthorizationStatus" AS ENUM ('pending', 'approved', 'revoked');
+
+-- CreateEnum
+CREATE TYPE "PublicKeyAlgorithm" AS ENUM ('RS256');
+
+-- CreateTable
+CREATE TABLE "Organization" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Organization_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Environment" (
+    "id" TEXT NOT NULL,
+    "stage" "DeploymentStage" NOT NULL,
+    "region" "DeploymentRegion" NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Environment_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ApiProxy" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "basePath" TEXT NOT NULL,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "systemManaged" BOOLEAN NOT NULL DEFAULT false,
+    "organizationId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ApiProxy_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ProxyDeployment" (
+    "id" TEXT NOT NULL,
+    "proxyId" TEXT NOT NULL,
+    "environmentId" TEXT NOT NULL,
+    "upstreamBaseUrl" TEXT,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ProxyDeployment_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Endpoint" (
+    "id" TEXT NOT NULL,
+    "mode" "EndpointMode" NOT NULL DEFAULT 'forward',
+    "path" TEXT NOT NULL,
+    "targetPath" TEXT,
+    "proxyId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Endpoint_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "EndpointPolicy" (
+    "id" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "order" INTEGER NOT NULL,
+    "enabled" BOOLEAN NOT NULL DEFAULT true,
+    "config" JSONB NOT NULL DEFAULT '{}',
+    "endpointId" TEXT NOT NULL,
+
+    CONSTRAINT "EndpointPolicy_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ApiProduct" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "scopes" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "organizationId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ApiProduct_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "DeveloperApp" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "status" "AuthorizationStatus" NOT NULL DEFAULT 'approved',
+    "organizationId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "DeveloperApp_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AppCredential" (
+    "id" TEXT NOT NULL,
+    "appId" TEXT NOT NULL,
+    "consumerKey" TEXT NOT NULL,
+    "consumerSecretHash" TEXT,
+    "authMethods" "CredentialAuthMethod"[] DEFAULT ARRAY[]::"CredentialAuthMethod"[],
+    "status" "AuthorizationStatus" NOT NULL DEFAULT 'approved',
+    "attributes" JSONB NOT NULL DEFAULT '{}',
+    "issuedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "expiresAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "AppCredential_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CredentialProductGrant" (
+    "id" TEXT NOT NULL,
+    "credentialId" TEXT NOT NULL,
+    "productId" TEXT NOT NULL,
+    "status" "AuthorizationStatus" NOT NULL DEFAULT 'pending',
+    "scopes" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "CredentialProductGrant_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AppPublicKey" (
+    "id" TEXT NOT NULL,
+    "credentialId" TEXT NOT NULL,
+    "kid" TEXT NOT NULL,
+    "algorithm" "PublicKeyAlgorithm" NOT NULL DEFAULT 'RS256',
+    "jwk" JSONB NOT NULL,
+    "status" "AuthorizationStatus" NOT NULL DEFAULT 'approved',
+    "validFrom" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "expiresAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "AppPublicKey_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AppCertificate" (
+    "id" TEXT NOT NULL,
+    "credentialId" TEXT NOT NULL,
+    "fingerprintSha256" TEXT NOT NULL,
+    "serialNumber" TEXT,
+    "subject" TEXT,
+    "issuer" TEXT,
+    "status" "AuthorizationStatus" NOT NULL DEFAULT 'approved',
+    "validFrom" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "expiresAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "AppCertificate_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "_ApiProductToApiProxy" (
+    "A" TEXT NOT NULL,
+    "B" TEXT NOT NULL
+);
+
+-- CreateTable
+CREATE TABLE "_ApiProductToEnvironment" (
+    "A" TEXT NOT NULL,
+    "B" TEXT NOT NULL
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Environment_stage_region_key" ON "Environment"("stage", "region");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ApiProxy_basePath_key" ON "ApiProxy"("basePath");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ProxyDeployment_proxyId_environmentId_key" ON "ProxyDeployment"("proxyId", "environmentId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "AppCredential_consumerKey_key" ON "AppCredential"("consumerKey");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CredentialProductGrant_credentialId_productId_key" ON "CredentialProductGrant"("credentialId", "productId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "AppPublicKey_credentialId_kid_key" ON "AppPublicKey"("credentialId", "kid");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "AppCertificate_fingerprintSha256_key" ON "AppCertificate"("fingerprintSha256");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "_ApiProductToApiProxy_AB_unique" ON "_ApiProductToApiProxy"("A", "B");
+
+-- CreateIndex
+CREATE INDEX "_ApiProductToApiProxy_B_index" ON "_ApiProductToApiProxy"("B");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "_ApiProductToEnvironment_AB_unique" ON "_ApiProductToEnvironment"("A", "B");
+
+-- CreateIndex
+CREATE INDEX "_ApiProductToEnvironment_B_index" ON "_ApiProductToEnvironment"("B");
+
+-- AddForeignKey
+ALTER TABLE "ApiProxy" ADD CONSTRAINT "ApiProxy_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ProxyDeployment" ADD CONSTRAINT "ProxyDeployment_proxyId_fkey" FOREIGN KEY ("proxyId") REFERENCES "ApiProxy"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ProxyDeployment" ADD CONSTRAINT "ProxyDeployment_environmentId_fkey" FOREIGN KEY ("environmentId") REFERENCES "Environment"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Endpoint" ADD CONSTRAINT "Endpoint_proxyId_fkey" FOREIGN KEY ("proxyId") REFERENCES "ApiProxy"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "EndpointPolicy" ADD CONSTRAINT "EndpointPolicy_endpointId_fkey" FOREIGN KEY ("endpointId") REFERENCES "Endpoint"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ApiProduct" ADD CONSTRAINT "ApiProduct_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "DeveloperApp" ADD CONSTRAINT "DeveloperApp_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AppCredential" ADD CONSTRAINT "AppCredential_appId_fkey" FOREIGN KEY ("appId") REFERENCES "DeveloperApp"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CredentialProductGrant" ADD CONSTRAINT "CredentialProductGrant_credentialId_fkey" FOREIGN KEY ("credentialId") REFERENCES "AppCredential"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CredentialProductGrant" ADD CONSTRAINT "CredentialProductGrant_productId_fkey" FOREIGN KEY ("productId") REFERENCES "ApiProduct"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AppPublicKey" ADD CONSTRAINT "AppPublicKey_credentialId_fkey" FOREIGN KEY ("credentialId") REFERENCES "AppCredential"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AppCertificate" ADD CONSTRAINT "AppCertificate_credentialId_fkey" FOREIGN KEY ("credentialId") REFERENCES "AppCredential"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "_ApiProductToApiProxy" ADD CONSTRAINT "_ApiProductToApiProxy_A_fkey" FOREIGN KEY ("A") REFERENCES "ApiProduct"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "_ApiProductToApiProxy" ADD CONSTRAINT "_ApiProductToApiProxy_B_fkey" FOREIGN KEY ("B") REFERENCES "ApiProxy"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "_ApiProductToEnvironment" ADD CONSTRAINT "_ApiProductToEnvironment_A_fkey" FOREIGN KEY ("A") REFERENCES "ApiProduct"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "_ApiProductToEnvironment" ADD CONSTRAINT "_ApiProductToEnvironment_B_fkey" FOREIGN KEY ("B") REFERENCES "Environment"("id") ON DELETE CASCADE ON UPDATE CASCADE;
