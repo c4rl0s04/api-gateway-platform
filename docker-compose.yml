@@ -46,6 +46,7 @@ services:
       DEV_UPSTREAM_BASE_URL: http://mock-backend:4000
       DEV_CLIENT_PUBLIC_JWK: ${DEV_CLIENT_PUBLIC_JWK:?Run through npm run dev:local}
       DEV_MTLS_CERT_FINGERPRINT: ${DEV_MTLS_CERT_FINGERPRINT:?Run through npm run dev:local}
+      DEV_MTLS_CERT_FINGERPRINT_SECOND: ${DEV_MTLS_CERT_FINGERPRINT_SECOND:?Run through npm run dev:local}
     depends_on:
       postgres:
         condition: service_healthy

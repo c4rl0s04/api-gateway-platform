@@ -18,6 +18,10 @@ const DEV_MTLS_CERT_FINGERPRINT = (
   process.env.DEV_MTLS_CERT_FINGERPRINT
   ?? '40256508874067631b709b5daf539b60b6b29dc1a5a5b377dc4e6a0c6d066997'
 ).toLowerCase();
+const DEV_MTLS_CERT_FINGERPRINT_SECOND = (
+  process.env.DEV_MTLS_CERT_FINGERPRINT_SECOND
+  ?? '19c4408d7fd8db627c4c0f58e92464d789efc4987dba02f67f481004f7189d7e'
+).toLowerCase();
 
 // ─── API Products ─────────────────────────────────────────────────────────────
 // Products bundle proxies into consumable units.
@@ -57,6 +61,11 @@ const DEVELOPER_APPS = [
     name:           'Identity Service Consumer',
     organizationId: 'org-id-dev',
   },
+  {
+    id:             'app-bank-partner-secondary',
+    name:           'Bank Partner Secondary App',
+    organizationId: 'org-bank-dev',
+  },
 ];
 
 // ─── Credentials ──────────────────────────────────────────────────────────────
@@ -95,6 +104,15 @@ const API_CREDENTIALS = [
     // This credential grants access to the Identity APIs product
     productIds:     ['product-identity-apis'],
     scopes:         ['identity:read'],
+  },
+  {
+    id:             'cred-bank-002',
+    appId:          'app-bank-partner-secondary',
+    consumerKey:    'dev-bank-key-secondary',
+    consumerSecret: 'dev-bank-secret-secondary-0123456789abcdef',
+    authMethods:    [CredentialAuthMethod.mtls],
+    productIds:     ['product-banking-apis'],
+    scopes:         ['banking:read'],
   },
 ];
 
@@ -306,6 +324,22 @@ async function main() {
       fingerprintSha256: DEV_MTLS_CERT_FINGERPRINT,
       serialNumber: 'DEV-001',
       subject: 'CN=Bank Partner Development',
+      issuer: 'CN=Development CA',
+      status: AuthorizationStatus.approved,
+    },
+  });
+  await prisma.appCertificate.upsert({
+    where: { id: 'certificate-bank-dev-2' },
+    update: {
+      fingerprintSha256: DEV_MTLS_CERT_FINGERPRINT_SECOND,
+      status: AuthorizationStatus.approved,
+    },
+    create: {
+      id: 'certificate-bank-dev-2',
+      credentialId: 'cred-bank-002',
+      fingerprintSha256: DEV_MTLS_CERT_FINGERPRINT_SECOND,
+      serialNumber: 'DEV-002',
+      subject: 'CN=Bank Partner Secondary',
       issuer: 'CN=Development CA',
       status: AuthorizationStatus.approved,
     },

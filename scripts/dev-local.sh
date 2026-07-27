@@ -89,6 +89,25 @@ if [[ ! -f "$SECRETS_DIR/mtls-client.key" || ! -f "$SECRETS_DIR/mtls-client.crt"
     -out "$SECRETS_DIR/mtls-client.crt" >/dev/null 2>&1
 fi
 
+if [[ ! -f "$SECRETS_DIR/mtls-client-second.key" || ! -f "$SECRETS_DIR/mtls-client-second.crt" ]]; then
+  openssl req \
+    -newkey rsa:2048 \
+    -nodes \
+    -subj "/CN=Bank Partner Secondary" \
+    -keyout "$SECRETS_DIR/mtls-client-second.key" \
+    -out "$SECRETS_DIR/mtls-client-second.csr" >/dev/null 2>&1
+  printf 'extendedKeyUsage=clientAuth\n' > "$SECRETS_DIR/mtls-client-second.ext"
+  openssl x509 \
+    -req \
+    -days 825 \
+    -in "$SECRETS_DIR/mtls-client-second.csr" \
+    -CA "$SECRETS_DIR/mtls-ca.crt" \
+    -CAkey "$SECRETS_DIR/mtls-ca.key" \
+    -CAcreateserial \
+    -extfile "$SECRETS_DIR/mtls-client-second.ext" \
+    -out "$SECRETS_DIR/mtls-client-second.crt" >/dev/null 2>&1
+fi
+
 cp "$SECRETS_DIR/mtls-server.crt" "$SECRETS_DIR/ingress/server.crt"
 cp "$SECRETS_DIR/mtls-server.key" "$SECRETS_DIR/ingress/server.key"
 cp "$SECRETS_DIR/mtls-ca.crt" "$SECRETS_DIR/pki/trust-bundle.pem"
@@ -137,12 +156,24 @@ MTLS_FINGERPRINT="$(
   | tr -d ':' \
   | tr '[:upper:]' '[:lower:]'
 )"
+MTLS_FINGERPRINT_SECOND="$(
+  openssl x509 \
+    -in "$SECRETS_DIR/mtls-client-second.crt" \
+    -noout \
+    -fingerprint \
+    -sha256 \
+  | cut -d= -f2 \
+  | tr -d ':' \
+  | tr '[:upper:]' '[:lower:]'
+)"
 printf '%s\n' "$MTLS_FINGERPRINT" > "$SECRETS_DIR/mtls-client.sha256"
+printf '%s\n' "$MTLS_FINGERPRINT_SECOND" > "$SECRETS_DIR/mtls-client-second.sha256"
 
 printf '%s\n' \
   "OAUTH_SIGNING_PRIVATE_KEY_BASE64=$GATEWAY_KEY_BASE64" \
   "DEV_CLIENT_PUBLIC_JWK=$CLIENT_PUBLIC_JWK" \
   "DEV_MTLS_CERT_FINGERPRINT=$MTLS_FINGERPRINT" \
+  "DEV_MTLS_CERT_FINGERPRINT_SECOND=$MTLS_FINGERPRINT_SECOND" \
   > "$COMPOSE_ENV"
 
 cd "$ROOT_DIR"

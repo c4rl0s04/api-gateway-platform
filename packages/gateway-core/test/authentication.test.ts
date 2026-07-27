@@ -344,6 +344,43 @@ describe('mTLS direct authentication', () => {
     );
     assert.equal((await revokedPolicy(context)).action, 'halt');
   });
+
+  it('maps different connection fingerprints to different applications', async () => {
+    const firstFingerprint = '11'.repeat(32);
+    const secondFingerprint = '22'.repeat(32);
+    const first = credential('mtls');
+    const second = credential('mtls');
+    second.id = 'credential-2';
+    second.consumerKey = 'consumer-key-2';
+    second.appId = 'app-2';
+    second.app.id = 'app-2';
+    const policy = createMtlsPolicyWithDependencies(
+      { failureMode: 'closed' },
+      {
+        isTrustedProxy: () => true,
+        findCertificate: async fingerprint => ({
+          status: 'approved',
+          validFrom: new Date(0),
+          expiresAt: null,
+          credential: fingerprint === firstFingerprint ? first : second,
+        }),
+      },
+    );
+
+    const firstRequest = createPolicyContext({
+      headers: { 'x-gateway-client-cert-sha256': firstFingerprint },
+    }).context;
+    firstRequest.req.raw = { socket: { remoteAddress: '10.1.2.3' } } as never;
+    const secondRequest = createPolicyContext({
+      headers: { 'x-gateway-client-cert-sha256': secondFingerprint },
+    }).context;
+    secondRequest.req.raw = { socket: { remoteAddress: '10.1.2.3' } } as never;
+
+    assert.deepEqual(await policy(firstRequest), { action: 'continue' });
+    assert.deepEqual(await policy(secondRequest), { action: 'continue' });
+    assert.equal(firstRequest.client?.appId, 'app-1');
+    assert.equal(secondRequest.client?.appId, 'app-2');
+  });
 });
 
 describe('local endpoints', () => {
