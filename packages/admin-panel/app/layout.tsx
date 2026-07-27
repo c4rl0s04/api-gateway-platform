@@ -1,3 +1,6 @@
+import './globals.css';
+import { SessionShell } from '@/components/session-shell';
+
 export default function RootLayout({
   children,
 }: {
@@ -5,7 +8,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body><SessionShell>{children}</SessionShell></body>
     </html>
   )
 }

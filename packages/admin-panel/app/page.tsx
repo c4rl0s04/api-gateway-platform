@@ -1,3 +1,13 @@
 export default function Dashboard() {
-  return <h1>Dashboard</h1>;
+  return (
+    <>
+      <header className="page-header">
+        <div>
+          <h1>Platform overview</h1>
+          <p>Organization identity and certificate runtime.</p>
+        </div>
+      </header>
+      <section className="panel empty-state">Runtime status is loading.</section>
+    </>
+  );
 }
