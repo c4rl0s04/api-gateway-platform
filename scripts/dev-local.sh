@@ -19,6 +19,7 @@ if ! docker info >/dev/null 2>&1; then
 fi
 
 mkdir -p "$SECRETS_DIR"
+mkdir -p "$SECRETS_DIR/ingress" "$SECRETS_DIR/pki"
 
 if [[ ! -f "$SECRETS_DIR/gateway-signing-private.pem" ]]; then
   openssl genpkey \
@@ -87,6 +88,31 @@ if [[ ! -f "$SECRETS_DIR/mtls-client.key" || ! -f "$SECRETS_DIR/mtls-client.crt"
     -extfile "$SECRETS_DIR/mtls-client.ext" \
     -out "$SECRETS_DIR/mtls-client.crt" >/dev/null 2>&1
 fi
+
+cp "$SECRETS_DIR/mtls-server.crt" "$SECRETS_DIR/ingress/server.crt"
+cp "$SECRETS_DIR/mtls-server.key" "$SECRETS_DIR/ingress/server.key"
+cp "$SECRETS_DIR/mtls-ca.crt" "$SECRETS_DIR/pki/trust-bundle.pem"
+
+CRL_WORK_DIR="$SECRETS_DIR/pki/crl-work"
+mkdir -p "$CRL_WORK_DIR"
+touch "$CRL_WORK_DIR/index.txt"
+printf '1000\n' > "$CRL_WORK_DIR/crlnumber"
+cat > "$CRL_WORK_DIR/openssl.cnf" <<EOF
+[ ca ]
+default_ca = local_ca
+[ local_ca ]
+database = $CRL_WORK_DIR/index.txt
+certificate = $SECRETS_DIR/mtls-ca.crt
+private_key = $SECRETS_DIR/mtls-ca.key
+default_crl_days = 7
+default_md = sha256
+EOF
+openssl ca \
+  -gencrl \
+  -config "$CRL_WORK_DIR/openssl.cnf" \
+  -out "$SECRETS_DIR/pki/crl-bundle.pem" \
+  -batch >/dev/null 2>&1
+rm -rf "$CRL_WORK_DIR"
 
 GATEWAY_KEY_BASE64="$(
   openssl base64 -A -in "$SECRETS_DIR/gateway-signing-private.pem"
