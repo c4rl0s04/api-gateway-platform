@@ -70,6 +70,27 @@ cat > "$SECRETS_DIR/keycloak/realm.json" <<EOF
       "name": "API Gateway Management API",
       "enabled": true,
       "bearerOnly": true
+    },
+    {
+      "clientId": "platform-e2e",
+      "name": "Local Platform End-to-End Tests",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "protocolMappers": [
+        {
+          "name": "management-api-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "management-api",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
     }
   ],
   "users": [
