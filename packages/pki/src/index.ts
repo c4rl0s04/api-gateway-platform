@@ -8,6 +8,7 @@ export {
   createManagedAuthority,
   inspectCertificate,
   issueClientCertificate,
+  issueServerCertificate,
   validateExternalClientCertificate,
   type CertificateMetadata,
   type ManagedAuthorityMaterial,

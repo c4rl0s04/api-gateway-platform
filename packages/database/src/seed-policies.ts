@@ -1,10 +1,14 @@
 import {
   AdminRole,
   AuthorizationStatus,
+  CertificateAuthorityKind,
+  CertificateAuthorityStatus,
+  CertificateSource,
   CredentialAuthMethod,
   PrismaClient,
 } from './generated';
 import { hashConsumerSecret } from './credentials.js';
+import { X509Certificate } from 'node:crypto';
 
 const prisma = new PrismaClient();
 const DEFAULT_DEV_CLIENT_PUBLIC_JWK = {
@@ -23,6 +27,16 @@ const DEV_MTLS_CERT_FINGERPRINT_SECOND = (
   process.env.DEV_MTLS_CERT_FINGERPRINT_SECOND
   ?? '19c4408d7fd8db627c4c0f58e92464d789efc4987dba02f67f481004f7189d7e'
 ).toLowerCase();
+const decodePem = (name: string): string | null =>
+  process.env[name]
+    ? Buffer.from(process.env[name]!, 'base64').toString('utf8')
+    : null;
+const DEV_MTLS_CA_CERTIFICATE = decodePem('DEV_MTLS_CA_CERTIFICATE_BASE64');
+const DEV_MTLS_CRL = decodePem('DEV_MTLS_CRL_BASE64');
+const DEV_MTLS_CLIENT_CERTIFICATE = decodePem('DEV_MTLS_CLIENT_CERTIFICATE_BASE64');
+const DEV_MTLS_CLIENT_CERTIFICATE_SECOND = decodePem(
+  'DEV_MTLS_CLIENT_CERTIFICATE_SECOND_BASE64',
+);
 
 // ─── API Products ─────────────────────────────────────────────────────────────
 // Products bundle proxies into consumable units.
@@ -349,6 +363,49 @@ async function main() {
   }
   console.log(`✓ ${API_CREDENTIALS.length} API credentials`);
 
+  if (DEV_MTLS_CA_CERTIFICATE) {
+    const certificate = new X509Certificate(DEV_MTLS_CA_CERTIFICATE);
+    await prisma.certificateAuthority.upsert({
+      where: { id: 'ca-local-development' },
+      update: {
+        certificatePem: DEV_MTLS_CA_CERTIFICATE,
+        fingerprintSha256: certificate.fingerprint256.replaceAll(':', '').toLowerCase(),
+        subject: certificate.subject,
+        serialNumber: certificate.serialNumber.toLowerCase(),
+        validFrom: new Date(certificate.validFrom),
+        expiresAt: new Date(certificate.validTo),
+        crlPem: DEV_MTLS_CRL,
+        crlThisUpdate: DEV_MTLS_CRL ? new Date() : null,
+        crlNextUpdate: DEV_MTLS_CRL
+          ? new Date(Date.now() + 6 * 86_400_000)
+          : null,
+        status: CertificateAuthorityStatus.active,
+        isDefaultIssuer: true,
+        keyRef: 'authorities/local-development',
+      },
+      create: {
+        id: 'ca-local-development',
+        organizationId: 'org-bank-dev',
+        name: 'Local Development CA',
+        kind: CertificateAuthorityKind.managed,
+        status: CertificateAuthorityStatus.active,
+        isDefaultIssuer: true,
+        certificatePem: DEV_MTLS_CA_CERTIFICATE,
+        fingerprintSha256: certificate.fingerprint256.replaceAll(':', '').toLowerCase(),
+        subject: certificate.subject,
+        serialNumber: certificate.serialNumber.toLowerCase(),
+        validFrom: new Date(certificate.validFrom),
+        expiresAt: new Date(certificate.validTo),
+        keyRef: 'authorities/local-development',
+        crlPem: DEV_MTLS_CRL,
+        crlThisUpdate: DEV_MTLS_CRL ? new Date() : null,
+        crlNextUpdate: DEV_MTLS_CRL
+          ? new Date(Date.now() + 6 * 86_400_000)
+          : null,
+      },
+    });
+  }
+
   await prisma.appPublicKey.upsert({
     where: {
       credentialId_kid: {
@@ -372,15 +429,44 @@ async function main() {
     where: { id: 'certificate-bank-dev-1' },
     update: {
       fingerprintSha256: DEV_MTLS_CERT_FINGERPRINT,
+      ...(DEV_MTLS_CLIENT_CERTIFICATE
+        ? {
+            authorityId: 'ca-local-development',
+            certificatePem: DEV_MTLS_CLIENT_CERTIFICATE,
+            source: CertificateSource.managed,
+            serialNumber: new X509Certificate(DEV_MTLS_CLIENT_CERTIFICATE).serialNumber.toLowerCase(),
+            subject: new X509Certificate(DEV_MTLS_CLIENT_CERTIFICATE).subject,
+            issuer: new X509Certificate(DEV_MTLS_CLIENT_CERTIFICATE).issuer,
+            validFrom: new Date(new X509Certificate(DEV_MTLS_CLIENT_CERTIFICATE).validFrom),
+            expiresAt: new Date(new X509Certificate(DEV_MTLS_CLIENT_CERTIFICATE).validTo),
+          }
+        : {}),
       status: AuthorizationStatus.approved,
     },
     create: {
       id: 'certificate-bank-dev-1',
       credentialId: 'cred-bank-001',
       fingerprintSha256: DEV_MTLS_CERT_FINGERPRINT,
-      serialNumber: 'DEV-001',
-      subject: 'CN=Bank Partner Development',
-      issuer: 'CN=Development CA',
+      authorityId: DEV_MTLS_CLIENT_CERTIFICATE ? 'ca-local-development' : null,
+      certificatePem: DEV_MTLS_CLIENT_CERTIFICATE,
+      source: DEV_MTLS_CLIENT_CERTIFICATE
+        ? CertificateSource.managed
+        : CertificateSource.legacy,
+      serialNumber: DEV_MTLS_CLIENT_CERTIFICATE
+        ? new X509Certificate(DEV_MTLS_CLIENT_CERTIFICATE).serialNumber.toLowerCase()
+        : 'DEV-001',
+      subject: DEV_MTLS_CLIENT_CERTIFICATE
+        ? new X509Certificate(DEV_MTLS_CLIENT_CERTIFICATE).subject
+        : 'CN=Bank Partner Development',
+      issuer: DEV_MTLS_CLIENT_CERTIFICATE
+        ? new X509Certificate(DEV_MTLS_CLIENT_CERTIFICATE).issuer
+        : 'CN=Development CA',
+      validFrom: DEV_MTLS_CLIENT_CERTIFICATE
+        ? new Date(new X509Certificate(DEV_MTLS_CLIENT_CERTIFICATE).validFrom)
+        : undefined,
+      expiresAt: DEV_MTLS_CLIENT_CERTIFICATE
+        ? new Date(new X509Certificate(DEV_MTLS_CLIENT_CERTIFICATE).validTo)
+        : null,
       status: AuthorizationStatus.approved,
     },
   });
@@ -388,15 +474,44 @@ async function main() {
     where: { id: 'certificate-bank-dev-2' },
     update: {
       fingerprintSha256: DEV_MTLS_CERT_FINGERPRINT_SECOND,
+      ...(DEV_MTLS_CLIENT_CERTIFICATE_SECOND
+        ? {
+            authorityId: 'ca-local-development',
+            certificatePem: DEV_MTLS_CLIENT_CERTIFICATE_SECOND,
+            source: CertificateSource.managed,
+            serialNumber: new X509Certificate(DEV_MTLS_CLIENT_CERTIFICATE_SECOND).serialNumber.toLowerCase(),
+            subject: new X509Certificate(DEV_MTLS_CLIENT_CERTIFICATE_SECOND).subject,
+            issuer: new X509Certificate(DEV_MTLS_CLIENT_CERTIFICATE_SECOND).issuer,
+            validFrom: new Date(new X509Certificate(DEV_MTLS_CLIENT_CERTIFICATE_SECOND).validFrom),
+            expiresAt: new Date(new X509Certificate(DEV_MTLS_CLIENT_CERTIFICATE_SECOND).validTo),
+          }
+        : {}),
       status: AuthorizationStatus.approved,
     },
     create: {
       id: 'certificate-bank-dev-2',
       credentialId: 'cred-bank-002',
       fingerprintSha256: DEV_MTLS_CERT_FINGERPRINT_SECOND,
-      serialNumber: 'DEV-002',
-      subject: 'CN=Bank Partner Secondary',
-      issuer: 'CN=Development CA',
+      authorityId: DEV_MTLS_CLIENT_CERTIFICATE_SECOND ? 'ca-local-development' : null,
+      certificatePem: DEV_MTLS_CLIENT_CERTIFICATE_SECOND,
+      source: DEV_MTLS_CLIENT_CERTIFICATE_SECOND
+        ? CertificateSource.managed
+        : CertificateSource.legacy,
+      serialNumber: DEV_MTLS_CLIENT_CERTIFICATE_SECOND
+        ? new X509Certificate(DEV_MTLS_CLIENT_CERTIFICATE_SECOND).serialNumber.toLowerCase()
+        : 'DEV-002',
+      subject: DEV_MTLS_CLIENT_CERTIFICATE_SECOND
+        ? new X509Certificate(DEV_MTLS_CLIENT_CERTIFICATE_SECOND).subject
+        : 'CN=Bank Partner Secondary',
+      issuer: DEV_MTLS_CLIENT_CERTIFICATE_SECOND
+        ? new X509Certificate(DEV_MTLS_CLIENT_CERTIFICATE_SECOND).issuer
+        : 'CN=Development CA',
+      validFrom: DEV_MTLS_CLIENT_CERTIFICATE_SECOND
+        ? new Date(new X509Certificate(DEV_MTLS_CLIENT_CERTIFICATE_SECOND).validFrom)
+        : undefined,
+      expiresAt: DEV_MTLS_CLIENT_CERTIFICATE_SECOND
+        ? new Date(new X509Certificate(DEV_MTLS_CLIENT_CERTIFICATE_SECOND).validTo)
+        : null,
       status: AuthorizationStatus.approved,
     },
   });

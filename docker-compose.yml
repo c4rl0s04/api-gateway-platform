@@ -9,8 +9,6 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
       POSTGRES_DB: apigw
-    ports:
-      - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -21,8 +19,6 @@ services:
 
   redis:
     image: redis:7
-    ports:
-      - "6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 2s
@@ -61,6 +57,10 @@ services:
       DEV_CLIENT_PUBLIC_JWK: ${DEV_CLIENT_PUBLIC_JWK:?Run through npm run dev:local}
       DEV_MTLS_CERT_FINGERPRINT: ${DEV_MTLS_CERT_FINGERPRINT:?Run through npm run dev:local}
       DEV_MTLS_CERT_FINGERPRINT_SECOND: ${DEV_MTLS_CERT_FINGERPRINT_SECOND:?Run through npm run dev:local}
+      DEV_MTLS_CA_CERTIFICATE_BASE64: ${DEV_MTLS_CA_CERTIFICATE_BASE64:?Run through npm run dev:local}
+      DEV_MTLS_CRL_BASE64: ${DEV_MTLS_CRL_BASE64:?Run through npm run dev:local}
+      DEV_MTLS_CLIENT_CERTIFICATE_BASE64: ${DEV_MTLS_CLIENT_CERTIFICATE_BASE64:?Run through npm run dev:local}
+      DEV_MTLS_CLIENT_CERTIFICATE_SECOND_BASE64: ${DEV_MTLS_CLIENT_CERTIFICATE_SECOND_BASE64:?Run through npm run dev:local}
     depends_on:
       postgres:
         condition: service_healthy
@@ -90,8 +90,8 @@ services:
       REDIS_URL: redis://redis:6379
       LOG_LEVEL: ${LOG_LEVEL:-info}
       GATEWAY_ENVIRONMENT_ID: env-qual-es
-      OAUTH_ISSUER: http://localhost:3000
-      OAUTH_TOKEN_ENDPOINT_AUDIENCE: http://localhost:3000/oauth/token
+      OAUTH_ISSUER: https://localhost:8443
+      OAUTH_TOKEN_ENDPOINT_AUDIENCE: https://localhost:8443/oauth/token
       OAUTH_SIGNING_KEY_ID: local-gateway-1
       OAUTH_SIGNING_PRIVATE_KEY_BASE64: ${OAUTH_SIGNING_PRIVATE_KEY_BASE64:?Run through npm run dev:local}
       MTLS_TRUSTED_PROXY_CIDRS: 172.30.0.250/32
@@ -111,6 +111,65 @@ services:
       interval: 2s
       timeout: 3s
       retries: 20
+
+  management-api:
+    <<: *platform-app
+    command: ["node", "packages/management-api/dist/index.js"]
+    environment:
+      HOST: 0.0.0.0
+      PORT: 3002
+      DATABASE_URL: postgresql://postgres:password@postgres:5432/apigw?schema=public
+      OIDC_ISSUER: http://localhost:8081/realms/api-gateway
+      OIDC_AUDIENCE: management-api
+      OIDC_JWKS_URI: http://keycloak:8080/realms/api-gateway/protocol/openid-connect/certs
+      PKI_KEYSTORE_DIR: /run/platform-secrets/pki/keystore
+      PKI_MASTER_KEY_FILE: /run/platform-secrets/pki/master.key
+      PKI_TRUST_BUNDLE_FILE: /run/platform-secrets/pki/trust-bundle.pem
+      PKI_CRL_BUNDLE_FILE: /run/platform-secrets/pki/crl-bundle.pem
+      PKI_SDS_TRIGGER_FILE: /runtime-sds/client-validation.yaml
+    volumes:
+      - ./.local-secrets:/run/platform-secrets
+      - ./infra/envoy/sds:/runtime-sds
+    depends_on:
+      database-setup:
+        condition: service_completed_successfully
+      keycloak:
+        condition: service_started
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://localhost:3002/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  admin-panel:
+    <<: *platform-app
+    command:
+      - npm
+      - run
+      - start
+      - --workspace=packages/admin-panel
+      - --
+      - -p
+      - "8080"
+      - -H
+      - 0.0.0.0
+    environment:
+      MANAGEMENT_API_URL: http://management-api:3002
+      OIDC_ISSUER: http://localhost:8081/realms/api-gateway
+      OIDC_INTERNAL_BASE_URL: http://keycloak:8080
+      OIDC_CLIENT_ID: admin-panel
+      OIDC_CALLBACK_URL: http://localhost:8080/api/auth/callback
+    ports:
+      - "8080:8080"
+    depends_on:
+      management-api:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
 
   envoy:
     image: envoyproxy/envoy:v1.33.1

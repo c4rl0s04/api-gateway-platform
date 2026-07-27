@@ -225,6 +225,72 @@ export async function issueClientCertificate(input: {
   });
 }
 
+export async function issueServerCertificate(input: {
+  csrPem: string;
+  authorityCertificatePem: string;
+  authorityPrivateKeyPem: string;
+  dnsNames: string[];
+  ipAddresses?: string[];
+  validityDays?: number;
+}): Promise<CertificateMetadata> {
+  const validityDays = input.validityDays ?? 825;
+  if (!Number.isInteger(validityDays) || validityDays < 1 || validityDays > 825) {
+    throw new Error('Server certificate validityDays must be between 1 and 825');
+  }
+  const dnsNames = input.dnsNames.map(name => safeIdentifier(name, 'DNS name'));
+  const ipAddresses = input.ipAddresses ?? [];
+  for (const address of ipAddresses) {
+    if (!/^[0-9a-fA-F:.]+$/.test(address)) {
+      throw new Error('IP address contains unsupported characters');
+    }
+  }
+
+  return withTemporaryDirectory(async (directory) => {
+    const csrPath = path.join(directory, 'server.csr');
+    const caCertificatePath = path.join(directory, 'ca.crt');
+    const caKeyPath = path.join(directory, 'ca.key');
+    const certificatePath = path.join(directory, 'server.crt');
+    const extensionsPath = path.join(directory, 'server.ext');
+    const subjectAltNames = [
+      ...dnsNames.map(name => `DNS:${name}`),
+      ...ipAddresses.map(address => `IP:${address}`),
+    ];
+    await Promise.all([
+      writeFile(csrPath, input.csrPem, { mode: 0o600 }),
+      writeFile(caCertificatePath, input.authorityCertificatePem, { mode: 0o600 }),
+      writeFile(caKeyPath, input.authorityPrivateKeyPem, { mode: 0o600 }),
+      writeFile(extensionsPath, [
+        'basicConstraints=critical,CA:FALSE',
+        'keyUsage=critical,digitalSignature,keyEncipherment',
+        'extendedKeyUsage=serverAuth',
+        `subjectAltName=${subjectAltNames.join(',')}`,
+        '',
+      ].join('\n'), { mode: 0o600 }),
+    ]);
+    await validateCsr(csrPath);
+    await runOpenSsl([
+      'x509',
+      '-req',
+      '-sha256',
+      '-days',
+      String(validityDays),
+      '-in',
+      csrPath,
+      '-CA',
+      caCertificatePath,
+      '-CAkey',
+      caKeyPath,
+      '-set_serial',
+      `0x${randomBytes(16).toString('hex')}`,
+      '-extfile',
+      extensionsPath,
+      '-out',
+      certificatePath,
+    ]);
+    return certificateMetadata(await readFile(certificatePath, 'utf8'));
+  });
+}
+
 export async function validateExternalClientCertificate(input: {
   certificatePem: string;
   authorityCertificatePem: string;

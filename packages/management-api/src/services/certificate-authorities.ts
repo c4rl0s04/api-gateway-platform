@@ -16,7 +16,7 @@ import {
   type KeyStore,
 } from '@api-gateway/pki';
 import { randomUUID } from 'node:crypto';
-import { mkdir, rename, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { AdminPrincipal } from '../auth/authorization.js';
 import type { ManagementEnv } from '../config/env.js';
@@ -74,6 +74,7 @@ implements CertificateAuthorityOperations {
     private readonly keyStore: KeyStore,
     private readonly trustBundleFile: string,
     private readonly crlBundleFile: string,
+    private readonly sdsTriggerFile: string,
   ) {}
 
   list(organizationId: string) {
@@ -409,6 +410,10 @@ implements CertificateAuthorityOperations {
       atomicWrite(this.trustBundleFile, bundles.caBundlePem),
       atomicWrite(this.crlBundleFile, bundles.crlBundlePem),
     ]);
+    await atomicWrite(
+      this.sdsTriggerFile,
+      await readFile(this.sdsTriggerFile, 'utf8'),
+    );
   }
 }
 
@@ -424,5 +429,6 @@ export async function createCertificateAuthorityService(
     keyStore,
     config.PKI_TRUST_BUNDLE_FILE,
     config.PKI_CRL_BUNDLE_FILE,
+    config.PKI_SDS_TRIGGER_FILE,
   );
 }

@@ -4,6 +4,7 @@ import {
   createClientCertificateRequest,
   createManagedAuthority,
   issueClientCertificate,
+  issueServerCertificate,
   validateExternalClientCertificate,
 } from '../src/x509.js';
 
@@ -56,6 +57,24 @@ describe('X.509 certificate lifecycle', () => {
       organizationId: 'organization-one',
       appId: 'application-one',
       credentialId: 'credential-ec',
+    });
+    assert.equal(certificate.isCertificateAuthority, false);
+  });
+
+  it('issues a localhost server certificate with a closed profile', async () => {
+    const authority = await createManagedAuthority({
+      commonName: 'server-test-authority',
+      validityDays: 365,
+    });
+    const request = await createClientCertificateRequest({
+      credentialId: 'localhost',
+    });
+    const certificate = await issueServerCertificate({
+      csrPem: request.csrPem,
+      authorityCertificatePem: authority.certificatePem,
+      authorityPrivateKeyPem: authority.privateKeyPem,
+      dnsNames: ['localhost'],
+      ipAddresses: ['127.0.0.1'],
     });
     assert.equal(certificate.isCertificateAuthority, false);
   });

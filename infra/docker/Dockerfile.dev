@@ -18,11 +18,15 @@ COPY packages/shared packages/shared
 COPY packages/pki packages/pki
 COPY packages/database packages/database
 COPY packages/gateway-core packages/gateway-core
+COPY packages/management-api packages/management-api
+COPY packages/admin-panel packages/admin-panel
 COPY mock-backend.js mock-backend.json ./
 
 RUN npm run build --workspace=packages/shared \
     && npm run build --workspace=packages/pki \
     && npm run build --workspace=packages/database \
-    && npm run build --workspace=packages/gateway-core
+    && npm run build --workspace=packages/gateway-core \
+    && npm run build --workspace=packages/management-api \
+    && npm run build --workspace=packages/admin-panel
 
 CMD ["node", "packages/gateway-core/dist/index.js"]

@@ -13,6 +13,7 @@ const config: ManagementEnv = {
   PKI_MASTER_KEY_FILE: '/tmp/test-pki-master.key',
   PKI_TRUST_BUNDLE_FILE: '/tmp/test-trust-bundle.pem',
   PKI_CRL_BUNDLE_FILE: '/tmp/test-crl-bundle.pem',
+  PKI_SDS_TRIGGER_FILE: '/tmp/test-client-validation.yaml',
 };
 
 describe('management API authentication boundary', () => {
