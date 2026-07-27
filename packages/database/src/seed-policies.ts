@@ -1,4 +1,5 @@
 import {
+  AdminRole,
   AuthorizationStatus,
   CredentialAuthMethod,
   PrismaClient,
@@ -252,6 +253,61 @@ async function main() {
     });
   }
   console.log(`✓ ${DEVELOPER_APPS.length} developer apps`);
+
+  const localIssuer = 'http://localhost:8081/realms/api-gateway';
+  const memberships = [
+    {
+      id: 'membership-local-platform-admin',
+      oidcSubject: 'local-platform-admin',
+      role: AdminRole.platformAdmin,
+      scopeKey: 'platform',
+      organizationId: null,
+      displayName: 'Local Platform Admin',
+      email: 'platform-admin@local.test',
+    },
+    {
+      id: 'membership-local-organization-admin',
+      oidcSubject: 'local-organization-admin',
+      role: AdminRole.organizationAdmin,
+      scopeKey: 'org-bank-dev',
+      organizationId: 'org-bank-dev',
+      displayName: 'Local Organization Admin',
+      email: 'organization-admin@local.test',
+    },
+    {
+      id: 'membership-local-viewer',
+      oidcSubject: 'local-viewer',
+      role: AdminRole.viewer,
+      scopeKey: 'org-bank-dev',
+      organizationId: 'org-bank-dev',
+      displayName: 'Local Viewer',
+      email: 'viewer@local.test',
+    },
+  ];
+  for (const membership of memberships) {
+    await prisma.adminMembership.upsert({
+      where: {
+        oidcIssuer_oidcSubject_scopeKey: {
+          oidcIssuer: localIssuer,
+          oidcSubject: membership.oidcSubject,
+          scopeKey: membership.scopeKey,
+        },
+      },
+      update: {
+        role: membership.role,
+        organizationId: membership.organizationId,
+        displayName: membership.displayName,
+        email: membership.email,
+        active: true,
+      },
+      create: {
+        ...membership,
+        oidcIssuer: localIssuer,
+        active: true,
+      },
+    });
+  }
+  console.log(`✓ ${memberships.length} local OIDC memberships`);
 
   // 3. Create credentials and explicit approved product grants.
   for (const cred of API_CREDENTIALS) {

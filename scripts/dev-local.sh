@@ -19,7 +19,87 @@ if ! docker info >/dev/null 2>&1; then
 fi
 
 mkdir -p "$SECRETS_DIR"
-mkdir -p "$SECRETS_DIR/ingress" "$SECRETS_DIR/pki"
+mkdir -p "$SECRETS_DIR/ingress" "$SECRETS_DIR/keycloak" "$SECRETS_DIR/pki"
+
+KEYCLOAK_USERS_ENV="$SECRETS_DIR/keycloak/users.env"
+if [[ ! -f "$KEYCLOAK_USERS_ENV" ]]; then
+  umask 077
+  printf '%s\n' \
+    "KEYCLOAK_ADMIN_PASSWORD=$(openssl rand -hex 16)" \
+    "PLATFORM_ADMIN_PASSWORD=$(openssl rand -hex 16)" \
+    "ORGANIZATION_ADMIN_PASSWORD=$(openssl rand -hex 16)" \
+    "VIEWER_PASSWORD=$(openssl rand -hex 16)" \
+    > "$KEYCLOAK_USERS_ENV"
+fi
+# shellcheck disable=SC1090
+source "$KEYCLOAK_USERS_ENV"
+
+cat > "$SECRETS_DIR/keycloak/realm.json" <<EOF
+{
+  "realm": "api-gateway",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "clients": [
+    {
+      "clientId": "admin-panel",
+      "name": "API Gateway Admin Panel",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": ["http://localhost:8080/api/auth/callback"],
+      "webOrigins": ["http://localhost:8080"],
+      "protocolMappers": [
+        {
+          "name": "management-api-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "management-api",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "management-api",
+      "name": "API Gateway Management API",
+      "enabled": true,
+      "bearerOnly": true
+    }
+  ],
+  "users": [
+    {
+      "id": "local-platform-admin",
+      "username": "platform-admin",
+      "email": "platform-admin@local.test",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{"type": "password", "value": "$PLATFORM_ADMIN_PASSWORD", "temporary": false}]
+    },
+    {
+      "id": "local-organization-admin",
+      "username": "organization-admin",
+      "email": "organization-admin@local.test",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{"type": "password", "value": "$ORGANIZATION_ADMIN_PASSWORD", "temporary": false}]
+    },
+    {
+      "id": "local-viewer",
+      "username": "viewer",
+      "email": "viewer@local.test",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{"type": "password", "value": "$VIEWER_PASSWORD", "temporary": false}]
+    }
+  ]
+}
+EOF
 
 if [[ ! -f "$SECRETS_DIR/gateway-signing-private.pem" ]]; then
   openssl genpkey \
@@ -174,7 +254,14 @@ printf '%s\n' \
   "DEV_CLIENT_PUBLIC_JWK=$CLIENT_PUBLIC_JWK" \
   "DEV_MTLS_CERT_FINGERPRINT=$MTLS_FINGERPRINT" \
   "DEV_MTLS_CERT_FINGERPRINT_SECOND=$MTLS_FINGERPRINT_SECOND" \
+  "KEYCLOAK_ADMIN_PASSWORD=$KEYCLOAK_ADMIN_PASSWORD" \
   > "$COMPOSE_ENV"
+
+printf '%s\n' \
+  "Local OIDC users:" \
+  "  platform-admin / $PLATFORM_ADMIN_PASSWORD" \
+  "  organization-admin / $ORGANIZATION_ADMIN_PASSWORD" \
+  "  viewer / $VIEWER_PASSWORD"
 
 cd "$ROOT_DIR"
 exec docker compose --env-file "$COMPOSE_ENV" up --build "$@"
