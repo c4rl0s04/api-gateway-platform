@@ -12,6 +12,7 @@ import {
   generateCertificateRevocationList,
   inspectCertificate,
   loadOrCreateMasterKey,
+  validateCertificateRevocationList,
   type KeyStore,
 } from '@api-gateway/pki';
 import { randomUUID } from 'node:crypto';
@@ -51,6 +52,7 @@ export interface CertificateAuthorityOperations {
   ): Promise<unknown>;
   rotate(id: string, actor: AdminPrincipal): Promise<unknown>;
   refreshCrl(id: string, actor: AdminPrincipal): Promise<unknown>;
+  uploadCrl(id: string, crlPem: string, actor: AdminPrincipal): Promise<unknown>;
 }
 
 function actorRole(principal: AdminPrincipal): AdminRole {
@@ -332,6 +334,46 @@ implements CertificateAuthorityOperations {
           actorRole: actorRole(actor),
           organizationId: authority.organizationId,
           action: 'certificateAuthority.refreshCrl',
+          resourceType: 'CertificateAuthority',
+          resourceId: id,
+          metadata: { nextUpdate: crl.nextUpdate.toISOString() },
+        },
+      });
+      return saved;
+    });
+    if (['active', 'retiring'].includes(updated.status)) {
+      await this.publishRuntimeTrust();
+    }
+    return updated;
+  }
+
+  async uploadCrl(id: string, crlPem: string, actor: AdminPrincipal) {
+    const authority = await prisma.certificateAuthority.findUniqueOrThrow({
+      where: { id },
+    });
+    if (authority.kind !== CertificateAuthorityKind.external) {
+      throw new Error('Manual CRL upload is only valid for external authorities');
+    }
+    const crl = await validateCertificateRevocationList({
+      crl: crlPem,
+      authorityCertificatePem: authority.certificatePem,
+    });
+    const updated = await prisma.$transaction(async transaction => {
+      const saved = await transaction.certificateAuthority.update({
+        where: { id },
+        data: {
+          crlPem: crl.pem,
+          crlThisUpdate: crl.lastUpdate,
+          crlNextUpdate: crl.nextUpdate,
+        },
+      });
+      await transaction.auditEvent.create({
+        data: {
+          actorIssuer: actor.issuer,
+          actorSubject: actor.subject,
+          actorRole: actorRole(actor),
+          organizationId: authority.organizationId,
+          action: 'certificateAuthority.uploadCrl',
           resourceType: 'CertificateAuthority',
           resourceId: id,
           metadata: { nextUpdate: crl.nextUpdate.toISOString() },

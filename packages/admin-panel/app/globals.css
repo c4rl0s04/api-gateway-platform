@@ -222,6 +222,27 @@ td { padding: 13px; border-bottom: 1px solid #e4e8ea; vertical-align: top; }
 .modal > header > div { display: flex; align-items: center; gap: 9px; }
 .modal h2 { margin: 0; font-size: 18px; }
 .modal > footer { justify-content: flex-end; padding-top: 4px; }
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.metric {
+  min-height: 112px;
+  padding: 16px;
+  border: 1px solid #cfd5d8;
+  background: white;
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  align-items: start;
+  gap: 8px;
+}
+.metric svg { color: #17755b; }
+.metric span { color: #5f6a70; font-size: 13px; }
+.metric strong { grid-column: 1 / -1; font-size: 28px; }
+.audit-panel > header { padding: 15px 16px; border-bottom: 1px solid #d8dddf; }
+.audit-panel h2 { margin: 0; font-size: 17px; }
 
 @media (max-width: 760px) {
   .app-shell { grid-template-columns: 1fr; }
@@ -231,4 +252,5 @@ td { padding: 13px; border-bottom: 1px solid #e4e8ea; vertical-align: top; }
   .workspace { padding: 22px 16px 40px; }
   .credential-row { grid-template-columns: 1fr; }
   .page-header { flex-direction: column; }
+  .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

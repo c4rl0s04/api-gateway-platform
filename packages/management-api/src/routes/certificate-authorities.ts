@@ -17,6 +17,9 @@ const externalAuthoritySchema = z.object({
   chainPem: z.string().nullable().optional(),
   crlDistributionUrl: z.string().url().nullable().optional(),
 });
+const crlSchema = z.object({
+  crlPem: z.string().includes('BEGIN X509 CRL'),
+});
 
 function requirePlatformAdmin(request: {
   adminPrincipal: Parameters<typeof isPlatformAdmin>[0];
@@ -103,6 +106,17 @@ export function registerCertificateAuthorityRoutes(
       requirePlatformAdmin(request);
       return authorities.refreshCrl(
         request.params.authorityId,
+        request.adminPrincipal,
+      );
+    },
+  );
+  server.post<{ Params: { authorityId: string }; Body: unknown }>(
+    '/v1/certificate-authorities/:authorityId/crl',
+    async (request) => {
+      requirePlatformAdmin(request);
+      return authorities.uploadCrl(
+        request.params.authorityId,
+        crlSchema.parse(request.body).crlPem,
         request.adminPrincipal,
       );
     },

@@ -84,6 +84,7 @@ describe('management API authentication boundary', () => {
       setStatus: async () => ({ id: 'authority-1' }),
       rotate: async () => ({ id: 'authority-2' }),
       refreshCrl: async () => ({ id: 'authority-1' }),
+      uploadCrl: async () => ({ id: 'authority-1' }),
     };
     const makeServer = (role: 'organizationAdmin' | 'platformAdmin') =>
       buildServer({
