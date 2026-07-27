@@ -98,6 +98,130 @@ button, input, select, textarea { font: inherit; }
   border-radius: 4px;
 }
 .empty-state { padding: 28px; color: #657178; }
+.header-actions { display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap; }
+.field { display: grid; gap: 6px; color: #424c52; font-size: 13px; }
+.field span { font-weight: 700; }
+.field input, .field select, .field textarea {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid #aeb8bd;
+  border-radius: 3px;
+  background: white;
+  padding: 8px 10px;
+  color: #1f252b;
+}
+.field textarea { resize: vertical; font-family: monospace; font-size: 12px; }
+.compact-field select { min-width: 180px; }
+.secondary-command, .icon-command {
+  min-height: 40px;
+  border: 1px solid #aab4b9;
+  background: white;
+  color: #283239;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.icon-command { width: 40px; padding: 0; }
+button:disabled { cursor: not-allowed; opacity: .55; }
+.alert { padding: 11px 14px; margin-bottom: 16px; border: 1px solid; }
+.alert.error { color: #7c2020; border-color: #d7a6a6; background: #fff3f3; }
+.item-list { display: grid; gap: 14px; }
+.entity-panel > header {
+  padding: 17px 18px;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid #e0e4e6;
+}
+.entity-panel h2 { margin: 0 0 4px; font-size: 17px; }
+code { display: block; color: #667177; font-size: 11px; margin-top: 4px; }
+.credential-row {
+  display: grid;
+  grid-template-columns: minmax(210px, 1fr) minmax(180px, .8fr) minmax(260px, 1.3fr);
+  align-items: start;
+  gap: 20px;
+  padding: 16px 18px;
+  border-bottom: 1px solid #edf0f1;
+}
+.credential-row:last-child { border-bottom: 0; }
+.credential-title { display: flex; gap: 10px; align-items: flex-start; }
+.tag-list { display: flex; flex-wrap: wrap; gap: 5px; }
+.tag { border: 1px solid #c7d0d4; background: #f4f6f7; padding: 3px 7px; font-size: 12px; }
+.grant-list { display: grid; gap: 7px; }
+.grant-list > div {
+  display: grid;
+  grid-template-columns: 16px minmax(100px, 1fr) auto;
+  gap: 7px;
+  align-items: center;
+}
+.grant-list small { grid-column: 2 / -1; color: #667177; }
+.status {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border: 1px solid #b7c0c4;
+  background: #f3f5f6;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.status-approved, .status-active { color: #0c6148; border-color: #92c2b3; background: #edf8f4; }
+.status-revoked { color: #8d2525; border-color: #d9aaaa; background: #fff1f1; }
+.status-retiring { color: #765711; border-color: #d8c185; background: #fff9e9; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th {
+  padding: 11px 13px;
+  text-align: left;
+  background: #f1f3f4;
+  border-bottom: 1px solid #cfd5d8;
+  color: #4a555b;
+}
+td { padding: 13px; border-bottom: 1px solid #e4e8ea; vertical-align: top; }
+.row-actions { white-space: nowrap; text-align: right; }
+.row-actions button, .modal header button {
+  width: 34px;
+  height: 34px;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+}
+.row-actions button:hover, .modal header button:hover { border-color: #bdc5c9; background: #f1f3f4; }
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgb(20 27 31 / 55%);
+}
+.modal {
+  width: min(620px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  border: 1px solid #7f8b91;
+  border-radius: 4px;
+  background: white;
+  padding: 20px;
+  display: grid;
+  gap: 16px;
+}
+.modal > header, .modal > footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.modal > header > div { display: flex; align-items: center; gap: 9px; }
+.modal h2 { margin: 0; font-size: 18px; }
+.modal > footer { justify-content: flex-end; padding-top: 4px; }
 
 @media (max-width: 760px) {
   .app-shell { grid-template-columns: 1fr; }
@@ -105,4 +229,6 @@ button, input, select, textarea { font: inherit; }
   .sidebar nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .session-meta { display: flex; justify-content: space-between; align-items: center; }
   .workspace { padding: 22px 16px 40px; }
+  .credential-row { grid-template-columns: 1fr; }
+  .page-header { flex-direction: column; }
 }

@@ -88,6 +88,59 @@ export function buildServer(options: ManagementServerOptions): FastifyInstance {
       return organization;
     },
   );
+  server.get<{ Params: { organizationId: string } }>(
+    '/v1/organizations/:organizationId/apps',
+    async (request, reply) => {
+      if (!canReadOrganization(
+        request.adminPrincipal,
+        request.params.organizationId,
+      )) {
+        return reply.code(403).send({
+          error: 'forbidden',
+          message: 'Organization access denied',
+        });
+      }
+      return prisma.developerApp.findMany({
+        where: { organizationId: request.params.organizationId },
+        orderBy: { name: 'asc' },
+        select: {
+          id: true,
+          name: true,
+          status: true,
+          credentials: {
+            orderBy: { createdAt: 'asc' },
+            select: {
+              id: true,
+              consumerKey: true,
+              authMethods: true,
+              status: true,
+              issuedAt: true,
+              expiresAt: true,
+              productGrants: {
+                select: {
+                  id: true,
+                  status: true,
+                  scopes: true,
+                  product: {
+                    select: { id: true, name: true },
+                  },
+                },
+              },
+              certificates: {
+                select: {
+                  id: true,
+                  fingerprintSha256: true,
+                  status: true,
+                  validFrom: true,
+                  expiresAt: true,
+                },
+              },
+            },
+          },
+        },
+      });
+    },
+  );
   if (options.certificateAuthorities) {
     registerCertificateAuthorityRoutes(
       server,
