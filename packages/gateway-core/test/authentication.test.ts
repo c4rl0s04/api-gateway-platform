@@ -289,7 +289,6 @@ describe('mTLS direct authentication', () => {
     );
     const { context } = createPolicyContext({
       headers: {
-        'x-gateway-client-cert-verified': 'SUCCESS',
         'x-gateway-client-cert-sha256': 'ab'.repeat(32),
       },
     });
@@ -311,7 +310,6 @@ describe('mTLS direct authentication', () => {
   it('rejects expired certificates and revoked credentials', async () => {
     const { context } = createPolicyContext({
       headers: {
-        'x-gateway-client-cert-verified': 'SUCCESS',
         'x-gateway-client-cert-sha256': 'cd'.repeat(32),
       },
     });

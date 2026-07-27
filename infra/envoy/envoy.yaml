@@ -22,13 +22,8 @@ static_resources:
                     - name: gateway
                       domains: ["*"]
                       request_headers_to_remove:
-                        - x-gateway-client-cert-verified
                         - x-gateway-client-cert-sha256
                       request_headers_to_add:
-                        - header:
-                            key: x-gateway-client-cert-verified
-                            value: SUCCESS
-                          append_action: OVERWRITE_IF_EXISTS_OR_ADD
                         - header:
                             key: x-gateway-client-cert-sha256
                             value: "%DOWNSTREAM_PEER_FINGERPRINT_256%"

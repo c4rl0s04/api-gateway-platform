@@ -55,9 +55,6 @@ export function createMtlsPolicyWithDependencies(
     if (!immediateAddress || !dependencies.isTrustedProxy(immediateAddress)) {
       return halt(401, { error: 'Unauthorized', message: 'mTLS headers are not from a trusted ingress' });
     }
-    if (ctx.req.headers['x-gateway-client-cert-verified'] !== 'SUCCESS') {
-      return halt(401, { error: 'Unauthorized', message: 'Client certificate was not verified' });
-    }
     const rawFingerprint = ctx.req.headers['x-gateway-client-cert-sha256'];
     if (typeof rawFingerprint !== 'string') {
       return halt(401, { error: 'Unauthorized', message: 'Client certificate fingerprint is missing' });
