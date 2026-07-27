@@ -12,3 +12,12 @@ export {
   type CertificateMetadata,
   type ManagedAuthorityMaterial,
 } from './x509.js';
+export {
+  buildTrustBundle,
+  downloadExternalCertificateRevocationList,
+  generateCertificateRevocationList,
+  validateCertificateRevocationList,
+  type CertificateRevocationList,
+  type RevokedCertificate,
+  type TrustedAuthority,
+} from './trust.js';
