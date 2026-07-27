@@ -6,6 +6,8 @@ import { loadEnv, type ManagementEnv } from './config/env.js';
 import { prisma } from './db/client.js';
 import { registerCertificateAuthorityRoutes } from './routes/certificate-authorities.js';
 import type { CertificateAuthorityOperations } from './services/certificate-authorities.js';
+import { registerCertificateRoutes } from './routes/certificates.js';
+import type { CertificateOperations } from './services/certificates.js';
 
 export interface ManagementServerOptions {
   config: ManagementEnv;
@@ -13,6 +15,7 @@ export interface ManagementServerOptions {
   verifier?: OidcVerifier;
   memberships?: MembershipStore;
   certificateAuthorities?: CertificateAuthorityOperations;
+  certificates?: CertificateOperations;
 }
 
 export function buildServer(options: ManagementServerOptions): FastifyInstance {
@@ -90,6 +93,9 @@ export function buildServer(options: ManagementServerOptions): FastifyInstance {
       server,
       options.certificateAuthorities,
     );
+  }
+  if (options.certificates) {
+    registerCertificateRoutes(server, options.certificates);
   }
   return server;
 }
