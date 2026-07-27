@@ -17,51 +17,47 @@ aliases: []
 # management-api
 
 > [!summary] At a glance
-> `management-api` is a partial Fastify application: the process and health endpoint exist, but administrative routes are stubs.
+> `management-api` is an internal Fastify service for OIDC-authorized, organization-scoped PKI lifecycle operations.
 
 ## Responsibility
 
-The target responsibility is validated and authorized mutation of gateway
-configuration. Current code does not yet fulfill that responsibility.
+The implemented responsibility is validated and authorized mutation of
+certificate authorities, certificates, CRLs, runtime trust, and audit records.
 
 ## Boundaries
 
-- Current: Fastify startup and `GET /health`.
-- Current: an environment schema module and database import scaffold.
-- Planned: authentication, CRUD handlers, domain validation, and reload events.
+- Verifies OIDC access tokens against issuer, audience, expiry, and JWKS.
+- Resolves active roles from PostgreSQL rather than trusting token roles.
+- Enforces platform and organization boundaries.
+- Delegates cryptography to `@api-gateway/pki`.
+- Publishes public CA/CRL bundles and triggers Envoy SDS reload.
 
 ## Public Contracts
 
-The only implemented HTTP contract is:
-
-```http
-GET /health
-```
-
-It returns `{ "status": "ok" }`.
+The versioned surface is under `/v1`; see [[API Routes]]. `GET /live` and
+`GET /ready` are unversioned operational endpoints.
 
 ## Runtime Flow
 
-The current entry point constructs Fastify and listens on `0.0.0.0:3002`.
-Route modules are not registered.
+The service listens on its configured internal address. The Admin Panel BFF
+forwards an OIDC Bearer token, authentication middleware resolves memberships,
+and route services execute database, keystore, audit, and SDS operations.
 
 ## Configuration
 
-Although `src/config/env.ts` defines `PORT` and `DATABASE_URL`, `server.ts`
-currently does not load it. Documentation must not claim those values are
-honored by the process.
+See [[Environment Variables]] for OIDC and PKI paths. Compose keeps port `3002`
+internal.
 
 ## Tests
 
-The package test script is a TODO placeholder. A health test file exists but is
-not run by that script.
+Tests cover cryptographic token verification, missing identities, membership
+resolution, role boundaries, and CA mutation authorization.
 
 ## Limitations
 
-- No CRUD endpoints.
-- No request validation or administrative authentication.
-- No Redis publication or hot reload.
-- Hard-coded port.
+- General proxy, product, app, credential, and policy mutations are absent.
+- No scheduled external CRL refresh.
+- No routing-registry hot reload.
 
 ## Related Notes
 

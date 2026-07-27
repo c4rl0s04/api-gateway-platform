@@ -19,7 +19,7 @@ aliases: []
 # Global Architecture
 
 > [!summary] At a glance
-> The platform separates request processing in `gateway-core` from a partially built control plane, with PostgreSQL as configuration storage and Redis currently used for rate limiting.
+> The platform runs a data plane behind Envoy and an OIDC-protected control plane for organization-scoped certificate lifecycle, with PostgreSQL, Redis, Keycloak, and encrypted local PKI storage.
 
 ## Context
 
@@ -31,15 +31,19 @@ planes have different implementation maturity.
 
 ```mermaid
 flowchart LR
-    CLIENT["API clients"] --> GATEWAY["gateway-core<br/>Data plane"]
+    CLIENT["API clients"] --> ENVOY["Envoy HTTPS ingress"]
+    ENVOY --> GATEWAY["gateway-core<br/>Data plane"]
     GATEWAY --> BACKEND["Backend services"]
     GATEWAY --> POSTGRES["PostgreSQL<br/>Configuration"]
     GATEWAY --> REDIS["Redis<br/>Rate-limit counters"]
 
-    ADMIN["Administrator"] --> PANEL["admin-panel<br/>Partial scaffold"]
-    PANEL -. "planned" .-> MANAGEMENT["management-api<br/>Health endpoint only"]
-    MANAGEMENT -. "planned CRUD" .-> POSTGRES
-    MANAGEMENT -. "planned invalidation" .-> REDIS
+    ADMIN["Administrator"] --> PANEL["admin-panel"]
+    PANEL --> KEYCLOAK["Keycloak or corporate IdP"]
+    PANEL --> MANAGEMENT["management-api"]
+    MANAGEMENT --> POSTGRES
+    MANAGEMENT --> KEYSTORE["Encrypted CA keystore"]
+    MANAGEMENT --> SDS["Envoy trust and CRL SDS"]
+    SDS --> ENVOY
 
     PROMETHEUS["Prometheus container"] -. "metrics not exposed" .-> GATEWAY
     GRAFANA["Grafana container"] --> PROMETHEUS
@@ -52,6 +56,10 @@ flowchart LR
 3. Incoming requests resolve against that registry.
 4. Registered policies may allow, reject, rate-limit, or degrade the request.
 5. Allowed requests are forwarded to the deployment-specific upstream.
+6. Administrators authenticate with OIDC; the BFF forwards their Bearer token
+   to Management API.
+7. Management API enforces database memberships and organization boundaries for
+   CA and certificate operations.
 
 The configuration is not reloaded while the process is running.
 
@@ -66,11 +74,12 @@ The configuration is not reloaded while the process is running.
 ## Constraints
 
 - `gateway-core` reads configuration but does not provide management CRUD.
-- The Management API and Admin Panel are not usable control-plane products yet.
-- Docker Compose starts infrastructure only; application services are still TODO entries.
-- Local port defaults conflict and must be coordinated manually.
+- Control-plane CRUD is currently limited to organizations, apps, CAs,
+  certificates, PKI status, and audit context.
+- Proxy, product, and general application CRUD remain outside this phase.
+- The local file keystore and file SDS must be replaced for production.
 
 ## Sources
 
-See [[Runtime Request Flow]], [[Control Plane Flow]], [[Deployment Model]],
+See [[Runtime Request Flow]], [[Control Plane Flow]], [[Deployment Model]], [[Multi-Client PKI]],
 [[Observability]], and [[Current Status]] for focused views of the architecture.

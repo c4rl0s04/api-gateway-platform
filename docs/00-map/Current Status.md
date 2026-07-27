@@ -34,23 +34,25 @@ aliases: []
 | API key authentication | Implemented | Validates method, status, expiry, approved grants, proxy, and environment |
 | OAuth token issuance | Implemented | Client Credentials and JWT Bearer Grant issue environment-bound RS256 tokens |
 | OAuth access-token verification | Implemented | Stateless signature, claims, proxy, environment, and scope validation |
-| Direct mTLS authentication | Implemented | Trusted-ingress CIDR, normalized headers, fingerprints, and grants |
+| Direct mTLS authentication | Implemented | Envoy chain/CRL validation, connection-derived fingerprints, trusted CIDR, and grants |
+| Multi-client PKI | Implemented | Managed/external organization CAs, encrypted keystore, issuance, CRLs, rotation, and SDS |
 | Rate limiting | Implemented | Fixed-window Redis counter with atomic Lua execution |
-| Management API | Partial | Fastify scaffold and `GET /health`; CRUD route modules are stubs |
-| Admin panel | Partial | Next.js scaffold and placeholder pages only |
+| Management API | Partial | OIDC-protected CA/certificate lifecycle and audit are implemented; general gateway CRUD is not |
+| Admin panel | Partial | OIDC login and PKI workflows are implemented; proxy/product mutation is not |
 | Configuration hot reload | Planned | Redis is used for rate limiting, not configuration invalidation |
 | Metrics and dashboards | Planned | Prometheus and Grafana containers exist; gateway metrics are not exposed |
 
 ## Operational Endpoints
 
 - Gateway: `GET /live` and `GET /ready`.
-- Management API: `GET /health`.
+- Management API: internal `GET /live`, `GET /ready`, and versioned `/v1` PKI
+  routes.
 - All other gateway paths are evaluated by the proxy catch-all route.
 - The system-managed OAuth proxy exposes `POST /oauth/token` and
   `GET /oauth/.well-known/jwks.json`.
 
 See [[API Routes]] for response contracts and [[Ports]] for the current local
-port assignments and collisions.
+port assignments.
 
 ## Updating This Page
 

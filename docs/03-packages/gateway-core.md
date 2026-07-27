@@ -30,6 +30,8 @@ configuration.
 - Keeps active proxies and endpoints in an in-memory registry.
 - Connects to Redis lazily when a Redis-backed policy executes.
 - Imports the gateway signing key and trusted ingress CIDRs at startup.
+- Trusts only Envoy's connection-derived certificate fingerprint from the
+  configured immediate-source CIDR.
 - Communicates with upstream services through `undici`.
 - Does not expose management CRUD or configuration reload endpoints.
 

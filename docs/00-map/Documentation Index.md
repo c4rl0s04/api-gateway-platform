@@ -43,13 +43,14 @@ aliases: []
 | Note | Documentation | Implementation | Verified |
 | --- | --- | --- | --- |
 | [[02-architecture/Authentication and Authorization|Authentication and Authorization]] | current | implemented | 2026-07-27 |
-| [[02-architecture/Control Plane Flow|Control Plane Flow]] | current | planned | 2026-07-27 |
+| [[02-architecture/Control Plane Flow|Control Plane Flow]] | current | partial | 2026-07-27 |
 | [[02-architecture/Data Model|Data Model]] | current | implemented | 2026-07-27 |
-| [[02-architecture/Deployment Model|Deployment Model]] | current | partial | 2026-07-27 |
+| [[02-architecture/Deployment Model|Deployment Model]] | current | implemented | 2026-07-27 |
 | [[02-architecture/Global Architecture|Global Architecture]] | current | partial | 2026-07-27 |
 | [[02-architecture/Hot Reload Sync|Hot Reload Sync]] | current | planned | 2026-07-27 |
-| [[02-architecture/Management API|Management API]] | current | partial | 2026-07-27 |
+| [[02-architecture/Management API|Management API]] | current | implemented | 2026-07-27 |
 | [[02-architecture/Monorepo and Packages|Monorepo and Packages]] | current | partial | 2026-07-27 |
+| [[02-architecture/Multi-Client PKI|Multi-Client PKI]] | current | implemented | 2026-07-27 |
 | [[02-architecture/Observability|Observability]] | current | partial | 2026-07-27 |
 | [[02-architecture/Routing Engine|Routing Engine]] | current | implemented | 2026-07-27 |
 | [[02-architecture/Runtime Request Flow|Runtime Request Flow]] | current | implemented | 2026-07-27 |
@@ -62,6 +63,7 @@ aliases: []
 | [[03-packages/database|database]] | current | implemented | 2026-07-27 |
 | [[03-packages/gateway-core|gateway-core]] | current | implemented | 2026-07-27 |
 | [[03-packages/management-api|management-api]] | current | partial | 2026-07-27 |
+| [[03-packages/pki|pki]] | current | implemented | 2026-07-27 |
 | [[03-packages/shared|shared]] | current | implemented | 2026-07-27 |
 
 ## Guides
@@ -84,6 +86,7 @@ aliases: []
 | [[05-decisions/ADR-003 Prisma as ORM|ADR-003: Prisma as ORM]] | current | implemented | 2026-07-27 |
 | [[05-decisions/ADR-004 XML Policies|ADR-004: XML Policies]] | current | planned | 2026-07-27 |
 | [[05-decisions/ADR-005 Signed OAuth Tokens|ADR-005 Signed OAuth Tokens]] | current | implemented | 2026-07-27 |
+| [[05-decisions/ADR-006 Envoy and Managed Client PKI|ADR-006 Envoy and Managed Client PKI]] | current | implemented | 2026-07-27 |
 
 ## Reference
 

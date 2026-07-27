@@ -2,7 +2,7 @@
 title: Management API
 type: architecture
 doc_status: current
-implementation_status: partial
+implementation_status: implemented
 last_verified: 2026-07-27
 tags:
   - type/architecture
@@ -17,47 +17,52 @@ aliases: []
 # Management API
 
 > [!summary] At a glance
-> The Management API is currently a Fastify scaffold with `GET /health`; its administrative CRUD surface is planned but not implemented.
+> The Management API is an internal Fastify service that verifies OIDC tokens, resolves database memberships, and manages organization-scoped certificate authorities and client certificates.
 
 ## Context
 
-The Management API is intended to own validated control-plane writes. It should
-not be documented as functional until route handlers, authentication, tests,
-and persistence behavior exist.
+The service owns validated security control-plane writes. It is not published
+to the host; the Admin Panel BFF is its browser-facing caller.
 
 ## Current Components
 
-- `src/server.ts` creates a Fastify process and exposes `GET /health`.
-- `src/config/env.ts` defines `PORT` and `DATABASE_URL`, but the current server
-  does not call this loader and listens on hard-coded port `3002`.
-- `src/routes/*.routes.ts` files are stubs.
-- `admin-auth.middleware.ts` and the database wrapper are scaffolding only.
+- OIDC verifier: RS256, issuer, audience, expiry, and JWKS validation.
+- Membership authorization: `platformAdmin`, `organizationAdmin`, and `viewer`.
+- Read models for current identity, organizations, and applications.
+- CA lifecycle: create/import, activate, retire, revoke, rotate, refresh/upload
+  CRL.
+- Certificate lifecycle: issue from CSR, register external, list, download, and
+  revoke.
+- PKI runtime status and append-only security audit events.
 
-## Planned Data Flow
+## Data Flow
 
 ```mermaid
 flowchart LR
-    CLIENT["Admin panel"] --> VALIDATION["Authentication and request validation"]
-    VALIDATION --> DOMAIN["Domain operation"]
-    DOMAIN --> DATABASE["Transactional database write"]
-    DATABASE --> EVENT["Configuration invalidation event"]
+    CLIENT["Admin Panel BFF"] --> OIDC["Verify OIDC JWT"]
+    OIDC --> MEMBERSHIP["Load active memberships"]
+    MEMBERSHIP --> DOMAIN["Validate role and organization"]
+    DOMAIN --> DATABASE["Transactional database and audit write"]
+    DOMAIN --> KEYSTORE["Managed CA key operation"]
+    DOMAIN --> SDS["Atomic CA and CRL bundle update"]
 ```
 
-Planned resources include organizations, proxies, deployments, products,
-developer applications, credentials, endpoints, and policies. Exact routes are
-not a public contract until implemented.
+Exact routes are listed in [[API Routes]]. Proxy, deployment, product,
+application, and credential mutations are not implemented in this phase.
 
 ## Failure Modes
 
-- The current process will not honor the documented `PORT` environment value.
-- Route files can exist without exposing any HTTP endpoint.
-- Direct Prisma writes could bypass deployment progression rules.
-- Administrative authentication is not implemented.
+- Missing, invalid, or expired OIDC tokens return `401`.
+- An identity without an active membership returns `403`.
+- Organization boundary violations return `403`.
+- Keystore, database, CRL, or bundle publication errors fail the mutation.
+- A valid database write followed by SDS publication failure requires operator
+  reconciliation from the PKI status and audit views.
 
 ## Constraints
 
-Only `GET /health` belongs in the current route reference. Future endpoints
-must be added to [[API Routes]] from registered handlers, not design tables.
+Only certificate and PKI control-plane mutations are complete. General gateway
+configuration CRUD and routing-registry hot reload remain future work.
 
 ## Sources
 

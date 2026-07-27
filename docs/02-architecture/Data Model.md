@@ -44,6 +44,11 @@ erDiagram
     ApiProduct ||--o{ CredentialProductGrant : grants
     AppCredential ||--o{ AppPublicKey : verifies
     AppCredential ||--o{ AppCertificate : identifies
+    CertificateAuthority ||--o{ AppCertificate : issues
+    CertificateAuthority ||--o{ CertificateIssuance : records
+    Organization ||--o{ CertificateAuthority : owns
+    Organization ||--o{ AdminMembership : scopes
+    Organization ||--o{ AuditEvent : audits
 ```
 
 ## Deployment Flow
@@ -66,6 +71,13 @@ fingerprints are separate validity-controlled records. An approved
 `CredentialProductGrant` supplies scopes and access through an active product.
 A product must include the current proxy. Its environment relation is optional:
 empty means all environments.
+
+A `CertificateAuthority` is managed or external and moves through
+`draft`, `active`, `retiring`, and `revoked`. PostgreSQL stores public
+certificate, CRL, validity, and key reference; managed private keys live only
+in the encrypted keystore. `CertificateIssuance` records a CSR SHA-256 digest.
+`AdminMembership` maps an OIDC issuer/subject to a platform or organization
+role, while `AuditEvent` records security mutations append-only.
 
 Endpoints are either `forward` or `local`. `targetPath` and an upstream are
 required only for forwarding. `systemManaged` identifies platform-owned

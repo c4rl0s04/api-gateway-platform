@@ -32,6 +32,8 @@ This package is the persistence boundary for the monorepo.
 - Enforces deployment progression through `createProxyDeployment()`.
 - Exports credential, secret rotation, grant, public-key, and certificate
   domain operations.
+- Persists certificate authorities, issuance records, OIDC memberships, and
+  append-only audit events; managed CA private keys remain outside PostgreSQL.
 
 Runtime packages should not reproduce database invariants in route handlers or
 direct model writes.
@@ -55,7 +57,7 @@ stage transition.
 The base seed creates 30 stage/region environments, organizations, logical
 proxies, endpoints, and initial `qual` deployments. The policy seed adds
 products, apps, hashed credentials, explicit grants, a public development JWK,
-a development certificate fingerprint, and endpoint policies. The base seed
+a local CA, two development client certificates, OIDC memberships, and endpoint policies. The base seed
 also deploys the local `platform-oauth` proxy to all 30 environments.
 
 ## Configuration
@@ -84,3 +86,4 @@ validated against a disposable PostgreSQL database before release.
 - [[ADR-003 Prisma as ORM]]
 - [[How to Use Prisma Studio]]
 - [[Reset Local Database]]
+- [[pki]]

@@ -13,6 +13,7 @@ sources:
   - packages/gateway-core/src/policies/oauth/oauth-token.policy.ts
   - packages/gateway-core/src/policies/oauth/oauth-access-token.policy.ts
   - packages/gateway-core/src/policies/auth/mtls.policy.ts
+  - infra/envoy/envoy.yaml
 aliases:
   - Authentication Architecture
 ---
@@ -42,6 +43,7 @@ erDiagram
   DeveloperApp ||--o{ AppCredential : has
   AppCredential ||--o{ AppPublicKey : verifies_assertions
   AppCredential ||--o{ AppCertificate : identifies_mtls
+  CertificateAuthority ||--o{ AppCertificate : issues
   AppCredential ||--o{ CredentialProductGrant : receives
   ApiProduct ||--o{ CredentialProductGrant : authorizes
   ApiProduct }o--o{ ApiProxy : bundles
@@ -105,8 +107,9 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
-  Client->>Trusted ingress: TLS client certificate
-  Trusted ingress->>Gateway: sanitized verified status + SHA-256 fingerprint
+  Client->>Envoy: TLS client certificate
+  Envoy->>Envoy: validate CA chain, dates, EKU and CRL
+  Envoy->>Gateway: connection-derived SHA-256 fingerprint
   Gateway->>Gateway: validate immediate source CIDR
   Gateway->>PostgreSQL: certificate, credential, approved grants
   Gateway->>Backend: forward authorized request
@@ -131,7 +134,9 @@ sequenceDiagram
 - JWT assertions cannot span more than 120 seconds and are single-use.
 - No refresh tokens or individual access-token persistence/revocation.
 - One authentication policy per business endpoint.
-- The ingress must remove client-supplied mTLS headers before adding trusted ones.
+- Envoy removes client-supplied identity headers and writes the fingerprint
+  derived from the live TLS connection.
+- Client private keys never enter the platform; managed issuance accepts CSRs.
 - Authorization code, password, implicit, `private_key_jwt`, and direct external
   JWT validation are not supported.
 
@@ -141,3 +146,4 @@ sequenceDiagram
 - [[Runtime Request Flow]]
 - [[OAuth 2.0]]
 - [[ADR-005 Signed OAuth Tokens]]
+- [[Multi-Client PKI]]

@@ -17,41 +17,47 @@ aliases: []
 # admin-panel
 
 > [!summary] At a glance
-> `admin-panel` is a Next.js scaffold with placeholder pages and no working Management API client.
+> `admin-panel` is a Next.js control-plane UI with OIDC Authorization Code + PKCE, an HttpOnly session, and a BFF for PKI Management API workflows.
 
 ## Responsibility
 
-The target package is the browser interface for control-plane workflows.
+The package is the browser interface for organization, app, certificate
+authority, certificate, runtime status, and audit views.
 
 ## Boundaries
 
-Current routes include placeholder pages for the dashboard, applications,
-products, and proxies. The API client contains only a stub.
+The browser never calls internal Management API directly. Route handlers own
+OIDC login/callback/logout and proxy authenticated `/api/management/*` calls.
+Products and proxies remain context-only placeholders.
 
 ## Public Contracts
 
-No stable UI or HTTP client contract exists yet.
+- `GET /api/auth/login`, callback, session, and logout.
+- `/api/management/[...path]` authenticated BFF.
+- Dashboard, applications, authorities, and certificates pages.
 
 ## Runtime Flow
 
-Next.js serves static placeholder headings. There is no data loading, mutation,
-authentication, error handling, or connection to `management-api`.
+Unauthenticated users are redirected to Keycloak. PKCE state and verifier are
+HttpOnly cookies; callback exchange stores the short-lived access token in an
+HttpOnly cookie. Client components call the BFF for reads and mutations.
 
 ## Configuration
 
-The package uses the standard Next.js development port unless overridden when
-starting the process. That default conflicts with the gateway and Grafana.
+Compose serves the panel on host port `8080`. `MANAGEMENT_API_URL`,
+`OIDC_ISSUER`, `OIDC_INTERNAL_BASE_URL`, `OIDC_CLIENT_ID`, and
+`OIDC_CALLBACK_URL` configure its server-side integrations.
 
 ## Tests
 
-The package test and lint scripts are TODO placeholders.
+Tests cover RFC 7636 S256 challenges and random URL-safe OIDC state.
 
 ## Limitations
 
-- No usable administration workflow.
-- No API integration.
-- No authentication or authorization.
-- No component or end-to-end tests.
+- Product, proxy, app, credential, and grant mutations are not implemented.
+- The session does not implement refresh tokens; users log in again after token
+  expiry.
+- Automated browser tests are not yet part of the package suite.
 
 ## Related Notes
 

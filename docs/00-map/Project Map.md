@@ -28,6 +28,7 @@ aliases: []
 | Add a proxy deployment | [[How to Add a New Proxy]] | [[Deployment Model]] |
 | Work on policies | [[Policy Types]] | [[Policy Reference Index]], [[Debug Policy Failure]] |
 | Configure client authentication | [[Authentication and Authorization]] | [[How to Configure Application Authentication]], [[Debug OAuth and mTLS]] |
+| Work on certificates or trust | [[Multi-Client PKI]] | [[pki]], [[ADR-006 Envoy and Managed Client PKI]] |
 | Work on the control plane | [[Control Plane Flow]] | [[Management API]], [[management-api]] |
 | Run the project | [[How to Start the Project]] | [[Ports]], [[Environment Variables]] |
 | Diagnose a failure | [[Debug Gateway 404]] | [[Debug Policy Failure]], [[Reset Local Database]] |
@@ -36,19 +37,19 @@ aliases: []
 
 ```mermaid
 flowchart LR
-    CLIENT["API client"] --> GATEWAY["gateway-core"]
+    CLIENT["API client"] --> INGRESS["Envoy"]
+    INGRESS --> GATEWAY["gateway-core"]
     GATEWAY --> BACKEND["Backend service"]
     GATEWAY --> DATABASE["PostgreSQL"]
     GATEWAY --> REDIS["Redis"]
-    CLIENT --> INGRESS["Trusted mTLS ingress"]
-    INGRESS --> GATEWAY
-    ADMIN["Admin browser"] --> PANEL["admin-panel scaffold"]
-    PANEL -. "planned API calls" .-> MANAGEMENT["management-api scaffold"]
+    ADMIN["Admin browser"] --> PANEL["admin-panel"]
+    PANEL --> MANAGEMENT["management-api"]
+    PANEL --> KEYCLOAK["OIDC IdP"]
     MANAGEMENT --> DATABASE
+    MANAGEMENT --> INGRESS
 ```
 
-Solid arrows represent current runtime interactions. Dashed arrows represent
-planned control-plane behavior.
+Solid arrows represent current runtime interactions.
 
 ## Documentation Boundaries
 
@@ -62,6 +63,6 @@ planned control-plane behavior.
 
 ## Current Gaps
 
-The control plane CRUD API, usable administration UI, configuration hot reload,
-and Prometheus metrics are not implemented. See [[Current Status]] for the
-verified feature matrix.
+General gateway CRUD, routing configuration hot reload, production key
+management, and Prometheus metrics are not implemented. See [[Current Status]]
+for the verified feature matrix.

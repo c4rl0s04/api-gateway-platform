@@ -2,7 +2,7 @@
 title: Deployment Model
 type: architecture
 doc_status: current
-implementation_status: partial
+implementation_status: implemented
 last_verified: 2026-07-27
 tags:
   - type/architecture
@@ -21,14 +21,12 @@ aliases:
 # Deployment Model
 
 > [!summary] At a glance
-> The local data plane is an ordered Docker Compose application started through `npm run dev:local`; control-plane scaffolds remain outside it.
+> `npm run dev:local` builds and starts the complete local data plane, OIDC control plane, encrypted PKI runtime, and web interface as one Docker Compose application.
 
 ## Context
 
 The repository does not yet define a production deployment topology. The
-current model is a reproducible local-development composition for the complete
-data plane. The Management API and Admin Panel remain independently started
-scaffolds.
+current model is a reproducible local-development composition for the platform.
 
 ## Components
 
@@ -39,46 +37,49 @@ flowchart TB
         REDIS["Redis :6379"]
         SETUP["Migrations and seeds"]
         MOCK["mock-backend internal :4000"]
-        GATEWAY["gateway-core host :3000"]
-        INGRESS["mTLS ingress host :3443"]
+        GATEWAY["gateway-core internal :3000"]
+        ENVOY["Envoy host :8443"]
+        KEYCLOAK["Keycloak host :8081"]
+        MANAGEMENT["management-api internal :3002"]
+        PANEL["admin-panel host :8080"]
         PROMETHEUS["Prometheus :9090 optional"]
         GRAFANA["Grafana :3001 optional"]
-    end
-
-    subgraph Scaffolds["Outside the default composition"]
-        MANAGEMENT["management-api hard-coded :3002"]
-        PANEL["admin-panel Next.js default :3000"]
     end
 
     SETUP --> POSTGRES
     GATEWAY --> POSTGRES
     GATEWAY --> REDIS
     GATEWAY --> MOCK
-    INGRESS --> GATEWAY
+    ENVOY --> GATEWAY
     MANAGEMENT --> POSTGRES
+    PANEL --> MANAGEMENT
+    PANEL --> KEYCLOAK
+    MANAGEMENT --> ENVOY
 ```
 
 ## Data Flow
 
 `npm run dev:local` generates untracked cryptographic material and invokes
 Compose. Health and completion dependencies enforce PostgreSQL, migrations,
-seeds, Redis, mock backend, gateway, and ingress startup order. The gateway
+seeds, Redis, Keycloak, mock backend, gateway, Management API, panel, and ingress
+startup order. The gateway
 selects deployments from PostgreSQL and forwards to the internal mock service.
 Prometheus and Grafana require the optional `observability` profile.
 
 ## Failure Modes
 
-- Starting all workspaces through the root `dev` script can fail because the
-  standalone Admin Panel and gateway both default to port `3000`.
 - A failed one-shot `database-setup` blocks gateway startup.
 - Removing `.local-secrets/` while containers are running desynchronizes mounted
   mTLS material until the environment is recreated.
-- Management API validates a `PORT` variable in one module but its current server still listens on hard-coded port `3002`.
+- A stale Keycloak volume does not re-import a changed local realm; use the
+  documented volume reset when bootstrap definitions change.
 
 ## Constraints
 
 This composition is a development topology and does not define production
 secret management, scaling, ingress, or port allocation.
+Gateway, Management API, PostgreSQL, Redis, and mock backend are intentionally
+not published to the host.
 
 ## Sources
 

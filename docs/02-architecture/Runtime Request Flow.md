@@ -29,7 +29,8 @@ query PostgreSQL for every request.
 
 ```mermaid
 flowchart TD
-    REQUEST["Incoming HTTP request"] --> OPERATIONAL{"Operational path?"}
+    REQUEST["Incoming HTTPS request"] --> ENVOY["Envoy validates optional client certificate and sanitizes identity"]
+    ENVOY --> OPERATIONAL{"Operational path?"}
     OPERATIONAL -->|"/live or /ready"| HEALTH["Gateway response"]
     OPERATIONAL -->|"No"| PROXY{"Resolve longest proxy prefix"}
     PROXY -->|"No match"| PROXY404["404 unknown proxy"]
@@ -58,11 +59,13 @@ treated as infrastructure degradation.
 API key and mTLS authorization query PostgreSQL. OAuth token issuance queries
 PostgreSQL and JWT Bearer additionally requires Redis replay protection.
 Gateway-issued Bearer verification is stateless and does not query PostgreSQL.
+For mTLS, Envoy rejects invalid chains and CRLs before the request reaches the
+gateway; `mtls-auth` then authorizes the connection-derived fingerprint.
 
 ## Constraints
 
-The in-memory registry changes only at startup. See [[Hot Reload Sync]] for the
-planned reload design.
+The gateway routing registry changes only at startup. Envoy certificate and CRL
+trust is a separate runtime and reloads atomically through file SDS.
 
 ## Sources
 
