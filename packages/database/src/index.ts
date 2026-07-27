@@ -2,7 +2,15 @@
 export { prisma } from './client.js';
 
 // Prisma types — useful for annotating query results in management-api
-export { PrismaClient, Prisma } from './generated/index.js';
+export {
+  AdminRole,
+  AuthorizationStatus,
+  CertificateAuthorityKind,
+  CertificateAuthorityStatus,
+  CertificateSource,
+  PrismaClient,
+  Prisma,
+} from './generated/index.js';
 
 export {
   createProxyDeployment,

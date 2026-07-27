@@ -1,21 +1,23 @@
 {
   "name": "management-api",
   "version": "1.0.0",
-  "main": "dist/server.js",
+  "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
-    "test": "echo \"TODO: test\"",
+    "test": "tsx --test test/*.test.ts",
     "lint": "echo \"TODO: lint\""
   },
   "dependencies": {
     "@api-gateway/database": "*",
     "fastify": "^4.24.3",
+    "jose": "^6.2.4",
+    "jose": "^6.2.4",
     "zod": "^3.22.4"
   },
   "devDependencies": {
-    "typescript": "^5.2.2",
+    "@types/node": "^20.8.7",
     "tsx": "^4.23.0",
-    "@types/node": "^20.8.7"
+    "typescript": "^5.2.2"
   }
 }
