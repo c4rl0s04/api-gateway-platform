@@ -22,3 +22,4 @@ export {
   type RevokedCertificate,
   type TrustedAuthority,
 } from './trust.js';
+export { generateClientKeyAndCsr } from './client-files.js';
