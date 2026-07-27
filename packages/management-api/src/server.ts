@@ -4,12 +4,15 @@ import { canReadOrganization, isPlatformAdmin } from './auth/authorization.js';
 import { createOidcVerifier, type OidcVerifier } from './auth/oidc.js';
 import { loadEnv, type ManagementEnv } from './config/env.js';
 import { prisma } from './db/client.js';
+import { registerCertificateAuthorityRoutes } from './routes/certificate-authorities.js';
+import type { CertificateAuthorityOperations } from './services/certificate-authorities.js';
 
 export interface ManagementServerOptions {
   config: ManagementEnv;
   logger?: boolean;
   verifier?: OidcVerifier;
   memberships?: MembershipStore;
+  certificateAuthorities?: CertificateAuthorityOperations;
 }
 
 export function buildServer(options: ManagementServerOptions): FastifyInstance {
@@ -82,6 +85,12 @@ export function buildServer(options: ManagementServerOptions): FastifyInstance {
       return organization;
     },
   );
+  if (options.certificateAuthorities) {
+    registerCertificateAuthorityRoutes(
+      server,
+      options.certificateAuthorities,
+    );
+  }
   return server;
 }
 

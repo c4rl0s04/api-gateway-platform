@@ -10,8 +10,9 @@
   },
   "dependencies": {
     "@api-gateway/database": "*",
+    "@api-gateway/pki": "*",
+    "@api-gateway/pki": "^1.0.0",
     "fastify": "^4.24.3",
-    "jose": "^6.2.4",
     "jose": "^6.2.4",
     "zod": "^3.22.4"
   },
