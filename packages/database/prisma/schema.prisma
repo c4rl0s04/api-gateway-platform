@@ -81,12 +81,14 @@ model Organization {
 
 /// Global deployment target selected from closed stage and region values.
 model Environment {
-  id          String            @id @default(uuid())
-  stage       DeploymentStage
-  region      DeploymentRegion
-  deployments ProxyDeployment[]
-  products    ApiProduct[]
-  createdAt   DateTime          @default(now())
+  id           String            @id @default(uuid())
+  stage        DeploymentStage
+  region       DeploymentRegion
+  /// Public HTTPS origin used to select this environment at runtime.
+  publicOrigin String             @unique
+  deployments  ProxyDeployment[]
+  products     ApiProduct[]
+  createdAt    DateTime           @default(now())
 
   @@unique([stage, region])
 }

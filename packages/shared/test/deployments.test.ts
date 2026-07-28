@@ -13,6 +13,7 @@ describe('deployment contracts', () => {
       id: 'env-qual-de',
       stage: 'qual',
       region: 'de',
+      publicOrigin: 'https://qual-de.gateway.localhost:8443',
     });
 
     assert.equal(formatEnvironmentName(environment), 'qual-de');
@@ -30,6 +31,37 @@ describe('deployment contracts', () => {
         region: 'au',
       }),
       /Invalid enum value/,
+    );
+  });
+
+  it('accepts only canonical HTTPS public origins', () => {
+    const environment = {
+      id: 'env-qual-de',
+      stage: 'qual',
+      region: 'de',
+    } as const;
+
+    assert.doesNotThrow(() =>
+      environmentConfigSchema.parse({
+        ...environment,
+        publicOrigin: 'https://qual-de.gateway.localhost:8443',
+      }),
+    );
+    assert.throws(
+      () =>
+        environmentConfigSchema.parse({
+          ...environment,
+          publicOrigin: 'https://qual-de.gateway.localhost:8443/oauth',
+        }),
+      /Expected an HTTPS origin/,
+    );
+    assert.throws(
+      () =>
+        environmentConfigSchema.parse({
+          ...environment,
+          publicOrigin: 'http://qual-de.gateway.localhost:8443',
+        }),
+      /Expected an HTTPS origin/,
     );
   });
 

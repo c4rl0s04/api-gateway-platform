@@ -39,6 +39,7 @@ CREATE TABLE "Environment" (
     "id" TEXT NOT NULL,
     "stage" "DeploymentStage" NOT NULL,
     "region" "DeploymentRegion" NOT NULL,
+    "publicOrigin" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Environment_pkey" PRIMARY KEY ("id")
@@ -271,6 +272,9 @@ CREATE TABLE "_ApiProductToEnvironment" (
     "A" TEXT NOT NULL,
     "B" TEXT NOT NULL
 );
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Environment_publicOrigin_key" ON "Environment"("publicOrigin");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Environment_stage_region_key" ON "Environment"("stage", "region");

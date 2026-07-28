@@ -8,6 +8,7 @@ export {
   environmentConfigSchema,
   formatEnvironmentName,
   getRequiredPreviousStage,
+  publicOriginSchema,
 } from './deployments/config';
 export type {
   DeploymentRegion,

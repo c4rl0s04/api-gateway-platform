@@ -35,11 +35,19 @@ function environmentId(
   return `env-${stage}-${region}`;
 }
 
+function environmentPublicOrigin(
+  stage: DeploymentStage,
+  region: DeploymentRegion,
+): string {
+  return `https://${stage}-${region}.gateway.localhost:8443`;
+}
+
 const ENVIRONMENTS = DEPLOYMENT_REGIONS.flatMap(region =>
   DEPLOYMENT_STAGES.map(stage => ({
     id: environmentId(stage, region),
     stage,
     region,
+    publicOrigin: environmentPublicOrigin(stage, region),
   })),
 );
 
@@ -243,6 +251,7 @@ async function main() {
       update: {
         stage: environment.stage,
         region: environment.region,
+        publicOrigin: environment.publicOrigin,
       },
       create: environment,
     });

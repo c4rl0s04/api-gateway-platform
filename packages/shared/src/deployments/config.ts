@@ -17,10 +17,21 @@ export const DEPLOYMENT_REGIONS = [
 export const deploymentStageSchema = z.enum(DEPLOYMENT_STAGES);
 export const deploymentRegionSchema = z.enum(DEPLOYMENT_REGIONS);
 
+export const publicOriginSchema = z.string().url().refine(value => {
+  const url = new URL(value);
+  return (
+    url.protocol === 'https:' &&
+    url.origin === value &&
+    url.username === '' &&
+    url.password === ''
+  );
+}, 'Expected an HTTPS origin without path, query, fragment, or credentials');
+
 export const environmentConfigSchema = z.object({
   id: z.string().min(1),
   stage: deploymentStageSchema,
   region: deploymentRegionSchema,
+  publicOrigin: publicOriginSchema,
 });
 
 export type DeploymentStage = z.infer<typeof deploymentStageSchema>;
