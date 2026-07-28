@@ -10,6 +10,8 @@ import type { ApplicationOperations } from './services/applications.js';
 import type { CertificateAuthorityOperations } from './services/certificate-authorities.js';
 import { registerCertificateRoutes } from './routes/certificates.js';
 import type { CertificateOperations } from './services/certificates.js';
+import { registerGatewayCatalogRoutes } from './routes/proxies.routes.js';
+import type { GatewayCatalogOperations } from './services/gateway-catalog.js';
 
 export interface ManagementServerOptions {
   config: ManagementEnv;
@@ -19,6 +21,7 @@ export interface ManagementServerOptions {
   applications?: ApplicationOperations;
   certificateAuthorities?: CertificateAuthorityOperations;
   certificates?: CertificateOperations;
+  gatewayCatalog?: GatewayCatalogOperations;
 }
 
 export function buildServer(options: ManagementServerOptions): FastifyInstance {
@@ -102,6 +105,9 @@ export function buildServer(options: ManagementServerOptions): FastifyInstance {
   }
   if (options.certificates) {
     registerCertificateRoutes(server, options.certificates);
+  }
+  if (options.gatewayCatalog) {
+    registerGatewayCatalogRoutes(server, options.gatewayCatalog);
   }
   return server;
 }

@@ -3,6 +3,7 @@ import { createCertificateAuthorityService } from './services/certificate-author
 import { EncryptedFileKeyStore, loadOrCreateMasterKey } from '@api-gateway/pki';
 import { CertificateService } from './services/certificates.js';
 import { ApplicationService } from './services/applications.js';
+import { GatewayCatalogService } from './services/gateway-catalog.js';
 
 void (async () => {
   const config = loadEnv();
@@ -17,6 +18,7 @@ void (async () => {
     applications: new ApplicationService(),
     certificateAuthorities,
     certificates,
+    gatewayCatalog: new GatewayCatalogService(),
   });
   try {
     await server.listen({ port: config.PORT, host: config.HOST });
