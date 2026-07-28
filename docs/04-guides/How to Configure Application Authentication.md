@@ -11,6 +11,7 @@ sources:
   - packages/database/src/credentials.ts
   - packages/database/src/seed-policies.ts
   - packages/shared/src/policies/config.ts
+  - packages/management-api/src/routes/certificates.ts
 aliases: []
 ---
 
@@ -22,7 +23,7 @@ aliases: []
 ## Goal
 
 Provision API key, Client Credentials, JWT Bearer, or direct mTLS access using
-the domain operations exported by `@api-gateway/database`.
+domain operations, seeds, and the implemented PKI control plane.
 
 ## Prerequisites
 
@@ -41,14 +42,15 @@ the domain operations exported by `@api-gateway/database`.
    subset of the product scopes.
 4. For JWT Bearer, call `registerAppPublicKey` with an RSA public JWK and unique
    `kid`. Never store the client private key in this repository.
-5. For mTLS, call `registerAppCertificate` with the normalized SHA-256
-   fingerprint and optional certificate metadata.
+5. For mTLS, generate a client-owned key and CSR, then issue or register its
+   certificate through the Admin Panel or Management API.
 6. Configure one business-endpoint policy: `api-key-auth`,
    `oauth-access-token`, or `mtls-auth`.
 7. For OAuth, obtain a token from `/oauth/token` and use it as a Bearer token.
 
-The current temporary configuration surface is the domain service plus seeds.
-Management API and Admin Panel handlers are not implemented in this phase.
+Application, credential, grant, and public-JWK creation still use domain
+services and seeds. CA and certificate lifecycle is available in the Admin
+Panel and Management API.
 
 The development seed provides concrete examples in `env-qual-es`:
 
@@ -66,9 +68,11 @@ The development seed provides concrete examples in `env-qual-es`:
 - JWKS contains the configured `kid` and no private RSA members.
 - The token works only in its `environment_id` and listed `proxy_ids`.
 - Spoofed mTLS headers from outside trusted CIDRs return `401`.
+- Revoked managed certificates are rejected by Envoy after SDS reload.
 
 ## Troubleshooting or Rollback
 
 Revoke a grant, public key, or certificate through its domain operation. Rotate
 a leaked consumer secret. Shorten access-token TTL when faster indirect
 revocation is required. See [[Debug OAuth and mTLS]].
+For CA, CSR, CRL, rotation, and backup procedures, use [[How to Operate the PKI]].

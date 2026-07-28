@@ -3,7 +3,7 @@ title: Documentation Index
 type: map
 doc_status: current
 implementation_status: not-applicable
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 tags:
   - type/map
   - area/project
@@ -73,6 +73,7 @@ aliases: []
 | [[04-guides/How to Add a New Proxy|How to Add a New Proxy]] | current | implemented | 2026-07-27 |
 | [[04-guides/How to Configure Application Authentication|How to Configure Application Authentication]] | current | implemented | 2026-07-27 |
 | [[04-guides/How to Document the Project|How to Document the Project]] | current | not-applicable | 2026-07-27 |
+| [[04-guides/How to Operate the PKI|How to Operate the PKI]] | current | implemented | 2026-07-27 |
 | [[04-guides/How to Run Tests|How to Run Tests]] | current | implemented | 2026-07-27 |
 | [[04-guides/How to Start the Project|How to Start the Project]] | current | implemented | 2026-07-27 |
 | [[04-guides/How to Use Prisma Studio|How to Use Prisma Studio]] | current | implemented | 2026-07-27 |
@@ -92,7 +93,7 @@ aliases: []
 
 | Note | Documentation | Implementation | Verified |
 | --- | --- | --- | --- |
-| [[06-reference/API Routes|API Routes]] | current | partial | 2026-07-27 |
+| [[06-reference/API Routes|API Routes]] | current | implemented | 2026-07-27 |
 | [[06-reference/Database Schema|Database Schema]] | current | implemented | 2026-07-27 |
 | [[06-reference/Environment Variables|Environment Variables]] | current | implemented | 2026-07-27 |
 | [[06-reference/policies/README|Policy Reference Index]] | current | partial | 2026-07-27 |

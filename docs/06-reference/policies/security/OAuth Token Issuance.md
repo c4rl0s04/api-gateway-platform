@@ -60,7 +60,8 @@ Assertion lifetime is at most 120 seconds.
 curl -u 'consumer-key:consumer-secret' \
   -H 'content-type: application/x-www-form-urlencoded' \
   --data 'grant_type=client_credentials&scope=accounts%3Aread' \
-  http://localhost:3000/oauth/token
+  --cacert .local-secrets/pki/authorities/local-development/ca.crt \
+  https://localhost:8443/oauth/token
 ```
 
 JWT Bearer replaces Basic authentication with:

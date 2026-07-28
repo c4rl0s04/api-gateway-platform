@@ -19,29 +19,27 @@ aliases: []
 # Ports
 
 > [!summary] At a glance
-> The local Compose data plane has non-conflicting ports; optional observability runs under a separate profile.
+> The default platform publishes only Envoy, Admin Panel, and Keycloak; data stores and internal services remain inside the Compose network.
 
 ## Current Support
 
 | Component | Host port | Source | Configurable now |
 | --- | --- | --- | --- |
-| PostgreSQL | `5432` | Default local Compose service | Through Compose edit |
-| Redis | `6379` | Default local Compose service | Through Compose edit |
-| `gateway-core` | `3000` | Default local Compose service | Yes, with `PORT` outside Compose |
-| mTLS ingress | `3443` | Default local Compose service | Through Compose edit |
+| Envoy gateway ingress | `8443` | Default local Compose service | Through Compose edit |
+| `admin-panel` | `8080` | Default local Compose service | Through Compose edit |
+| Keycloak | `8081` | Default local Compose service | Through Compose edit |
+| PostgreSQL | Internal `5432` | Default local Compose service | Not published |
+| Redis | Internal `6379` | Default local Compose service | Not published |
+| `gateway-core` | Internal `3000` | Default local Compose service | Not published |
+| `management-api` | Internal `3002` | Default local Compose service | Not published |
 | Mock backend | Internal `4000` | Default local Compose service | Not published to the host |
 | Prometheus | `9090` | Optional `observability` profile | Through Compose edit |
 | Grafana | `3001` | Optional `observability` profile | Through Compose edit |
-| `management-api` | `3002` | Hard-coded server | No |
-| `admin-panel` | `3000` | Next.js default | Yes, with Next.js CLI/environment conventions |
 | Prisma Studio | `5555` | Prisma default | Through Prisma CLI options |
 
 ## Known Collisions
 
-The default `npm run dev:local` environment has no internal host-port
-collisions. The root `npm run dev` remains a workspace-level command and can
-still collide because the standalone Admin Panel and gateway both default to
-port `3000`.
+The default `npm run dev:local` environment has no host-port collisions.
 
 ## Examples
 

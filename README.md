@@ -2,9 +2,10 @@
 
 A TypeScript monorepo for a lightweight API gateway inspired by Google Apigee.
 
-The implemented data plane loads proxy deployments from PostgreSQL, resolves
-explicit endpoints, executes API key and rate-limit policies, and forwards HTTP
-traffic. The Management API and Admin Panel are partial scaffolds.
+The platform loads proxy deployments from PostgreSQL, executes API key, OAuth,
+mTLS, and rate-limit policies, and forwards HTTP traffic behind Envoy. Its
+OIDC-protected control plane manages organization certificate authorities,
+client certificate issuance, revocation, rotation, and audit state.
 
 ## Documentation
 
@@ -27,9 +28,10 @@ npm run docs:check
 npm run dev:local
 ```
 
-This single command generates reusable local signing keys and mTLS certificates,
-builds the application image, migrates and seeds PostgreSQL, and starts
-PostgreSQL, Redis, the mock upstream, `gateway-core`, and the mTLS ingress.
+This single command generates reusable local OAuth and encrypted PKI material,
+builds the application image, migrates and seeds PostgreSQL, and starts Envoy,
+the gateway, PostgreSQL, Redis, Keycloak, Management API, Admin Panel, and the
+mock upstream.
 Stop the foreground environment with `Ctrl+C`.
 
 ```bash
@@ -40,3 +42,7 @@ npm run dev:local:down
 The detached variant returns control to the terminal. See
 [How to Start the Project](docs/04-guides/How%20to%20Start%20the%20Project.md)
 for verification, data persistence, and troubleshooting.
+
+- API ingress: `https://localhost:8443`
+- Admin Panel: `http://localhost:8080`
+- Local Keycloak: `http://localhost:8081`

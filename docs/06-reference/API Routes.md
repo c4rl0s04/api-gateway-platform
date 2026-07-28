@@ -2,7 +2,7 @@
 title: API Routes
 type: reference
 doc_status: current
-implementation_status: partial
+implementation_status: implemented
 last_verified: 2026-07-27
 tags:
   - type/reference
@@ -16,7 +16,7 @@ aliases: []
 # API Routes
 
 > [!summary] At a glance
-> Only routes registered by current Fastify servers appear here; stub files and planned APIs are excluded.
+> This is the registered gateway and Management API surface; Management API remains internal to Compose and is reached by browsers through the Admin Panel BFF.
 
 ## Current Support
 
@@ -47,17 +47,42 @@ The gateway intentionally does not expose a root `/health` route.
 
 | Method | Path | Success | Purpose |
 | --- | --- | --- | --- |
-| `GET` | `/health` | `200` | Returns `{ "status": "ok" }` |
+| `GET` | `/live` | `200` | Process liveness |
+| `GET` | `/ready` | `200` or `503` | PostgreSQL readiness |
+| `GET` | `/v1/me` | `200` | Verified identity and active memberships |
+| `GET` | `/v1/organizations` | `200` | Organizations visible to the actor |
+| `GET` | `/v1/organizations/:organizationId` | `200` | Organization detail |
+| `GET` | `/v1/organizations/:organizationId/apps` | `200` | Apps, credentials, grants, and certificates |
+| `GET` | `/v1/organizations/:organizationId/certificate-authorities` | `200` | Organization authorities |
+| `POST` | `/v1/organizations/:organizationId/certificate-authorities/managed` | `201` | Create managed CA; platform admin only |
+| `POST` | `/v1/organizations/:organizationId/certificate-authorities/external` | `201` | Import external CA; platform admin only |
+| `POST` | `/v1/certificate-authorities/:authorityId/active` | `200` | Activate CA |
+| `POST` | `/v1/certificate-authorities/:authorityId/retiring` | `200` | Stop issuance and retain trust |
+| `POST` | `/v1/certificate-authorities/:authorityId/revoked` | `200` | Remove CA from runtime trust |
+| `POST` | `/v1/certificate-authorities/:authorityId/rotate` | `200` | Create active replacement and retire old CA |
+| `POST` | `/v1/certificate-authorities/:authorityId/refresh-crl` | `200` | Regenerate or download CRL |
+| `POST` | `/v1/certificate-authorities/:authorityId/crl` | `200` | Upload external CA CRL |
+| `GET` | `/v1/organizations/:organizationId/certificates` | `200` | List visible certificates |
+| `POST` | `/v1/credentials/:credentialId/certificates/issue` | `201` | Issue managed certificate from CSR |
+| `POST` | `/v1/credentials/:credentialId/certificates/external` | `201` | Register externally issued certificate |
+| `GET` | `/v1/certificates/:certificateId/download` | `200` | Return public certificate and chain |
+| `POST` | `/v1/certificates/:certificateId/revoke` | `200` | Revoke and refresh managed CRL |
+| `GET` | `/v1/pki/status` | `200` | CA expiry, CRL, certificate, and audit status |
 
-No route module under `src/routes` is currently registered.
+Every `/v1` route requires an accepted OIDC Bearer token and at least one active
+database membership. CA mutations require `platformAdmin`; certificate
+mutations require `platformAdmin` or the matching `organizationAdmin`.
 
 ## Examples
 
 ```bash
-curl http://localhost:3000/live
-curl http://localhost:3000/ready
-curl http://localhost:3002/health
+curl --cacert .local-secrets/pki/authorities/local-development/ca.crt \
+  https://localhost:8443/live
+curl --cacert .local-secrets/pki/authorities/local-development/ca.crt \
+  https://localhost:8443/ready
 ```
+
+Management API is intentionally not callable from the host.
 
 ## Source Files
 

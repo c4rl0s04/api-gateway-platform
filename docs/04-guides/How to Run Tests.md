@@ -19,7 +19,7 @@ aliases: []
 # How to Run Tests
 
 > [!summary] At a glance
-> The root test command runs implemented workspace suites; gateway, database, and shared tests use Node's test runner through `tsx`.
+> The root suite covers all six workspaces; live Compose tests separately verify Envoy mTLS and the complete OIDC/PKI workflow.
 
 ## Goal
 
@@ -48,11 +48,21 @@ Focused suites:
 npm test --workspace=packages/gateway-core
 npm test --workspace=packages/shared
 npm test --workspace=packages/database
+npm test --workspace=packages/pki
+npm test --workspace=packages/management-api
+npm test --workspace=packages/admin-panel
 npm run docs:test
 ```
 
-Management API and Admin Panel currently have placeholder test scripts and do
-not provide meaningful coverage.
+With the local platform running:
+
+```bash
+npm run test:integration:mtls
+npm run test:platform
+```
+
+`test:platform` creates disposable CA and certificate records, revokes the test
+certificate, rotates its authority, and restarts Management API.
 
 Authentication tests generate ephemeral RSA keys. Clean migration/seed
 validation requires disposable PostgreSQL and must never target retained data.
@@ -69,6 +79,7 @@ Build internal libraries first if a test cannot resolve workspace output:
 ```bash
 npm run build --workspace=packages/shared
 npm run build --workspace=packages/database
+npm run build --workspace=packages/pki
 ```
 
 Do not reset the database to fix isolated gateway unit tests.

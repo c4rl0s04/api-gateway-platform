@@ -11,6 +11,7 @@ sources:
   - packages/gateway-core/src/policies/auth/mtls.policy.ts
   - packages/gateway-core/src/oauth/runtime.ts
   - packages/gateway-core/test/authentication.test.ts
+  - infra/envoy/envoy.yaml
 aliases:
   - mtls-auth
 ---
@@ -18,16 +19,15 @@ aliases:
 # mTLS Authentication
 
 > [!summary] At a glance
-> `mtls-auth` authorizes a certificate fingerprint only when normalized headers arrive directly from a configured trusted ingress.
+> `mtls-auth` authorizes the SHA-256 fingerprint Envoy derives from the live client TLS certificate, and only when the immediate connection comes from a configured trusted CIDR.
 
 ## Current Support
 
-Required ingress headers:
+Authoritative internal header:
 
-| Header | Required value |
+| Header | Value |
 | --- | --- |
-| `x-gateway-client-cert-verified` | `SUCCESS` |
-| `x-gateway-client-cert-sha256` | 64-character SHA-256 hexadecimal fingerprint |
+| `x-gateway-client-cert-sha256` | Lowercase 64-character SHA-256 leaf fingerprint, or empty when no client certificate was presented |
 
 The immediate socket address must match `MTLS_TRUSTED_PROXY_CIDRS`. The policy
 then checks certificate, credential, app, grant, product, proxy, environment,
@@ -43,7 +43,7 @@ status, and validity windows. It authorizes the API directly and emits no token.
 
 | Result | Status |
 | --- | --- |
-| Untrusted immediate source or unverified certificate | `401` |
+| Untrusted immediate source or missing fingerprint | `401` |
 | Unknown, expired, or revoked certificate/credential | `401` |
 | No approved product authorization | `403` |
 | PostgreSQL unavailable, closed | `503` |
@@ -51,11 +51,13 @@ status, and validity windows. It authorizes the API directly and emits no token.
 
 ## Examples
 
-Ingresses must remove any incoming values for the two internal headers before
-setting them from the verified TLS connection.
+Envoy removes any incoming `x-gateway-client-cert-sha256` and overwrites it with
+`%DOWNSTREAM_PEER_FINGERPRINT_256%`. Client certificate chain, validity, and CRL
+checks happen in Envoy before this policy authorizes the database identity.
 
 ## Source Files
 
 - `packages/gateway-core/src/policies/auth/mtls.policy.ts`
 - `packages/gateway-core/src/oauth/runtime.ts`
+- `infra/envoy/envoy.yaml`
 - [[Debug OAuth and mTLS]]

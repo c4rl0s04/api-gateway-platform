@@ -21,11 +21,11 @@ aliases: []
 # How to Start the Project
 
 > [!summary] At a glance
-> Run `npm run dev:local` to prepare cryptographic material, migrate and seed PostgreSQL, and start the complete local data plane.
+> Run `npm run dev:local` to prepare encrypted PKI and OAuth material, migrate and seed PostgreSQL, and start the complete local data and control planes.
 
 ## Goal
 
-Run the implemented data-plane flow locally with one command.
+Run the implemented platform locally with one command.
 
 ## Prerequisites
 
@@ -53,8 +53,11 @@ applies pending migrations, loads both idempotent seeds, and starts:
 | `redis` | Rate limits and JWT assertion replay protection |
 | `database-setup` | One-shot migrations and seeds |
 | `mock-backend` | Local forwarding target |
-| `gateway` | Data plane on port `3000` |
-| `mtls-ingress` | Trusted TLS boundary on port `3443` |
+| `gateway` | Internal data plane |
+| `envoy` | Public HTTPS and mTLS ingress on `8443` |
+| `keycloak` | Local OIDC provider on `8081` |
+| `management-api` | Internal OIDC-protected control plane |
+| `admin-panel` | Web administration on `8080` |
 
 The first execution downloads images and dependencies. Later executions reuse
 Docker's build cache and the generated keys and certificates.
@@ -77,19 +80,25 @@ npm run dev:local:down -- --volumes
 ## Verification
 
 ```bash
-curl http://localhost:3000/live
-curl http://localhost:3000/ready
-curl http://localhost:3000/oauth/.well-known/jwks.json
+curl --cacert .local-secrets/pki/authorities/local-development/ca.crt \
+  https://localhost:8443/live
+curl --cacert .local-secrets/pki/authorities/local-development/ca.crt \
+  https://localhost:8443/ready
+curl --cacert .local-secrets/pki/authorities/local-development/ca.crt \
+  https://localhost:8443/oauth/.well-known/jwks.json
 curl -H "x-api-key: dev-bank-key-abc123" \
-  http://localhost:3000/es/banking/v1/accounts
-curl --cacert .local-secrets/mtls-ca.crt \
-  --cert .local-secrets/mtls-client.crt \
-  --key .local-secrets/mtls-client.key \
-  https://localhost:3443/es/banking/v1/health
+  --cacert .local-secrets/pki/authorities/local-development/ca.crt \
+  https://localhost:8443/es/banking/v1/accounts
+curl --cacert .local-secrets/pki/authorities/local-development/ca.crt \
+  --cert .local-secrets/clients/cred-bank-001/client.crt \
+  --key .local-secrets/clients/cred-bank-001/client.key \
+  https://localhost:8443/es/banking/v1/health
 ```
 
 The first two requests should report a live and ready gateway. Both protected
 banking requests should reach the mock backend.
+Open `http://localhost:8080`; local usernames and generated passwords are in
+`.local-secrets/keycloak/users.env`.
 
 ## Troubleshooting or Rollback
 
@@ -102,9 +111,12 @@ banking requests should reach the mock backend.
 - Schema incompatibility in disposable local data: follow [[Reset Local Database]].
 - Invalid local material: stop the environment, remove `.local-secrets/`, and
   start it again to regenerate keys and certificates.
+- Changed realm bootstrap with retained Keycloak data: run
+  `npm run dev:local:down -- --volumes` before starting again.
 
 ## Related Notes
 
 - [[Environment Variables]]
 - [[Deployment Model]]
 - [[gateway-core]]
+- [[How to Operate the PKI]]

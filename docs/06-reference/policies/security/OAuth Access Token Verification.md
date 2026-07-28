@@ -50,7 +50,8 @@ issued token only when it expires.
 
 ```bash
 curl -H 'Authorization: Bearer <access-token>' \
-  http://localhost:3000/es/banking/v1/accounts
+  --cacert .local-secrets/pki/authorities/local-development/ca.crt \
+  https://localhost:8443/es/banking/v1/accounts
 ```
 
 ## Source Files

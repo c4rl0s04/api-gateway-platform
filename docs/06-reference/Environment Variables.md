@@ -47,24 +47,50 @@ key must come from a secret manager or local untracked `.env`, never Git.
 ### Local Compose bootstrap
 
 `npm run dev:local` does not require developers to populate `.env`. The
-bootstrap creates `.local-secrets/compose.env` and injects the signing key,
-client public JWK, and client-certificate fingerprint into Compose. The
-directory is ignored by Git and its material is reused across local restarts.
+bootstrap creates `.local-secrets/compose.env`, OAuth keys, an encrypted
+managed CA keystore, ingress material, Keycloak users, and two client
+identities. The directory is ignored by Git and reused across local restarts.
 
 | Variable | Consumer | Purpose |
 | --- | --- | --- |
 | `DEV_UPSTREAM_BASE_URL` | Base seed | Replaces `localhost` with the Compose mock service |
 | `DEV_CLIENT_PUBLIC_JWK` | Policy seed | Registers the generated assertion verification key |
 | `DEV_MTLS_CERT_FINGERPRINT` | Policy seed and ingress | Keeps the registered certificate and normalized ingress header aligned |
+| `DEV_MTLS_CERT_FINGERPRINT_SECOND` | Policy seed | Registers the second local mTLS client |
+| `DEV_MTLS_CA_CERTIFICATE_BASE64` | Policy seed | Persists public local CA metadata |
+| `DEV_MTLS_CRL_BASE64` | Policy seed | Persists the initial local CRL |
+| `DEV_MTLS_CLIENT_CERTIFICATE_BASE64` | Policy seed | Persists first client public certificate metadata |
+| `DEV_MTLS_CLIENT_CERTIFICATE_SECOND_BASE64` | Policy seed | Persists second client public certificate metadata |
+| `KEYCLOAK_ADMIN_PASSWORD` | Keycloak | Bootstraps the untracked local administrator |
 
-These three variables are development bootstrap inputs, not production gateway
+These variables are development bootstrap inputs, not production gateway
 configuration.
 
 ### management-api
 
-`src/config/env.ts` defines `PORT` with default `3002` and required
-`DATABASE_URL`. The current server does not call that schema, so these values
-are not an effective runtime contract yet.
+| Variable | Required | Default | Purpose |
+| --- | --- | --- | --- |
+| `HOST` | No | `0.0.0.0` | Listen address |
+| `PORT` | No | `3002` | Internal listen port |
+| `DATABASE_URL` | Yes | None | PostgreSQL connection |
+| `OIDC_ISSUER` | Yes | None | Exact accepted token issuer |
+| `OIDC_AUDIENCE` | No | `management-api` | Required access-token audience |
+| `OIDC_JWKS_URI` | No | Issuer discovery | Internal override for JWKS retrieval |
+| `PKI_KEYSTORE_DIR` | Yes | None | Encrypted managed-key directory |
+| `PKI_MASTER_KEY_FILE` | Yes | None | Separate AES master-key file |
+| `PKI_TRUST_BUNDLE_FILE` | Yes | None | Envoy public CA bundle |
+| `PKI_CRL_BUNDLE_FILE` | Yes | None | Envoy public CRL bundle |
+| `PKI_SDS_TRIGGER_FILE` | Yes | None | Atomically replaced SDS resource |
+
+### admin-panel
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `MANAGEMENT_API_URL` | `http://localhost:3002` | Server-side internal API origin |
+| `OIDC_ISSUER` | Local Keycloak realm | Browser-visible issuer |
+| `OIDC_INTERNAL_BASE_URL` | `http://localhost:8081` | Server-side token endpoint base |
+| `OIDC_CLIENT_ID` | `admin-panel` | Public PKCE client |
+| `OIDC_CALLBACK_URL` | `http://localhost:8080/api/auth/callback` | Exact callback |
 
 ## Authoritative Example
 

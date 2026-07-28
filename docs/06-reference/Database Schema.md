@@ -21,7 +21,7 @@ aliases: []
 
 | Model | Core fields | Important constraints |
 | --- | --- | --- |
-| `Organization` | `id`, `name`, `createdAt` | Owns proxies, products, and apps |
+| `Organization` | `id`, `name`, `createdAt` | Owns proxies, products, apps, CAs, memberships, and audit events |
 | `Environment` | `stage`, `region` | Unique `(stage, region)` |
 | `ApiProxy` | `name`, `basePath`, `active`, `systemManaged`, `organizationId` | Globally unique `basePath` |
 | `ProxyDeployment` | `proxyId`, `environmentId`, nullable `upstreamBaseUrl`, `active` | Unique `(proxyId, environmentId)` |
@@ -32,7 +32,11 @@ aliases: []
 | `AppCredential` | `consumerKey`, `consumerSecretHash`, `authMethods`, `status`, validity | Unique `consumerKey`; secret is not readable |
 | `CredentialProductGrant` | credential, product, `status`, `scopes` | Unique credential/product |
 | `AppPublicKey` | credential, `kid`, RSA JWK, `RS256`, status, validity | Unique credential/`kid` |
-| `AppCertificate` | credential, SHA-256 fingerprint, metadata, status, validity | Unique fingerprint |
+| `AppCertificate` | credential, authority, SHA-256 fingerprint, PEM/chain, source, status, validity, revocation | Unique fingerprint |
+| `CertificateAuthority` | organization, kind, lifecycle status, public PEM/chain, `keyRef`, CRL metadata | Unique fingerprint; managed key is external |
+| `CertificateIssuance` | authority, credential, CSR digest, requested days, result | Optional unique resulting certificate |
+| `AdminMembership` | OIDC issuer/subject, role, organization, active | Unique issuer/subject/scope |
+| `AuditEvent` | actor, role, organization, action, resource, metadata | Append-only security history |
 
 ## Authoritative Values
 
@@ -60,6 +64,24 @@ apiKey | clientSecret | jwtBearer | mtls
 pending | approved | revoked
 ```
 
+`CertificateAuthorityKind`:
+
+```text
+managed | external
+```
+
+`CertificateAuthorityStatus`:
+
+```text
+draft | active | retiring | revoked
+```
+
+`AdminRole`:
+
+```text
+platformAdmin | organizationAdmin | viewer
+```
+
 `EndpointPolicy.type` is stored as a string. Runtime acceptance is restricted by
 `@api-gateway/shared` during gateway loading.
 
@@ -80,3 +102,4 @@ ProxyDeployment.upstreamBaseUrl + Endpoint.targetPath
 - [[Data Model]]
 - [[database]]
 - [[Policy Types]]
+- [[Multi-Client PKI]]

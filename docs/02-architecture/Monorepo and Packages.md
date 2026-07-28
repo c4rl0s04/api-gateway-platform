@@ -43,8 +43,9 @@ flowchart TD
 | [[shared]] | Routing, deployment, and policy contracts | Implemented |
 | [[database]] | Prisma schema, client, seeds, and deployment operation | Implemented |
 | [[gateway-core]] | Routing, policy execution, and forwarding | Implemented |
-| [[management-api]] | Health endpoint and control-plane scaffold | Partial |
-| [[admin-panel]] | Next.js page scaffold | Partial |
+| [[management-api]] | OIDC-authorized PKI control plane; general gateway CRUD remains partial | Partial |
+| [[admin-panel]] | OIDC session, BFF, and PKI views; proxy/product mutation remains partial | Partial |
+| [[pki]] | Keystore, X.509, CRL, bundles, and client CSR generation | Implemented |
 
 ## Data Flow
 

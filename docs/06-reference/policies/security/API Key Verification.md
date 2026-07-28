@@ -54,7 +54,8 @@ explicitly allow the current environment.
 
 ```bash
 curl -H "x-api-key: dev-bank-key-abc123" \
-  http://localhost:3000/es/banking/v1/accounts
+  --cacert .local-secrets/pki/authorities/local-development/ca.crt \
+  https://localhost:8443/es/banking/v1/accounts
 ```
 
 ## Source Files
