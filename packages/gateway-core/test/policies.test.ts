@@ -206,9 +206,15 @@ describe('policy failure modes', () => {
 
   it('returns 429 and retry headers when the limit is exceeded', async () => {
     const { context, responseHeaders } = createPolicyContext();
+    let redisKey = '';
     const policy = createRateLimitPolicyWithClient(
       { limit: 5, windowSeconds: 60, failureMode: 'closed' },
-      () => ({ eval: async () => [1, 23] }),
+      () => ({
+        eval: async (_script, _numberOfKeys, key) => {
+          redisKey = String(key);
+          return [1, 23];
+        },
+      }),
     );
 
     const result = await policy(context);
@@ -217,6 +223,10 @@ describe('policy failure modes', () => {
     assert.equal(result.action === 'halt' && result.statusCode, 429);
     assert.equal(responseHeaders.get('retry-after'), '23');
     assert.equal(responseHeaders.get('x-ratelimit-remaining'), '0');
+    assert.match(
+      redisKey,
+      /^ratelimit:env-qual-es:127\.0\.0\.1:proxy-test:\d+$/,
+    );
   });
 
   it('rejects invalid rate-limit configuration before execution', () => {

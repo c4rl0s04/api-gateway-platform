@@ -49,6 +49,7 @@ return {0, 0}
  *
  * La clave de rate limit incluye:
  * - Identificador del cliente (appId si está autenticado, IP si no)
+ * - ID del entorno (cada deployment tiene su propio contador)
  * - ID del proxy (cada proxy tiene su propio límite independiente)
  * - Bucket de la ventana temporal (floor del timestamp / windowSeconds)
  *
@@ -68,7 +69,13 @@ export function createRateLimitPolicyWithClient(
 
     // Bucket de la ventana: todos los requests en la misma ventana comparten clave.
     const windowBucket = Math.floor(Date.now() / 1000 / config.windowSeconds);
-    const key = `ratelimit:${identifier}:${ctx.proxy.id}:${windowBucket}`;
+    const key = [
+      'ratelimit',
+      ctx.proxy.environment.id,
+      identifier,
+      ctx.proxy.id,
+      windowBucket,
+    ].join(':');
 
     // Añadimos headers informativos en todos los casos (buena práctica de APIs)
     ctx.reply.header('X-RateLimit-Limit', String(config.limit));
