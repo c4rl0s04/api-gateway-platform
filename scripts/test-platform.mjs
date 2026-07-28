@@ -14,6 +14,7 @@ const composeEnvironment = path.join(secrets, 'compose.env');
 const usersEnvironment = path.join(secrets, 'keycloak/users.env');
 const keycloakBaseUrl = 'http://localhost:8081';
 const adminPanelBaseUrl = 'http://localhost:8080';
+const qualEsGatewayOrigin = 'https://qual-es.gateway.localhost:8443';
 const workDirectory = await mkdtemp(path.join(os.tmpdir(), 'gateway-platform-e2e-'));
 
 function parseEnvironment(content) {
@@ -135,7 +136,7 @@ async function mtlsRequest(certificate, key) {
       '/dev/null',
       '--write-out',
       '%{http_code}',
-      'https://localhost:8443/es/banking/v1/health',
+      `${qualEsGatewayOrigin}/es/banking/v1/health`,
     ]);
     return { exitCode: 0, status: result.stdout };
   } catch (error) {
@@ -254,7 +255,7 @@ try {
     '/dev/null',
     '--write-out',
     '%{http_code}',
-    'https://localhost:8443/es/banking/v1/accounts',
+    `${qualEsGatewayOrigin}/es/banking/v1/accounts`,
   ]);
   if (apiKeyResponse.stdout !== '200') {
     throw new Error(`Generated API key was not accepted: ${apiKeyResponse.stdout}`);
@@ -267,7 +268,7 @@ try {
     'content-type: application/x-www-form-urlencoded',
     '--data',
     'grant_type=client_credentials&scope=banking%3Aread',
-    'https://localhost:8443/oauth/token',
+    `${qualEsGatewayOrigin}/oauth/token`,
   ]);
   const accessTokenResponse = JSON.parse(tokenResponse.stdout);
   if (!accessTokenResponse.access_token) {
@@ -280,7 +281,7 @@ try {
     '/dev/null',
     '--write-out',
     '%{http_code}',
-    'https://localhost:8443/es/banking/v1/accounts/1',
+    `${qualEsGatewayOrigin}/es/banking/v1/accounts/1`,
   ]);
   if (bearerResponse.stdout !== '200') {
     throw new Error(`Issued access token was not accepted: ${bearerResponse.stdout}`);

@@ -1,4 +1,8 @@
 import {
+  DEPLOYMENT_REGIONS,
+  DEPLOYMENT_STAGES,
+} from '../packages/shared/dist/index.js';
+import {
   EncryptedFileKeyStore,
   createClientCertificateRequest,
   createManagedAuthority,
@@ -8,6 +12,7 @@ import {
   issueServerCertificate,
   loadOrCreateMasterKey,
 } from '../packages/pki/dist/index.js';
+import { X509Certificate } from 'node:crypto';
 import {
   access,
   mkdir,
@@ -24,6 +29,12 @@ const ingressDir = path.join(root, 'ingress');
 const clientsDir = path.join(root, 'clients');
 const authorityCertificateFile = path.join(authorityDir, 'ca.crt');
 const keyRef = 'authorities/local-development';
+const gatewayDnsNames = [
+  'localhost',
+  ...DEPLOYMENT_STAGES.flatMap(stage =>
+    DEPLOYMENT_REGIONS.map(region =>
+      `${stage}-${region}.gateway.localhost`)),
+];
 
 async function exists(file) {
   try {
@@ -81,8 +92,22 @@ async function isIssuedByCurrentAuthority(certificateFile) {
 
 const serverCertificateFile = path.join(ingressDir, 'server.crt');
 const serverKeyFile = path.join(ingressDir, 'server.key');
+async function serverCertificateIsCurrent() {
+  if (!await isIssuedByCurrentAuthority(serverCertificateFile)) {
+    return false;
+  }
+  try {
+    const certificate = new X509Certificate(
+      await readFile(serverCertificateFile, 'utf8'),
+    );
+    return gatewayDnsNames.every(name => certificate.checkHost(name));
+  } catch {
+    return false;
+  }
+}
+
 if (
-  !await isIssuedByCurrentAuthority(serverCertificateFile)
+  !await serverCertificateIsCurrent()
   || !await exists(serverKeyFile)
 ) {
   const request = await createClientCertificateRequest({
@@ -92,7 +117,7 @@ if (
     csrPem: request.csrPem,
     authorityCertificatePem,
     authorityPrivateKeyPem,
-    dnsNames: ['localhost'],
+    dnsNames: gatewayDnsNames,
     ipAddresses: ['127.0.0.1'],
   });
   await Promise.all([

@@ -154,6 +154,7 @@ openssl pkey \
 rm -f "$SECRETS_DIR/client-assertion-public.pem"
 
 cd "$ROOT_DIR"
+npm run build --workspace=packages/shared >/dev/null
 npm run build --workspace=packages/pki >/dev/null
 node scripts/bootstrap-local-pki.mjs "$SECRETS_DIR"
 touch \

@@ -62,7 +62,7 @@ request() {
     --key "$key" \
     -o /dev/null \
     -w '%{http_code}' \
-    https://localhost:8443/es/banking/v1/health
+    https://qual-es.gateway.localhost:8443/es/banking/v1/health
 }
 
 [[ "$(request "$FIRST_CLIENT/client.crt" "$FIRST_CLIENT/client.key")" == "200" ]]
@@ -74,7 +74,7 @@ spoof_status="$(
     -H "x-gateway-client-cert-sha256: $(cat "$FIRST_CLIENT/fingerprint.sha256")" \
     -o /dev/null \
     -w '%{http_code}' \
-    https://localhost:8443/es/banking/v1/health
+    https://qual-es.gateway.localhost:8443/es/banking/v1/health
 )"
 [[ "$spoof_status" == "401" ]]
 
