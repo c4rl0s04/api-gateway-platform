@@ -213,6 +213,8 @@ export async function validateCertificateRevocationList(input: {
       pemPath,
       '-noout',
       '-issuer',
+      '-nameopt',
+      'RFC2253',
       '-lastupdate',
       '-nextupdate',
     ]);
