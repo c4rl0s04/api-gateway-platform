@@ -21,12 +21,12 @@ const gatewayPrivatePem = gatewayPair.privateKey.export({
 }).toString();
 const AUTH_ENV: GatewayEnv = {
   ...TEST_ENV,
-  OAUTH_ISSUER: 'https://gateway.test',
-  OAUTH_TOKEN_ENDPOINT_AUDIENCE: 'https://gateway.test/oauth/token',
   OAUTH_SIGNING_PRIVATE_KEY_BASE64: Buffer.from(gatewayPrivatePem).toString('base64'),
   OAUTH_SIGNING_KEY_ID: 'gateway-test-1',
   MTLS_TRUSTED_PROXY_CIDRS: '127.0.0.0/8,10.0.0.0/8',
 };
+const ENVIRONMENT_ORIGIN = 'https://qual-es.gateway.localhost:8443';
+const TOKEN_ENDPOINT_AUDIENCE = `${ENVIRONMENT_ORIGIN}/oauth/token`;
 
 function credential() {
   return {
@@ -110,7 +110,7 @@ describe('OAuth token issuance and verification', () => {
     const token = (result.body as { access_token: string }).access_token;
     const publicKey = gatewayPair.publicKey;
     const verified = await jwtVerify(token, publicKey, {
-      issuer: AUTH_ENV.OAUTH_ISSUER,
+      issuer: ENVIRONMENT_ORIGIN,
       audience: 'api-gateway',
       algorithms: ['RS256'],
     });
@@ -129,7 +129,7 @@ describe('OAuth token issuance and verification', () => {
       .setProtectedHeader({ alg: 'RS256', kid: 'client-key-1' })
       .setIssuer('client-1')
       .setSubject('client-1')
-      .setAudience(AUTH_ENV.OAUTH_TOKEN_ENDPOINT_AUDIENCE!)
+      .setAudience(TOKEN_ENDPOINT_AUDIENCE)
       .setIssuedAt()
       .setExpirationTime('120s')
       .setJti('assertion-1')
@@ -208,7 +208,7 @@ describe('OAuth token issuance and verification', () => {
       scope: 'accounts:read',
     })
       .setProtectedHeader({ alg: 'RS256', kid: 'gateway-test-1' })
-      .setIssuer(AUTH_ENV.OAUTH_ISSUER!)
+      .setIssuer(ENVIRONMENT_ORIGIN)
       .setSubject('app-1')
       .setAudience('api-gateway')
       .setIssuedAt(now)
@@ -229,6 +229,19 @@ describe('OAuth token issuance and verification', () => {
     context.proxy.id = 'another-proxy';
     const wrongProxy = await policy(context);
     assert.equal(wrongProxy.action === 'halt' && wrongProxy.statusCode, 403);
+
+    context.proxy.id = 'proxy-test';
+    context.proxy.environment = {
+      id: 'env-prod-es',
+      stage: 'prod',
+      region: 'es',
+      publicOrigin: 'https://prod-es.gateway.localhost:8443',
+    };
+    const wrongEnvironment = await policy(context);
+    assert.equal(
+      wrongEnvironment.action === 'halt' && wrongEnvironment.statusCode,
+      401,
+    );
   });
 
   it('rejects access tokens with invalid issuer, audience, or expiration', async () => {
@@ -258,8 +271,8 @@ describe('OAuth token issuance and verification', () => {
         .sign(privateKey);
     for (const token of [
       await sign('https://wrong-issuer.test', 'api-gateway', Math.floor(Date.now() / 1000) + 60),
-      await sign(AUTH_ENV.OAUTH_ISSUER!, 'wrong-audience', Math.floor(Date.now() / 1000) + 60),
-      await sign(AUTH_ENV.OAUTH_ISSUER!, 'api-gateway', Math.floor(Date.now() / 1000) - 1),
+      await sign(ENVIRONMENT_ORIGIN, 'wrong-audience', Math.floor(Date.now() / 1000) + 60),
+      await sign(ENVIRONMENT_ORIGIN, 'api-gateway', Math.floor(Date.now() / 1000) - 1),
     ]) {
       const { context } = createPolicyContext({
         headers: { authorization: `Bearer ${token}` },

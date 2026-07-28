@@ -42,15 +42,13 @@ describe('gateway environment', () => {
         NODE_ENV: 'production',
         DATABASE_URL: 'postgresql://user:pass@localhost:5432/gateway',
       }),
-      /OAUTH_ISSUER is required outside tests/,
+      /OAUTH_SIGNING_PRIVATE_KEY_BASE64 is required outside tests/,
     );
 
     const env = loadEnv({
       NODE_ENV: 'production',
       DATABASE_URL: 'postgresql://user:pass@localhost:5432/gateway',
       GATEWAY_ENVIRONMENT_ALLOWLIST: 'env-qual-es, env-prod-es',
-      OAUTH_ISSUER: 'https://gateway.example.com',
-      OAUTH_TOKEN_ENDPOINT_AUDIENCE: 'https://gateway.example.com/oauth/token',
       OAUTH_SIGNING_PRIVATE_KEY_BASE64: 'placeholder',
       OAUTH_SIGNING_KEY_ID: 'gateway-1',
       MTLS_TRUSTED_PROXY_CIDRS: '10.0.0.0/8',

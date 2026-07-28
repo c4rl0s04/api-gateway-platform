@@ -4,8 +4,6 @@ import { importJWK, importPKCS8, type JWK } from 'jose';
 import type { GatewayEnv } from '../config/env.js';
 
 export interface OAuthRuntime {
-  issuer: string;
-  tokenEndpointAudience: string;
   signingKeyId: string;
   signingKey: Awaited<ReturnType<typeof importPKCS8>>;
   verificationKey: Awaited<ReturnType<typeof importJWK>>;
@@ -17,9 +15,7 @@ let runtime: OAuthRuntime | null = null;
 
 export async function configureOAuthRuntime(config: GatewayEnv): Promise<void> {
   if (
-    !config.OAUTH_ISSUER
-    || !config.OAUTH_TOKEN_ENDPOINT_AUDIENCE
-    || !config.OAUTH_SIGNING_PRIVATE_KEY_BASE64
+    !config.OAUTH_SIGNING_PRIVATE_KEY_BASE64
     || !config.OAUTH_SIGNING_KEY_ID
     || !config.MTLS_TRUSTED_PROXY_CIDRS
   ) {
@@ -48,8 +44,6 @@ export async function configureOAuthRuntime(config: GatewayEnv): Promise<void> {
     .map(value => ipaddr.parseCIDR(value));
 
   runtime = {
-    issuer: config.OAUTH_ISSUER,
-    tokenEndpointAudience: config.OAUTH_TOKEN_ENDPOINT_AUDIENCE,
     signingKeyId: config.OAUTH_SIGNING_KEY_ID,
     signingKey,
     verificationKey: await importJWK(publicJwk, 'RS256'),

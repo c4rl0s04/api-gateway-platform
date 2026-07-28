@@ -96,9 +96,9 @@ function parseBasicAuthorization(value: string | undefined): [string, string] | 
 
 async function authenticateJwtAssertion(
   assertion: string,
+  tokenEndpointAudience: string,
   dependencies: OAuthTokenPolicyDependencies,
 ): Promise<CredentialRecord | null> {
-  const runtime = getOAuthRuntime();
   let header: ReturnType<typeof decodeProtectedHeader>;
   let unverified: JWTPayload;
   try {
@@ -136,7 +136,7 @@ async function authenticateJwtAssertion(
   try {
     ({ payload } = await jwtVerify(assertion, publicKey, {
       algorithms: ['RS256'],
-      audience: runtime.tokenEndpointAudience,
+      audience: tokenEndpointAudience,
       issuer: credential.consumerKey,
       subject: credential.consumerKey,
       requiredClaims: ['iat', 'exp', 'jti'],
@@ -212,7 +212,11 @@ export function createOAuthTokenPolicyWithDependencies(
       } else if (grantType === JWT_BEARER) {
         const assertion = form.get('assertion');
         if (!assertion) return oauthError(400, 'invalid_request', 'assertion is required');
-        credential = await authenticateJwtAssertion(assertion, dependencies);
+        credential = await authenticateJwtAssertion(
+          assertion,
+          `${ctx.proxy.environment.publicOrigin}/oauth/token`,
+          dependencies,
+        );
         if (!credential) return oauthError(400, 'invalid_grant', 'JWT assertion is invalid');
       }
     } catch (error) {
@@ -248,7 +252,7 @@ export function createOAuthTokenPolicyWithDependencies(
       scope: scopes.join(' '),
     })
       .setProtectedHeader({ alg: 'RS256', kid: runtime.signingKeyId, typ: 'JWT' })
-      .setIssuer(runtime.issuer)
+      .setIssuer(ctx.proxy.environment.publicOrigin)
       .setSubject(credential.appId)
       .setAudience(config.audience)
       .setIssuedAt(now)

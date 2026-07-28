@@ -22,7 +22,7 @@ export const createOAuthAccessTokenPolicy: PolicyFactory = (
       const runtime = getOAuthRuntime();
       const verified = await jwtVerify(value.slice(7), runtime.verificationKey, {
         algorithms: ['RS256'],
-        issuer: runtime.issuer,
+        issuer: ctx.proxy.environment.publicOrigin,
         audience: config.audience,
         requiredClaims: ['sub', 'iat', 'nbf', 'exp', 'jti'],
       });
