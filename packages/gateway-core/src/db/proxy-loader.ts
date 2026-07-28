@@ -17,13 +17,15 @@ import { prisma } from '@api-gateway/database';
  * via Redis pub/sub will be added when the admin panel edits a proxy.
  */
 export async function loadProxiesFromDatabase(
-  environmentId?: string,
+  environmentIds?: readonly string[],
 ): Promise<ProxyConfig[]> {
   const deployments = await prisma.proxyDeployment.findMany({
     where: {
       active: true,
       proxy: { active: true },
-      ...(environmentId ? { environmentId } : {}),
+      ...(environmentIds && environmentIds.length > 0
+        ? { environmentId: { in: [...environmentIds] } }
+        : {}),
     },
     include: {
       environment: true,
@@ -39,17 +41,8 @@ export async function loadProxiesFromDatabase(
     },
   });
 
-  const basePaths = new Set<string>();
-
   return deployments.map((deployment): ProxyConfig => {
     const proxy = deployment.proxy;
-    if (basePaths.has(proxy.basePath)) {
-      throw new Error(
-        `Multiple active deployments use basePath "${proxy.basePath}". `
-        + 'Set GATEWAY_ENVIRONMENT_ID so this gateway loads one environment.',
-      );
-    }
-    basePaths.add(proxy.basePath);
 
     return {
       id: proxy.id,
@@ -60,6 +53,7 @@ export async function loadProxiesFromDatabase(
         id: deployment.environment.id,
         stage: deployment.environment.stage,
         region: deployment.environment.region,
+        publicOrigin: deployment.environment.publicOrigin,
       }),
       systemManaged: proxy.systemManaged,
       upstreamBaseUrl: deployment.upstreamBaseUrl,

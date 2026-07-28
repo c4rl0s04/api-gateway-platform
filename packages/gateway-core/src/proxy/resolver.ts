@@ -1,14 +1,11 @@
 import type { ProxyConfig, EndpointConfig } from '@api-gateway/shared';
 
 /**
- * In-memory active proxies registry.
- * Key: proxy basePath (e.g. "/api/users")
- * Value: full proxy configuration
- *
- * In week 2, this Map will be populated from Postgres on startup.
- * The public interface of this module will NOT change when we make that change.
+ * In-memory active deployment registry.
+ * First key: environment ID.
+ * Second key: proxy basePath (e.g. "/api/users").
  */
-const registry = new Map<string, ProxyConfig>();
+const registry = new Map<string, Map<string, ProxyConfig>>();
 let registryInitialized = false;
 
 /**
@@ -34,7 +31,18 @@ export function loadProxies(proxies: ProxyConfig[]): void {
         return b.path.length - a.path.length; // longest first
       });
 
-      registry.set(proxy.basePath, proxy);
+      let environmentRegistry = registry.get(proxy.environment.id);
+      if (!environmentRegistry) {
+        environmentRegistry = new Map<string, ProxyConfig>();
+        registry.set(proxy.environment.id, environmentRegistry);
+      }
+      if (environmentRegistry.has(proxy.basePath)) {
+        throw new Error(
+          `Environment "${proxy.environment.id}" has multiple active deployments `
+          + `for basePath "${proxy.basePath}"`,
+        );
+      }
+      environmentRegistry.set(proxy.basePath, proxy);
     }
   }
   registryInitialized = true;
@@ -92,11 +100,18 @@ export function resolveEndpoint(proxy: ProxyConfig, requestSuffix: string): Reso
  *
  * @returns The ProxyConfig that matches, or null if no proxy matches.
  */
-export function resolveProxy(requestPath: string): ProxyConfig | null {
+export function resolveProxy(
+  environmentId: string,
+  requestPath: string,
+): ProxyConfig | null {
   let bestMatch: ProxyConfig | null = null;
   let bestMatchLength = 0;
+  const environmentRegistry = registry.get(environmentId);
+  if (!environmentRegistry) {
+    return null;
+  }
 
-  for (const [basePath, proxy] of registry) {
+  for (const [basePath, proxy] of environmentRegistry) {
     const matches =
       requestPath === basePath || requestPath.startsWith(basePath + '/');
 
@@ -111,6 +126,15 @@ export function resolveProxy(requestPath: string): ProxyConfig | null {
 
 /** Returns the number of active registered proxies. Useful for health checks and logs. */
 export function getRegistrySize(): number {
+  let size = 0;
+  for (const environmentRegistry of registry.values()) {
+    size += environmentRegistry.size;
+  }
+  return size;
+}
+
+/** Returns the number of environments that have at least one active deployment. */
+export function getRegistryEnvironmentCount(): number {
   return registry.size;
 }
 

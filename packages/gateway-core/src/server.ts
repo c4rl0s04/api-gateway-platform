@@ -5,6 +5,7 @@ import {
   loadProxies,
   resolveProxy,
   getRegistrySize,
+  getRegistryEnvironmentCount,
   isRegistryReady,
   resolveEndpoint,
 } from './proxy/resolver';
@@ -124,7 +125,9 @@ export async function buildServer(options: BuildServerOptions = {}) {
   // Load active proxies from PostgreSQL on startup.
   // The in-memory registry is updated here; resolver.ts and forwarder.ts do not change.
   const proxies = options.proxies ?? await loadProxiesFromDatabase(
-    config.GATEWAY_ENVIRONMENT_ID,
+    config.GATEWAY_ENVIRONMENT_ID
+      ? [config.GATEWAY_ENVIRONMENT_ID]
+      : undefined,
   );
   validateProxyConfiguration(proxies);
   await configureOAuthRuntime(config);
@@ -157,6 +160,7 @@ export async function buildServer(options: BuildServerOptions = {}) {
     return reply.status(ready ? 200 : 503).send({
       status: ready ? 'ready' : 'not-ready',
       proxiesLoaded: getRegistrySize(),
+      environmentsLoaded: getRegistryEnvironmentCount(),
       environmentId: config.GATEWAY_ENVIRONMENT_ID ?? null,
       timestamp: new Date().toISOString(),
     });
@@ -174,7 +178,10 @@ export async function buildServer(options: BuildServerOptions = {}) {
   server.all('/*', async (req, reply) => {
     // req.url contains query params. We need just the path for resolution.
     const pathWithoutQuery = req.url.split('?')[0];
-    const proxy = resolveProxy(pathWithoutQuery);
+    const proxy = resolveProxy(
+      config.GATEWAY_ENVIRONMENT_ID ?? '',
+      pathWithoutQuery,
+    );
 
     if (!proxy) {
       return reply.status(404).send({

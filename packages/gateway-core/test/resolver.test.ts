@@ -22,6 +22,7 @@ function proxy(
       id: 'env-qual-es',
       stage: 'qual',
       region: 'es',
+      publicOrigin: 'https://qual-es.gateway.localhost:8443',
     },
     systemManaged: false,
     upstreamBaseUrl: 'http://backend',
@@ -46,9 +47,29 @@ describe('proxy resolver', () => {
     loadProxies([general, specific, inactive]);
 
     assert.equal(getRegistrySize(), 2);
-    assert.equal(resolveProxy('/api/admin/users')?.id, 'specific');
-    assert.equal(resolveProxy('/api/users')?.id, 'general');
-    assert.equal(resolveProxy('/off/users'), null);
+    assert.equal(resolveProxy('env-qual-es', '/api/admin/users')?.id, 'specific');
+    assert.equal(resolveProxy('env-qual-es', '/api/users')?.id, 'general');
+    assert.equal(resolveProxy('env-qual-es', '/off/users'), null);
+  });
+
+  it('isolates identical base paths across environments', () => {
+    const qual = proxy('qual-api', '/api', ['/users']);
+    const prod = {
+      ...proxy('prod-api', '/api', ['/users']),
+      environment: {
+        id: 'env-prod-es',
+        stage: 'prod' as const,
+        region: 'es' as const,
+        publicOrigin: 'https://prod-es.gateway.localhost:8443',
+      },
+    };
+
+    loadProxies([qual, prod]);
+
+    assert.equal(getRegistrySize(), 2);
+    assert.equal(resolveProxy('env-qual-es', '/api/users')?.id, 'qual-api');
+    assert.equal(resolveProxy('env-prod-es', '/api/users')?.id, 'prod-api');
+    assert.equal(resolveProxy('env-pprod-es', '/api/users'), null);
   });
 
   it('prefers static endpoints and extracts dynamic parameters', () => {

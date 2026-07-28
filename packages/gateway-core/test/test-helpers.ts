@@ -8,6 +8,7 @@ export const TEST_ENV: GatewayEnv = {
   DATABASE_URL: 'postgresql://test:test@localhost:5432/test',
   REDIS_URL: 'redis://localhost:6379',
   LOG_LEVEL: 'silent',
+  GATEWAY_ENVIRONMENT_ID: 'env-qual-es',
 };
 
 export function createPolicyContext(
@@ -47,6 +48,7 @@ export function createPolicyContext(
         id: 'env-qual-es',
         stage: 'qual',
         region: 'es',
+        publicOrigin: 'https://qual-es.gateway.localhost:8443',
       },
       systemManaged: false,
       upstreamBaseUrl: 'http://localhost',

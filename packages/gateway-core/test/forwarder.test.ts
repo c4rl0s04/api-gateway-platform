@@ -44,6 +44,7 @@ describe('gateway forwarding', () => {
         id: 'env-qual-es',
         stage: 'qual',
         region: 'es',
+        publicOrigin: 'https://qual-es.gateway.localhost:8443',
       },
       systemManaged: false,
       upstreamBaseUrl: `http://127.0.0.1:${port}/service`,
