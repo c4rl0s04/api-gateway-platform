@@ -3,7 +3,7 @@ title: management-api
 type: package
 doc_status: current
 implementation_status: partial
-last_verified: 2026-07-27
+last_verified: 2026-07-29
 tags:
   - type/package
   - area/management-api
@@ -17,12 +17,13 @@ aliases: []
 # management-api
 
 > [!summary] At a glance
-> `management-api` is an internal Fastify service for OIDC-authorized, organization-scoped PKI lifecycle operations.
+> `management-api` is an internal Fastify service for OIDC-authorized application registration and organization-scoped PKI lifecycle operations.
 
 ## Responsibility
 
-The implemented responsibility is validated and authorized mutation of
-certificate authorities, certificates, CRLs, runtime trust, and audit records.
+The implemented responsibility is validated and authorized application
+registration plus mutation of certificate authorities, certificates, CRLs,
+runtime trust, and audit records.
 
 ## Boundaries
 
@@ -31,6 +32,8 @@ certificate authorities, certificates, CRLs, runtime trust, and audit records.
 - Enforces platform and organization boundaries.
 - Delegates cryptography to `@api-gateway/pki`.
 - Publishes public CA/CRL bundles and triggers Envoy SDS reload.
+- Creates application, initial credential, approved product grants, and audit
+  event through one database-domain transaction.
 
 ## Public Contracts
 
@@ -51,11 +54,13 @@ internal.
 ## Tests
 
 Tests cover cryptographic token verification, missing identities, membership
-resolution, role boundaries, and CA mutation authorization.
+resolution, role boundaries, application route contracts, and CA mutation
+authorization.
 
 ## Limitations
 
-- General proxy, product, app, credential, and policy mutations are absent.
+- Proxy, product, deployment, policy, and post-registration credential/grant
+  mutation routes are absent.
 - No scheduled external CRL refresh.
 - No routing-registry hot reload.
 

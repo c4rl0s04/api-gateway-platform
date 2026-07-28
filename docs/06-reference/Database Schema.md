@@ -3,7 +3,7 @@ title: Database Schema
 type: reference
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-07-27
+last_verified: 2026-07-29
 tags:
   - type/reference
   - area/database
@@ -29,7 +29,7 @@ aliases: []
 | `EndpointPolicy` | `type`, `order`, `enabled`, `config`, `endpointId` | Deleted with its endpoint |
 | `ApiProduct` | `name`, `active`, `scopes`, `organizationId` | Many-to-many proxies and optional environment allowlist |
 | `DeveloperApp` | `name`, `status`, `organizationId` | Owns credentials |
-| `AppCredential` | `consumerKey`, `consumerSecretHash`, `authMethods`, `status`, validity | Unique `consumerKey`; secret is not readable |
+| `AppCredential` | `consumerKey`, required `consumerSecretHash`, `status`, validity | Unique `consumerKey`; plaintext secret is returned once |
 | `CredentialProductGrant` | credential, product, `status`, `scopes` | Unique credential/product |
 | `AppPublicKey` | credential, `kid`, RSA JWK, `RS256`, status, validity | Unique credential/`kid` |
 | `AppCertificate` | credential, authority, SHA-256 fingerprint, PEM/chain, source, status, validity, revocation | Unique fingerprint |
@@ -50,12 +50,6 @@ qual | pprod | prod
 
 ```text
 ce | es | de | be | fr | us | uk | jp | br | kr
-```
-
-`CredentialAuthMethod`:
-
-```text
-apiKey | clientSecret | jwtBearer | mtls
 ```
 
 `AuthorizationStatus`:

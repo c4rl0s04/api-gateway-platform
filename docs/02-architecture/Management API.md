@@ -3,7 +3,7 @@ title: Management API
 type: architecture
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-07-27
+last_verified: 2026-07-29
 tags:
   - type/architecture
   - area/management-api
@@ -17,7 +17,7 @@ aliases: []
 # Management API
 
 > [!summary] At a glance
-> The Management API is an internal Fastify service that verifies OIDC tokens, resolves database memberships, and manages organization-scoped certificate authorities and client certificates.
+> The Management API is an internal Fastify service that verifies OIDC tokens, resolves database memberships, registers application aggregates, and manages organization-scoped PKI.
 
 ## Context
 
@@ -29,6 +29,8 @@ to the host; the Admin Panel BFF is its browser-facing caller.
 - OIDC verifier: RS256, issuer, audience, expiry, and JWKS validation.
 - Membership authorization: `platformAdmin`, `organizationAdmin`, and `viewer`.
 - Read models for current identity, organizations, and applications.
+- Transactional application registration with generated consumer key/secret and
+  approved product grants.
 - CA lifecycle: create/import, activate, retire, revoke, rotate, refresh/upload
   CRL.
 - Certificate lifecycle: issue from CSR, register external, list, download, and
@@ -47,8 +49,11 @@ flowchart LR
     DOMAIN --> SDS["Atomic CA and CRL bundle update"]
 ```
 
-Exact routes are listed in [[API Routes]]. Proxy, deployment, product,
-application, and credential mutations are not implemented in this phase.
+Exact routes are listed in [[API Routes]]. Application registration passes
+through the database domain operation so product ownership, activity, scopes,
+credential generation, grants, and audit are committed or rolled back together.
+Proxy, deployment, product, policy, and later credential/grant mutations are
+not implemented in this phase.
 
 ## Failure Modes
 
@@ -61,8 +66,9 @@ application, and credential mutations are not implemented in this phase.
 
 ## Constraints
 
-Only certificate and PKI control-plane mutations are complete. General gateway
-configuration CRUD and routing-registry hot reload remain future work.
+Application registration and certificate/PKI control-plane mutations are
+complete. General gateway configuration CRUD, credential rotation routes, grant
+mutation routes, JWK routes, and routing-registry hot reload remain future work.
 
 ## Sources
 

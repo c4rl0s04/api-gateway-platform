@@ -3,7 +3,7 @@ title: "Authentication and Authorization"
 type: architecture
 doc_status: current
 implementation_status: implemented
-last_verified: "2026-07-27"
+last_verified: "2026-07-29"
 tags:
   - type/architecture
   - area/security
@@ -13,6 +13,7 @@ sources:
   - packages/gateway-core/src/policies/oauth/oauth-token.policy.ts
   - packages/gateway-core/src/policies/oauth/oauth-access-token.policy.ts
   - packages/gateway-core/src/policies/auth/mtls.policy.ts
+  - packages/management-api/src/services/applications.ts
   - infra/envoy/envoy.yaml
 aliases:
   - Authentication Architecture
@@ -51,10 +52,18 @@ erDiagram
   ApiProxy ||--o{ ProxyDeployment : deploys
 ```
 
-`AppCredential` is the common identity anchor. Its closed `authMethods` list
-controls which protocol may use it. Secrets are stored only as salted scrypt
-hashes. RSA public JWKs and certificate fingerprints are separate, revocable
-records with validity windows.
+`AppCredential` is the common identity anchor. Every credential has a generated
+consumer key and a generated secret whose salted scrypt hash is the only stored
+form. The selected endpoint policy determines how that credential is used:
+API key resolves the consumer key, Client Credentials also verifies the secret,
+JWT Bearer requires an active `AppPublicKey`, and mTLS requires an active
+`AppCertificate`. Public JWKs and certificates are optional, independently
+revocable records with validity windows.
+
+Application registration creates the app, its initial credential, and approved
+product grants in one transaction. The plaintext consumer secret appears only
+in the creation response. A failed product or scope validation rolls back the
+entire aggregate.
 
 The system-managed `platform-oauth` proxy exposes local endpoints at
 `POST /oauth/token` and `GET /oauth/.well-known/jwks.json` in every environment.
@@ -68,7 +77,7 @@ Local endpoints return from a terminal policy and never invoke an upstream.
 sequenceDiagram
   Client->>Gateway: x-api-key: consumerKey
   Gateway->>PostgreSQL: credential + approved grants
-  Gateway->>Gateway: check apiKey, status, expiry, proxy, environment
+  Gateway->>Gateway: check status, expiry, approved grant, proxy, environment
   Gateway->>Backend: forward authorized request
 ```
 

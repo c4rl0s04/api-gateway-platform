@@ -3,7 +3,7 @@ title: Documentation Index
 type: map
 doc_status: current
 implementation_status: not-applicable
-last_verified: 2026-07-28
+last_verified: 2026-07-29
 tags:
   - type/map
   - area/project
@@ -24,7 +24,7 @@ aliases: []
 | Note | Documentation | Implementation | Verified |
 | --- | --- | --- | --- |
 | [[Documentation Home|API Gateway Platform]] | current | partial | 2026-07-27 |
-| [[00-map/Current Status|Current Status]] | current | partial | 2026-07-27 |
+| [[00-map/Current Status|Current Status]] | current | partial | 2026-07-29 |
 | [[00-map/Project Map|Project Map]] | current | partial | 2026-07-27 |
 
 ## Concepts
@@ -42,13 +42,13 @@ aliases: []
 
 | Note | Documentation | Implementation | Verified |
 | --- | --- | --- | --- |
-| [[02-architecture/Authentication and Authorization|Authentication and Authorization]] | current | implemented | 2026-07-27 |
+| [[02-architecture/Authentication and Authorization|Authentication and Authorization]] | current | implemented | 2026-07-29 |
 | [[02-architecture/Control Plane Flow|Control Plane Flow]] | current | partial | 2026-07-27 |
-| [[02-architecture/Data Model|Data Model]] | current | implemented | 2026-07-27 |
+| [[02-architecture/Data Model|Data Model]] | current | implemented | 2026-07-29 |
 | [[02-architecture/Deployment Model|Deployment Model]] | current | implemented | 2026-07-27 |
 | [[02-architecture/Global Architecture|Global Architecture]] | current | partial | 2026-07-27 |
 | [[02-architecture/Hot Reload Sync|Hot Reload Sync]] | current | planned | 2026-07-27 |
-| [[02-architecture/Management API|Management API]] | current | implemented | 2026-07-27 |
+| [[02-architecture/Management API|Management API]] | current | implemented | 2026-07-29 |
 | [[02-architecture/Monorepo and Packages|Monorepo and Packages]] | current | partial | 2026-07-27 |
 | [[02-architecture/Multi-Client PKI|Multi-Client PKI]] | current | implemented | 2026-07-27 |
 | [[02-architecture/Observability|Observability]] | current | partial | 2026-07-27 |
@@ -60,9 +60,9 @@ aliases: []
 | Note | Documentation | Implementation | Verified |
 | --- | --- | --- | --- |
 | [[03-packages/admin-panel|admin-panel]] | current | partial | 2026-07-27 |
-| [[03-packages/database|database]] | current | implemented | 2026-07-27 |
+| [[03-packages/database|database]] | current | implemented | 2026-07-29 |
 | [[03-packages/gateway-core|gateway-core]] | current | implemented | 2026-07-27 |
-| [[03-packages/management-api|management-api]] | current | partial | 2026-07-27 |
+| [[03-packages/management-api|management-api]] | current | partial | 2026-07-29 |
 | [[03-packages/pki|pki]] | current | implemented | 2026-07-27 |
 | [[03-packages/shared|shared]] | current | implemented | 2026-07-27 |
 
@@ -71,7 +71,7 @@ aliases: []
 | Note | Documentation | Implementation | Verified |
 | --- | --- | --- | --- |
 | [[04-guides/How to Add a New Proxy|How to Add a New Proxy]] | current | implemented | 2026-07-27 |
-| [[04-guides/How to Configure Application Authentication|How to Configure Application Authentication]] | current | implemented | 2026-07-27 |
+| [[04-guides/How to Configure Application Authentication|How to Configure Application Authentication]] | current | implemented | 2026-07-29 |
 | [[04-guides/How to Document the Project|How to Document the Project]] | current | not-applicable | 2026-07-27 |
 | [[04-guides/How to Operate the PKI|How to Operate the PKI]] | current | implemented | 2026-07-27 |
 | [[04-guides/How to Run Tests|How to Run Tests]] | current | implemented | 2026-07-27 |
@@ -93,8 +93,8 @@ aliases: []
 
 | Note | Documentation | Implementation | Verified |
 | --- | --- | --- | --- |
-| [[06-reference/API Routes|API Routes]] | current | implemented | 2026-07-27 |
-| [[06-reference/Database Schema|Database Schema]] | current | implemented | 2026-07-27 |
+| [[06-reference/API Routes|API Routes]] | current | implemented | 2026-07-29 |
+| [[06-reference/Database Schema|Database Schema]] | current | implemented | 2026-07-29 |
 | [[06-reference/Environment Variables|Environment Variables]] | current | implemented | 2026-07-27 |
 | [[06-reference/policies/README|Policy Reference Index]] | current | partial | 2026-07-27 |
 | [[06-reference/Policy Types|Policy Types]] | current | partial | 2026-07-27 |

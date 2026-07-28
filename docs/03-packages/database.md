@@ -3,7 +3,7 @@ title: database
 type: package
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-07-27
+last_verified: 2026-07-29
 tags:
   - type/package
   - area/database
@@ -32,6 +32,8 @@ This package is the persistence boundary for the monorepo.
 - Enforces deployment progression through `createProxyDeployment()`.
 - Exports credential, secret rotation, grant, public-key, and certificate
   domain operations.
+- Registers an app, generated credential, approved product grants, and audit
+  event atomically through `registerDeveloperApplication()`.
 - Persists certificate authorities, issuance records, OIDC memberships, and
   append-only audit events; managed CA private keys remain outside PostgreSQL.
 
@@ -51,6 +53,11 @@ await createProxyDeployment({
 The operation normalizes trailing slashes, accepts only HTTP(S) upstreams, runs
 inside a transaction, and raises `DeploymentProgressionError` for an invalid
 stage transition.
+
+`registerDeveloperApplication()` validates organization ownership, active
+products, unique product assignments, and scope subsets. Omitted grant scopes
+inherit all product scopes. It returns the generated consumer secret once and
+never returns the persisted secret hash.
 
 ## Runtime Flow
 

@@ -3,13 +3,14 @@ title: Data Model
 type: architecture
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-07-27
+last_verified: 2026-07-29
 tags:
   - type/architecture
   - area/database
 sources:
   - packages/database/prisma/schema.prisma
   - packages/database/src/deployments.ts
+  - packages/database/src/credentials.ts
   - packages/shared/src/deployments/config.ts
 aliases:
   - Database and Prisma
@@ -65,9 +66,11 @@ use different upstreams in `qual`, `pprod`, and `prod`.
 
 ## Authorization Flow
 
-An `AppCredential` identifies one application and declares closed
-authentication methods. Secrets are scrypt hashes; public RSA JWKs and mTLS
-fingerprints are separate validity-controlled records. An approved
+An `AppCredential` identifies one application through a generated consumer key
+and secret. Only the scrypt secret hash is persisted. Authentication capability
+is inferred from the material required by the endpoint policy: the base
+credential supports API key and Client Credentials, while public RSA JWKs and
+mTLS certificates are optional validity-controlled records. An approved
 `CredentialProductGrant` supplies scopes and access through an active product.
 A product must include the current proxy. Its environment relation is optional:
 empty means all environments.

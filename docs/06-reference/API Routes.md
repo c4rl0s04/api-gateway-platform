@@ -3,13 +3,14 @@ title: API Routes
 type: reference
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-07-27
+last_verified: 2026-07-29
 tags:
   - type/reference
   - area/project
 sources:
   - packages/gateway-core/src/server.ts
   - packages/management-api/src/server.ts
+  - packages/management-api/src/routes/apps.routes.ts
 aliases: []
 ---
 
@@ -53,6 +54,8 @@ The gateway intentionally does not expose a root `/health` route.
 | `GET` | `/v1/organizations` | `200` | Organizations visible to the actor |
 | `GET` | `/v1/organizations/:organizationId` | `200` | Organization detail |
 | `GET` | `/v1/organizations/:organizationId/apps` | `200` | Apps, credentials, grants, and certificates |
+| `POST` | `/v1/organizations/:organizationId/apps` | `201` | Atomically create app, generated credential, and approved product grants |
+| `GET` | `/v1/apps/:appId` | `200` | App, credentials, grants, public keys, and certificates |
 | `GET` | `/v1/organizations/:organizationId/certificate-authorities` | `200` | Organization authorities |
 | `POST` | `/v1/organizations/:organizationId/certificate-authorities/managed` | `201` | Create managed CA; platform admin only |
 | `POST` | `/v1/organizations/:organizationId/certificate-authorities/external` | `201` | Import external CA; platform admin only |
@@ -72,6 +75,26 @@ The gateway intentionally does not expose a root `/health` route.
 Every `/v1` route requires an accepted OIDC Bearer token and at least one active
 database membership. CA mutations require `platformAdmin`; certificate
 mutations require `platformAdmin` or the matching `organizationAdmin`.
+
+Application registration accepts:
+
+```json
+{
+  "name": "Payments consumer",
+  "products": [
+    {
+      "productId": "product-banking-apis",
+      "scopes": ["banking:read"]
+    }
+  ]
+}
+```
+
+`scopes` is optional and defaults to all scopes declared by that product.
+The `201` response contains `application`, `credential`, and
+`consumerSecret`. The secret is returned exactly once. List and detail routes
+never return the secret or its hash. The request cannot select authentication
+methods or provide custom credential material.
 
 ## Examples
 
