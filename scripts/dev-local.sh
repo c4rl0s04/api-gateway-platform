@@ -205,10 +205,7 @@ printf '%s\n' \
   > "$COMPOSE_ENV"
 
 printf '%s\n' \
-  "Local OIDC users:" \
-  "  platform-admin / $PLATFORM_ADMIN_PASSWORD" \
-  "  organization-admin / $ORGANIZATION_ADMIN_PASSWORD" \
-  "  viewer / $VIEWER_PASSWORD"
+  "Local OIDC credentials: .local-secrets/keycloak/users.env"
 
 cd "$ROOT_DIR"
 exec docker compose --env-file "$COMPOSE_ENV" up --build --force-recreate "$@"
