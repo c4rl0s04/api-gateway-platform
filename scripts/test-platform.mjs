@@ -51,7 +51,7 @@ async function tokenRequest(realm, parameters) {
   );
 }
 
-async function waitFor(url, attempts = 40) {
+async function waitFor(url, attempts = 160) {
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     try {
       const response = await fetch(url);
@@ -146,6 +146,16 @@ async function mtlsRequest(certificate, key) {
   }
 }
 
+async function gatewayCurl(arguments_) {
+  return exec('curl', [
+    '--silent',
+    '--show-error',
+    '--cacert',
+    path.join(secrets, 'pki/authorities/local-development/ca.crt'),
+    ...arguments_,
+  ]);
+}
+
 try {
   const users = parseEnvironment(await readFile(usersEnvironment, 'utf8'));
   await waitFor(`${keycloakBaseUrl}/realms/api-gateway`);
@@ -169,6 +179,111 @@ try {
   const principal = await management(accessToken, 'me');
   if (!principal.memberships.some(membership => membership.role === 'platformAdmin')) {
     throw new Error('OIDC identity is not mapped to platformAdmin');
+  }
+
+  const appsBefore = await management(
+    accessToken,
+    'organizations/org-bank-dev/apps',
+  );
+  const appName = `Platform application E2E ${Date.now()}`;
+  const registration = await management(
+    accessToken,
+    'organizations/org-bank-dev/apps',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        name: appName,
+        products: [{ productId: 'product-banking-apis' }],
+      }),
+    },
+  );
+  if (
+    !registration.credential.consumerKey.startsWith('ck_')
+    || !registration.consumerSecret.startsWith('cs_')
+  ) {
+    throw new Error('Application registration did not generate credential material');
+  }
+
+  const appsAfter = await management(
+    accessToken,
+    'organizations/org-bank-dev/apps',
+  );
+  const persisted = appsAfter.find(app => app.id === registration.application.id);
+  if (!persisted) {
+    throw new Error('Registered application was not persisted');
+  }
+  const serializedApps = JSON.stringify(appsAfter);
+  if (
+    serializedApps.includes(registration.consumerSecret)
+    || serializedApps.includes('consumerSecretHash')
+  ) {
+    throw new Error('Application reads exposed secret credential material');
+  }
+
+  let rejectedInvalidProduct = false;
+  try {
+    await management(
+      accessToken,
+      'organizations/org-bank-dev/apps',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          name: `Invalid application E2E ${Date.now()}`,
+          products: [{ productId: 'product-identity-apis' }],
+        }),
+      },
+    );
+  } catch (error) {
+    rejectedInvalidProduct = error.message.includes('400');
+  }
+  const appsAfterRejection = await management(
+    accessToken,
+    'organizations/org-bank-dev/apps',
+  );
+  if (
+    !rejectedInvalidProduct
+    || appsAfterRejection.length !== appsBefore.length + 1
+  ) {
+    throw new Error('Invalid application registration was not rolled back');
+  }
+
+  const apiKeyResponse = await gatewayCurl([
+    '--header',
+    `x-api-key: ${registration.credential.consumerKey}`,
+    '--output',
+    '/dev/null',
+    '--write-out',
+    '%{http_code}',
+    'https://localhost:8443/es/banking/v1/accounts',
+  ]);
+  if (apiKeyResponse.stdout !== '200') {
+    throw new Error(`Generated API key was not accepted: ${apiKeyResponse.stdout}`);
+  }
+
+  const tokenResponse = await gatewayCurl([
+    '--user',
+    `${registration.credential.consumerKey}:${registration.consumerSecret}`,
+    '--header',
+    'content-type: application/x-www-form-urlencoded',
+    '--data',
+    'grant_type=client_credentials&scope=banking%3Aread',
+    'https://localhost:8443/oauth/token',
+  ]);
+  const accessTokenResponse = JSON.parse(tokenResponse.stdout);
+  if (!accessTokenResponse.access_token) {
+    throw new Error('Generated client credentials did not issue an access token');
+  }
+  const bearerResponse = await gatewayCurl([
+    '--header',
+    `authorization: Bearer ${accessTokenResponse.access_token}`,
+    '--output',
+    '/dev/null',
+    '--write-out',
+    '%{http_code}',
+    'https://localhost:8443/es/banking/v1/accounts/1',
+  ]);
+  if (bearerResponse.stdout !== '200') {
+    throw new Error(`Issued access token was not accepted: ${bearerResponse.stdout}`);
   }
 
   const authority = await management(
@@ -265,7 +380,7 @@ try {
     throw new Error('An unrelated mTLS client stopped working');
   }
 
-  console.log('Platform OIDC, issuance, revocation, rotation and persistence checks passed');
+  console.log('Platform application, OIDC, OAuth, PKI and persistence checks passed');
 } finally {
   await rm(workDirectory, { recursive: true, force: true });
 }
