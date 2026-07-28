@@ -10,8 +10,7 @@ export interface CredentialRecord {
   id: string;
   appId: string;
   consumerKey: string;
-  consumerSecretHash: string | null;
-  authMethods: string[];
+  consumerSecretHash: string;
   status: string;
   issuedAt: Date;
   expiresAt: Date | null;
@@ -54,12 +53,10 @@ export function findCredential(consumerKey: string): Promise<CredentialRecord | 
 
 export function isCredentialValid(
   credential: CredentialRecord,
-  method: string,
   now = new Date(),
 ): boolean {
   return credential.status === 'approved'
     && credential.app.status === 'approved'
-    && credential.authMethods.includes(method)
     && credential.issuedAt <= now
     && (!credential.expiresAt || credential.expiresAt > now);
 }

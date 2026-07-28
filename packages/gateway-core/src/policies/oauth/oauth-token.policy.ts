@@ -117,7 +117,7 @@ async function authenticateJwtAssertion(
   }
 
   const credential = await dependencies.findCredential(unverified.iss);
-  if (!credential || !isCredentialValid(credential, 'jwtBearer')) return null;
+  if (!credential || !isCredentialValid(credential)) return null;
 
   const key = await dependencies.findPublicKey(credential.id, header.kid);
   const now = new Date();
@@ -204,7 +204,7 @@ export function createOAuthTokenPolicyWithDependencies(
         if (
           !credential
           || !credential.consumerSecretHash
-          || !isCredentialValid(credential, 'clientSecret')
+          || !isCredentialValid(credential)
           || !await dependencies.verifySecret(basic[1], credential.consumerSecretHash)
         ) {
           return oauthError(401, 'invalid_client', 'Client authentication failed');

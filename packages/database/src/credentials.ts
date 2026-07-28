@@ -8,7 +8,6 @@ import {
 } from 'node:crypto';
 import {
   AuthorizationStatus,
-  CredentialAuthMethod,
   Prisma,
   PublicKeyAlgorithm,
 } from './generated/index.js';
@@ -100,25 +99,14 @@ export interface CreateAppCredentialInput {
   id?: string;
   appId: string;
   consumerKey?: string;
-  authMethods: CredentialAuthMethod[];
   expiresAt?: Date | null;
   attributes?: Prisma.InputJsonValue;
 }
 
 export async function createAppCredential(input: CreateAppCredentialInput) {
-  if (input.authMethods.length === 0) {
-    throw new Error('At least one credential authentication method is required');
-  }
-
   const consumerKey = input.consumerKey ?? generateConsumerKey();
-  const consumerSecret = input.authMethods.includes(
-    CredentialAuthMethod.clientSecret,
-  )
-    ? generateConsumerSecret()
-    : null;
-  const consumerSecretHash = consumerSecret
-    ? await hashConsumerSecret(consumerSecret)
-    : null;
+  const consumerSecret = generateConsumerSecret();
+  const consumerSecretHash = await hashConsumerSecret(consumerSecret);
 
   const credential = await prisma.appCredential.create({
     data: {
@@ -126,7 +114,6 @@ export async function createAppCredential(input: CreateAppCredentialInput) {
       appId: input.appId,
       consumerKey,
       consumerSecretHash,
-      authMethods: [...new Set(input.authMethods)],
       expiresAt: input.expiresAt,
       attributes: input.attributes ?? {},
       status: AuthorizationStatus.approved,
@@ -137,14 +124,6 @@ export async function createAppCredential(input: CreateAppCredentialInput) {
 }
 
 export async function rotateConsumerSecret(credentialId: string) {
-  const credential = await prisma.appCredential.findUniqueOrThrow({
-    where: { id: credentialId },
-    select: { authMethods: true },
-  });
-  if (!credential.authMethods.includes(CredentialAuthMethod.clientSecret)) {
-    throw new Error('Credential does not allow clientSecret authentication');
-  }
-
   const consumerSecret = generateConsumerSecret();
   const consumerSecretHash = await hashConsumerSecret(consumerSecret);
   await prisma.appCredential.update({
@@ -310,13 +289,6 @@ export interface RegisterAppPublicKeyInput {
 
 export async function registerAppPublicKey(input: RegisterAppPublicKeyInput) {
   validateRsaJwk(input.jwk);
-  const credential = await prisma.appCredential.findUniqueOrThrow({
-    where: { id: input.credentialId },
-    select: { authMethods: true },
-  });
-  if (!credential.authMethods.includes(CredentialAuthMethod.jwtBearer)) {
-    throw new Error('Credential does not allow jwtBearer authentication');
-  }
   return prisma.appPublicKey.create({
     data: {
       id: input.id,
@@ -360,13 +332,6 @@ export interface RegisterAppCertificateInput {
 export async function registerAppCertificate(
   input: RegisterAppCertificateInput,
 ) {
-  const credential = await prisma.appCredential.findUniqueOrThrow({
-    where: { id: input.credentialId },
-    select: { authMethods: true },
-  });
-  if (!credential.authMethods.includes(CredentialAuthMethod.mtls)) {
-    throw new Error('Credential does not allow mtls authentication');
-  }
   return prisma.appCertificate.create({
     data: {
       id: input.id,

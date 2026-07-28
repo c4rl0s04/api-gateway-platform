@@ -141,7 +141,7 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 code { display: block; color: #667177; font-size: 11px; margin-top: 4px; }
 .credential-row {
   display: grid;
-  grid-template-columns: minmax(210px, 1fr) minmax(180px, .8fr) minmax(260px, 1.3fr);
+  grid-template-columns: minmax(210px, 1fr) minmax(260px, 1.3fr);
   align-items: start;
   gap: 20px;
   padding: 16px 18px;

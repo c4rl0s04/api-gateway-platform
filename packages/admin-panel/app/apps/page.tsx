@@ -64,11 +64,6 @@ export default function AppsPage() {
                     <code>{credential.id}</code>
                   </div>
                 </div>
-                <div className="tag-list">
-                  {credential.authMethods.map(method => (
-                    <span className="tag" key={method}>{method}</span>
-                  ))}
-                </div>
                 <div className="grant-list">
                   {credential.productGrants.map(grant => (
                     <div key={grant.id}>

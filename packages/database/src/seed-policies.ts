@@ -4,7 +4,6 @@ import {
   CertificateAuthorityKind,
   CertificateAuthorityStatus,
   CertificateSource,
-  CredentialAuthMethod,
   PrismaClient,
 } from './generated';
 import { hashConsumerSecret } from './credentials.js';
@@ -97,12 +96,6 @@ const API_CREDENTIALS = [
     appId:          'app-bank-partner',
     consumerKey:    'dev-bank-key-abc123',
     consumerSecret: 'dev-bank-secret-xyz789-0123456789abcdef',
-    authMethods:    [
-      CredentialAuthMethod.apiKey,
-      CredentialAuthMethod.clientSecret,
-      CredentialAuthMethod.jwtBearer,
-      CredentialAuthMethod.mtls,
-    ],
     // This credential grants access to the Banking APIs product
     productIds:     ['product-banking-apis'],
     scopes:         ['banking:read'],
@@ -112,10 +105,6 @@ const API_CREDENTIALS = [
     appId:          'app-id-service',
     consumerKey:    'dev-id-key-def456',
     consumerSecret: 'dev-id-secret-uvw321-0123456789abcdef',
-    authMethods:    [
-      CredentialAuthMethod.apiKey,
-      CredentialAuthMethod.clientSecret,
-    ],
     // This credential grants access to the Identity APIs product
     productIds:     ['product-identity-apis'],
     scopes:         ['identity:read'],
@@ -125,7 +114,6 @@ const API_CREDENTIALS = [
     appId:          'app-bank-partner-secondary',
     consumerKey:    'dev-bank-key-secondary',
     consumerSecret: 'dev-bank-secret-secondary-0123456789abcdef',
-    authMethods:    [CredentialAuthMethod.mtls],
     productIds:     ['product-banking-apis'],
     scopes:         ['banking:read'],
   },
@@ -333,7 +321,6 @@ async function main() {
         appId:     cred.appId,
         consumerKey: cred.consumerKey,
         consumerSecretHash,
-        authMethods: cred.authMethods,
         status: AuthorizationStatus.approved,
       },
       create: {

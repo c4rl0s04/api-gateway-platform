@@ -42,8 +42,7 @@ describe('policy failure modes', () => {
         findCredential: async () => ({
           id: 'credential-1',
           consumerKey: 'valid-key',
-          consumerSecretHash: null,
-          authMethods: ['apiKey'],
+          consumerSecretHash: 'stored-hash',
           status: 'approved',
           issuedAt: new Date(0),
           expiresAt: null,
@@ -86,8 +85,7 @@ describe('policy failure modes', () => {
         findCredential: async () => ({
           id: 'credential-1',
           consumerKey: 'restricted-key',
-          consumerSecretHash: null,
-          authMethods: ['apiKey'],
+          consumerSecretHash: 'stored-hash',
           status: 'approved',
           issuedAt: new Date(0),
           expiresAt: null,
@@ -123,8 +121,7 @@ describe('policy failure modes', () => {
         findCredential: async () => ({
           id: 'credential-1',
           consumerKey: 'restricted-key',
-          consumerSecretHash: null,
-          authMethods: ['apiKey'],
+          consumerSecretHash: 'stored-hash',
           status: 'approved',
           issuedAt: new Date(0),
           expiresAt: null,

@@ -31,7 +31,6 @@ export default function CertificatesPage() {
   const [busy, setBusy] = useState(false);
   const credentials = useMemo(
     () => apps.flatMap(app => app.credentials
-      .filter(credential => credential.authMethods.includes('mtls'))
       .map(credential => ({ ...credential, appName: app.name }))),
     [apps],
   );

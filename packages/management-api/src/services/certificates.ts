@@ -110,9 +110,6 @@ export class CertificateService implements CertificateOperations {
       include: { app: true },
     });
     requireManage(actor, credential.app.organizationId);
-    if (!credential.authMethods.includes('mtls')) {
-      throw new Error('Credential does not allow mTLS authentication');
-    }
     const authority = await prisma.certificateAuthority.findFirstOrThrow({
       where: {
         id: input.authorityId,
@@ -216,9 +213,6 @@ export class CertificateService implements CertificateOperations {
       include: { app: true },
     });
     requireManage(actor, credential.app.organizationId);
-    if (!credential.authMethods.includes('mtls')) {
-      throw new Error('Credential does not allow mTLS authentication');
-    }
     const authority = await prisma.certificateAuthority.findFirstOrThrow({
       where: {
         id: input.authorityId,

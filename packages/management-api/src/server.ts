@@ -112,7 +112,6 @@ export function buildServer(options: ManagementServerOptions): FastifyInstance {
             select: {
               id: true,
               consumerKey: true,
-              authMethods: true,
               status: true,
               issuedAt: true,
               expiresAt: true,

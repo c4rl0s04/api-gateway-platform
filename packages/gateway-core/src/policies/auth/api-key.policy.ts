@@ -74,7 +74,7 @@ export function createApiKeyPolicyWithDependencies(
       });
     }
 
-    if (!credential || !isCredentialValid(credential, 'apiKey')) {
+    if (!credential || !isCredentialValid(credential)) {
       // Same message for invalid and revoked keys:
       // don't reveal to an attacker whether the key ever existed.
       return halt(401, {

@@ -75,7 +75,7 @@ export function createMtlsPolicyWithDependencies(
         || certificate.status !== 'approved'
         || certificate.validFrom > now
         || (certificate.expiresAt && certificate.expiresAt <= now)
-        || !isCredentialValid(certificate.credential, 'mtls', now)
+        || !isCredentialValid(certificate.credential, now)
       ) {
         return halt(401, { error: 'Unauthorized', message: 'Invalid or revoked client certificate' });
       }

@@ -29,13 +29,12 @@ const AUTH_ENV: GatewayEnv = {
   MTLS_TRUSTED_PROXY_CIDRS: '127.0.0.0/8,10.0.0.0/8',
 };
 
-function credential(method: string) {
+function credential() {
   return {
     id: 'credential-1',
     appId: 'app-1',
     consumerKey: 'client-1',
     consumerSecretHash: 'stored-hash',
-    authMethods: [method],
     status: 'approved',
     issuedAt: new Date(0),
     expiresAt: null,
@@ -69,12 +68,12 @@ const tokenConfig = {
 before(async () => configureOAuthRuntime(AUTH_ENV));
 
 describe('credential authorization rules', () => {
-  it('enforces method, expiry, approved grants, environment and scopes', () => {
-    const valid = credential('apiKey');
-    assert.equal(isCredentialValid(valid, 'apiKey'), true);
-    assert.equal(isCredentialValid({ ...valid, status: 'revoked' }, 'apiKey'), false);
+  it('enforces expiry, approved grants, environment and scopes', () => {
+    const valid = credential();
+    assert.equal(isCredentialValid(valid), true);
+    assert.equal(isCredentialValid({ ...valid, status: 'revoked' }), false);
     assert.equal(
-      isCredentialValid({ ...valid, expiresAt: new Date(0) }, 'apiKey'),
+      isCredentialValid({ ...valid, expiresAt: new Date(0) }),
       false,
     );
     assert.deepEqual(
@@ -89,7 +88,7 @@ describe('credential authorization rules', () => {
 describe('OAuth token issuance and verification', () => {
   it('issues a signed environment-bound token for client credentials', async () => {
     const policy = createOAuthTokenPolicyWithDependencies(tokenConfig, {
-      findCredential: async () => credential('clientSecret'),
+      findCredential: async () => credential(),
       verifySecret: async secret => secret === 'correct-secret',
       findPublicKey: async () => null,
       consumeAssertion: async () => true,
@@ -138,7 +137,7 @@ describe('OAuth token issuance and verification', () => {
       .sign(clientPrivate);
     let consumed = false;
     const policy = createOAuthTokenPolicyWithDependencies(tokenConfig, {
-      findCredential: async () => credential('jwtBearer'),
+      findCredential: async () => credential(),
       verifySecret: async () => false,
       findPublicKey: async () => ({
         status: 'approved',

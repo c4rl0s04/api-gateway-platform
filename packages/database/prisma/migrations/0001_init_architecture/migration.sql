@@ -8,9 +8,6 @@ CREATE TYPE "DeploymentRegion" AS ENUM ('ce', 'es', 'de', 'be', 'fr', 'us', 'uk'
 CREATE TYPE "EndpointMode" AS ENUM ('forward', 'local');
 
 -- CreateEnum
-CREATE TYPE "CredentialAuthMethod" AS ENUM ('apiKey', 'clientSecret', 'jwtBearer', 'mtls');
-
--- CreateEnum
 CREATE TYPE "AuthorizationStatus" AS ENUM ('pending', 'approved', 'revoked');
 
 -- CreateEnum
@@ -126,8 +123,7 @@ CREATE TABLE "AppCredential" (
     "id" TEXT NOT NULL,
     "appId" TEXT NOT NULL,
     "consumerKey" TEXT NOT NULL,
-    "consumerSecretHash" TEXT,
-    "authMethods" "CredentialAuthMethod"[] DEFAULT ARRAY[]::"CredentialAuthMethod"[],
+    "consumerSecretHash" TEXT NOT NULL,
     "status" "AuthorizationStatus" NOT NULL DEFAULT 'approved',
     "attributes" JSONB NOT NULL DEFAULT '{}',
     "issuedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,

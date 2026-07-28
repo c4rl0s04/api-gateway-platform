@@ -32,13 +32,6 @@ enum EndpointMode {
   local
 }
 
-enum CredentialAuthMethod {
-  apiKey
-  clientSecret
-  jwtBearer
-  mtls
-}
-
 enum AuthorizationStatus {
   pending
   approved
@@ -191,7 +184,7 @@ model DeveloperApp {
 }
 
 /// Access credential for a DeveloperApp.
-/// Stores the consumerKey (Client ID) and an optional salted secret hash.
+/// Stores the consumerKey (Client ID) and its salted secret hash.
 /// Generated client secrets are returned once and cannot be read back.
 /// A single app can have multiple credentials for key rotation without downtime.
 model AppCredential {
@@ -201,8 +194,7 @@ model AppCredential {
   /// The API Key / Client ID. Sent by the client in the x-api-key header.
   consumerKey          String                   @unique
   /// Scrypt hash. The generated secret is returned only once.
-  consumerSecretHash   String?
-  authMethods          CredentialAuthMethod[]   @default([])
+  consumerSecretHash   String
   status               AuthorizationStatus      @default(approved)
   attributes           Json                     @default("{}")
   issuedAt             DateTime                 @default(now())

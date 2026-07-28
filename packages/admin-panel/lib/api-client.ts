@@ -28,7 +28,6 @@ export interface Organization {
 export interface AppCredential {
   id: string;
   consumerKey: string;
-  authMethods: string[];
   status: string;
   expiresAt: string | null;
   certificates: Array<{
