@@ -7,6 +7,7 @@ import {
   type ScryptOptions,
 } from 'node:crypto';
 import {
+  AdminRole,
   AuthorizationStatus,
   Prisma,
   PublicKeyAlgorithm,
@@ -93,6 +94,194 @@ function generateConsumerKey(): string {
 
 function generateConsumerSecret(): string {
   return `cs_${randomBytes(32).toString('base64url')}`;
+}
+
+export type RegisterDeveloperApplicationErrorCode =
+  | 'invalid_name'
+  | 'organization_not_found'
+  | 'products_required'
+  | 'duplicate_product'
+  | 'product_not_found'
+  | 'product_not_active'
+  | 'product_organization_mismatch'
+  | 'invalid_scope';
+
+export class RegisterDeveloperApplicationError extends Error {
+  constructor(
+    public readonly code: RegisterDeveloperApplicationErrorCode,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'RegisterDeveloperApplicationError';
+  }
+}
+
+export interface RegisterDeveloperApplicationInput {
+  organizationId: string;
+  name: string;
+  products: Array<{
+    productId: string;
+    /**
+     * Omit scopes to grant every scope currently declared by the product.
+     * Pass an explicit subset to restrict this credential.
+     */
+    scopes?: string[];
+  }>;
+  actor: {
+    issuer: string;
+    subject: string;
+    role: AdminRole;
+  };
+}
+
+/**
+ * Registers the complete application aggregate in one transaction. The
+ * plaintext secret only exists in this return value.
+ */
+export async function registerDeveloperApplication(
+  input: RegisterDeveloperApplicationInput,
+) {
+  const name = input.name.trim();
+  if (name.length === 0) {
+    throw new RegisterDeveloperApplicationError(
+      'invalid_name',
+      'Application name is required',
+    );
+  }
+  const productIds = input.products.map(product => product.productId);
+  if (productIds.length === 0) {
+    throw new RegisterDeveloperApplicationError(
+      'products_required',
+      'At least one API product is required',
+    );
+  }
+  if (new Set(productIds).size !== productIds.length) {
+    throw new RegisterDeveloperApplicationError(
+      'duplicate_product',
+      'Each API product may be granted only once',
+    );
+  }
+
+  const consumerKey = generateConsumerKey();
+  const consumerSecret = generateConsumerSecret();
+  const consumerSecretHash = await hashConsumerSecret(consumerSecret);
+
+  const result = await prisma.$transaction(async transaction => {
+    const organization = await transaction.organization.findUnique({
+      where: { id: input.organizationId },
+      select: { id: true },
+    });
+    if (!organization) {
+      throw new RegisterDeveloperApplicationError(
+        'organization_not_found',
+        'Organization does not exist',
+      );
+    }
+
+    const products = await transaction.apiProduct.findMany({
+      where: { id: { in: productIds } },
+      select: {
+        id: true,
+        name: true,
+        active: true,
+        scopes: true,
+        organizationId: true,
+      },
+    });
+    if (products.length !== productIds.length) {
+      throw new RegisterDeveloperApplicationError(
+        'product_not_found',
+        'One or more API products do not exist',
+      );
+    }
+
+    const productsById = new Map(products.map(product => [product.id, product]));
+    const grants = input.products.map(requested => {
+      const product = productsById.get(requested.productId)!;
+      if (!product.active) {
+        throw new RegisterDeveloperApplicationError(
+          'product_not_active',
+          `API product ${product.id} is not active`,
+        );
+      }
+      if (product.organizationId !== input.organizationId) {
+        throw new RegisterDeveloperApplicationError(
+          'product_organization_mismatch',
+          `API product ${product.id} belongs to another organization`,
+        );
+      }
+
+      const scopes = requested.scopes === undefined
+        ? product.scopes
+        : [...new Set(requested.scopes)];
+      const unsupportedScopes = scopes.filter(
+        scope => !product.scopes.includes(scope),
+      );
+      if (unsupportedScopes.length > 0) {
+        throw new RegisterDeveloperApplicationError(
+          'invalid_scope',
+          `API product ${product.id} does not declare scopes: ${unsupportedScopes.join(', ')}`,
+        );
+      }
+      return {
+        productId: product.id,
+        status: AuthorizationStatus.approved,
+        scopes,
+      };
+    });
+
+    const app = await transaction.developerApp.create({
+      data: {
+        name,
+        organizationId: input.organizationId,
+        status: AuthorizationStatus.approved,
+        credentials: {
+          create: {
+            consumerKey,
+            consumerSecretHash,
+            status: AuthorizationStatus.approved,
+            productGrants: { create: grants },
+          },
+        },
+      },
+      include: {
+        credentials: {
+          include: {
+            productGrants: {
+              include: {
+                product: {
+                  select: { id: true, name: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    const credential = app.credentials[0]!;
+    await transaction.auditEvent.create({
+      data: {
+        actorIssuer: input.actor.issuer,
+        actorSubject: input.actor.subject,
+        actorRole: input.actor.role,
+        organizationId: input.organizationId,
+        action: 'application.register',
+        resourceType: 'DeveloperApp',
+        resourceId: app.id,
+        metadata: {
+          credentialId: credential.id,
+          productIds,
+        },
+      },
+    });
+    return { app, credential };
+  });
+
+  return {
+    app: result.app,
+    credential: result.credential,
+    consumerSecret,
+  };
 }
 
 export interface CreateAppCredentialInput {

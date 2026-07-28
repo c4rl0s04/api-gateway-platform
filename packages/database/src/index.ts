@@ -21,6 +21,7 @@ export {
   createAppCredential,
   hashConsumerSecret,
   normalizeCertificateFingerprint,
+  registerDeveloperApplication,
   replaceCredentialProductGrants,
   registerAppCertificate,
   registerAppPublicKey,
@@ -30,11 +31,14 @@ export {
   rotateConsumerSecret,
   setCredentialProductGrant,
   verifyConsumerSecret,
+  RegisterDeveloperApplicationError,
 } from './credentials.js';
 export type {
   CreateAppCredentialInput,
   RegisterAppCertificateInput,
   RegisterAppPublicKeyInput,
+  RegisterDeveloperApplicationErrorCode,
+  RegisterDeveloperApplicationInput,
   ReplaceCredentialProductGrantsInput,
   SetCredentialProductGrantInput,
 } from './credentials.js';
