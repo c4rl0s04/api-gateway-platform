@@ -1,0 +1,154 @@
+import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
+import {
+  RegisterDeveloperApplicationError,
+} from '@api-gateway/database';
+import { buildServer } from '../src/server.js';
+import { ApplicationService } from '../src/services/applications.js';
+import type { ManagementEnv } from '../src/config/env.js';
+import type {
+  ApplicationOperations,
+  RegisterApplicationInput,
+} from '../src/services/applications.js';
+
+const config: ManagementEnv = {
+  HOST: '127.0.0.1',
+  PORT: 3002,
+  DATABASE_URL: 'postgresql://test:test@localhost:5432/test',
+  OIDC_ISSUER: 'https://identity.test/realms/platform',
+  OIDC_AUDIENCE: 'management-api',
+  PKI_KEYSTORE_DIR: '/tmp/test-pki-keys',
+  PKI_MASTER_KEY_FILE: '/tmp/test-pki-master.key',
+  PKI_TRUST_BUNDLE_FILE: '/tmp/test-trust-bundle.pem',
+  PKI_CRL_BUNDLE_FILE: '/tmp/test-crl-bundle.pem',
+  PKI_SDS_TRIGGER_FILE: '/tmp/test-client-validation.yaml',
+};
+
+function authenticatedServer(
+  applications: ApplicationOperations,
+  role: 'organizationAdmin' | 'viewer' = 'organizationAdmin',
+) {
+  return buildServer({
+    config,
+    logger: false,
+    verifier: {
+      verify: async () => ({
+        issuer: config.OIDC_ISSUER,
+        subject: 'local-admin',
+        claims: {},
+      }),
+    },
+    memberships: {
+      findActive: async () => [{
+        id: 'membership-1',
+        role,
+        organizationId: 'org-a',
+        active: true,
+      }],
+    },
+    applications,
+  });
+}
+
+describe('application management API', () => {
+  it('registers an app without accepting a credential method', async () => {
+    const calls: Array<{
+      organizationId: string;
+      input: RegisterApplicationInput;
+    }> = [];
+    const applications: ApplicationOperations = {
+      list: async () => [],
+      get: async () => ({ id: 'app-1' }),
+      register: async (organizationId, input) => {
+        calls.push({ organizationId, input });
+        return {
+          application: { id: 'app-1', name: input.name },
+          credential: { id: 'credential-1', consumerKey: 'ck_generated' },
+          consumerSecret: 'cs_returned_once',
+        };
+      },
+    };
+    const server = authenticatedServer(applications);
+    const response = await server.inject({
+      method: 'POST',
+      url: '/v1/organizations/org-a/apps',
+      headers: { authorization: 'Bearer token' },
+      payload: {
+        name: 'Payments consumer',
+        products: [{ productId: 'product-payments' }],
+      },
+    });
+
+    assert.equal(response.statusCode, 201);
+    assert.equal(response.json().consumerSecret, 'cs_returned_once');
+    assert.deepEqual(calls, [{
+      organizationId: 'org-a',
+      input: {
+        name: 'Payments consumer',
+        products: [{ productId: 'product-payments' }],
+      },
+    }]);
+
+    const rejected = await server.inject({
+      method: 'POST',
+      url: '/v1/organizations/org-a/apps',
+      headers: { authorization: 'Bearer token' },
+      payload: {
+        name: 'Invalid consumer',
+        products: [{ productId: 'product-payments' }],
+        authMethods: ['apiKey'],
+      },
+    });
+    assert.equal(rejected.statusCode, 400);
+    assert.equal(rejected.json().error, 'invalid_request');
+    assert.equal(calls.length, 1);
+    await server.close();
+  });
+
+  it('keeps organization authorization in the application service', async () => {
+    const server = authenticatedServer(new ApplicationService(), 'viewer');
+    const response = await server.inject({
+      method: 'POST',
+      url: '/v1/organizations/org-a/apps',
+      headers: { authorization: 'Bearer token' },
+      payload: {
+        name: 'Denied app',
+        products: [{ productId: 'product-payments' }],
+      },
+    });
+    assert.equal(response.statusCode, 403);
+    await server.close();
+  });
+
+  it('maps domain validation failures to stable API errors', async () => {
+    const applications: ApplicationOperations = {
+      list: async () => [],
+      get: async () => ({ id: 'app-1' }),
+      register: async () => {
+        throw new RegisterDeveloperApplicationError(
+          'invalid_scope',
+          'Scope is not declared by the product',
+        );
+      },
+    };
+    const server = authenticatedServer(applications);
+    const response = await server.inject({
+      method: 'POST',
+      url: '/v1/organizations/org-a/apps',
+      headers: { authorization: 'Bearer token' },
+      payload: {
+        name: 'Invalid scope app',
+        products: [{
+          productId: 'product-payments',
+          scopes: ['payments:admin'],
+        }],
+      },
+    });
+    assert.equal(response.statusCode, 400);
+    assert.deepEqual(response.json(), {
+      error: 'invalid_scope',
+      message: 'Scope is not declared by the product',
+    });
+    await server.close();
+  });
+});

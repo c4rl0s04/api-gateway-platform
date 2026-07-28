@@ -4,7 +4,9 @@ import { canReadOrganization, isPlatformAdmin } from './auth/authorization.js';
 import { createOidcVerifier, type OidcVerifier } from './auth/oidc.js';
 import { loadEnv, type ManagementEnv } from './config/env.js';
 import { prisma } from './db/client.js';
+import { registerApplicationRoutes } from './routes/apps.routes.js';
 import { registerCertificateAuthorityRoutes } from './routes/certificate-authorities.js';
+import type { ApplicationOperations } from './services/applications.js';
 import type { CertificateAuthorityOperations } from './services/certificate-authorities.js';
 import { registerCertificateRoutes } from './routes/certificates.js';
 import type { CertificateOperations } from './services/certificates.js';
@@ -14,6 +16,7 @@ export interface ManagementServerOptions {
   logger?: boolean;
   verifier?: OidcVerifier;
   memberships?: MembershipStore;
+  applications?: ApplicationOperations;
   certificateAuthorities?: CertificateAuthorityOperations;
   certificates?: CertificateOperations;
 }
@@ -88,58 +91,9 @@ export function buildServer(options: ManagementServerOptions): FastifyInstance {
       return organization;
     },
   );
-  server.get<{ Params: { organizationId: string } }>(
-    '/v1/organizations/:organizationId/apps',
-    async (request, reply) => {
-      if (!canReadOrganization(
-        request.adminPrincipal,
-        request.params.organizationId,
-      )) {
-        return reply.code(403).send({
-          error: 'forbidden',
-          message: 'Organization access denied',
-        });
-      }
-      return prisma.developerApp.findMany({
-        where: { organizationId: request.params.organizationId },
-        orderBy: { name: 'asc' },
-        select: {
-          id: true,
-          name: true,
-          status: true,
-          credentials: {
-            orderBy: { createdAt: 'asc' },
-            select: {
-              id: true,
-              consumerKey: true,
-              status: true,
-              issuedAt: true,
-              expiresAt: true,
-              productGrants: {
-                select: {
-                  id: true,
-                  status: true,
-                  scopes: true,
-                  product: {
-                    select: { id: true, name: true },
-                  },
-                },
-              },
-              certificates: {
-                select: {
-                  id: true,
-                  fingerprintSha256: true,
-                  status: true,
-                  validFrom: true,
-                  expiresAt: true,
-                },
-              },
-            },
-          },
-        },
-      });
-    },
-  );
+  if (options.applications) {
+    registerApplicationRoutes(server, options.applications);
+  }
   if (options.certificateAuthorities) {
     registerCertificateAuthorityRoutes(
       server,

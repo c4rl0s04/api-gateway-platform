@@ -2,6 +2,7 @@ import { buildServer, loadEnv } from './server.js';
 import { createCertificateAuthorityService } from './services/certificate-authorities.js';
 import { EncryptedFileKeyStore, loadOrCreateMasterKey } from '@api-gateway/pki';
 import { CertificateService } from './services/certificates.js';
+import { ApplicationService } from './services/applications.js';
 
 void (async () => {
   const config = loadEnv();
@@ -13,6 +14,7 @@ void (async () => {
   );
   const server = buildServer({
     config,
+    applications: new ApplicationService(),
     certificateAuthorities,
     certificates,
   });
