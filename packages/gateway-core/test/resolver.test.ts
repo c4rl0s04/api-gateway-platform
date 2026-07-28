@@ -5,6 +5,7 @@ import {
   getRegistrySize,
   loadProxies,
   resolveEndpoint,
+  resolveEnvironment,
   resolveProxy,
 } from '../src/proxy/resolver';
 
@@ -70,6 +71,15 @@ describe('proxy resolver', () => {
     assert.equal(resolveProxy('env-qual-es', '/api/users')?.id, 'qual-api');
     assert.equal(resolveProxy('env-prod-es', '/api/users')?.id, 'prod-api');
     assert.equal(resolveProxy('env-pprod-es', '/api/users'), null);
+    assert.equal(
+      resolveEnvironment('QUAL-ES.GATEWAY.LOCALHOST:8443')?.id,
+      'env-qual-es',
+    );
+    assert.equal(
+      resolveEnvironment('prod-es.gateway.localhost:8443')?.id,
+      'env-prod-es',
+    );
+    assert.equal(resolveEnvironment('unknown.gateway.localhost:8443'), null);
   });
 
   it('prefers static endpoints and extracts dynamic parameters', () => {

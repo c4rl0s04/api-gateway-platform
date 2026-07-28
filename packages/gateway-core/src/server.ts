@@ -8,6 +8,7 @@ import {
   getRegistryEnvironmentCount,
   isRegistryReady,
   resolveEndpoint,
+  resolveEnvironment,
 } from './proxy/resolver';
 import { forwardRequest } from './proxy/forwarder';
 import { loadProxiesFromDatabase } from './db/proxy-loader.js';
@@ -125,9 +126,7 @@ export async function buildServer(options: BuildServerOptions = {}) {
   // Load active proxies from PostgreSQL on startup.
   // The in-memory registry is updated here; resolver.ts and forwarder.ts do not change.
   const proxies = options.proxies ?? await loadProxiesFromDatabase(
-    config.GATEWAY_ENVIRONMENT_ID
-      ? [config.GATEWAY_ENVIRONMENT_ID]
-      : undefined,
+    config.GATEWAY_ENVIRONMENT_ALLOWLIST,
   );
   validateProxyConfiguration(proxies);
   await configureOAuthRuntime(config);
@@ -161,7 +160,6 @@ export async function buildServer(options: BuildServerOptions = {}) {
       status: ready ? 'ready' : 'not-ready',
       proxiesLoaded: getRegistrySize(),
       environmentsLoaded: getRegistryEnvironmentCount(),
-      environmentId: config.GATEWAY_ENVIRONMENT_ID ?? null,
       timestamp: new Date().toISOString(),
     });
   });
@@ -178,8 +176,17 @@ export async function buildServer(options: BuildServerOptions = {}) {
   server.all('/*', async (req, reply) => {
     // req.url contains query params. We need just the path for resolution.
     const pathWithoutQuery = req.url.split('?')[0];
+    const authority = req.headers.host ?? '';
+    const environment = resolveEnvironment(authority);
+
+    if (!environment) {
+      return reply.status(421).send({
+        error: 'Misdirected Request',
+        message: `No gateway environment is configured for host: ${authority}`,
+      });
+    }
     const proxy = resolveProxy(
-      config.GATEWAY_ENVIRONMENT_ID ?? '',
+      environment.id,
       pathWithoutQuery,
     );
 

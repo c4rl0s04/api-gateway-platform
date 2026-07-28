@@ -1,5 +1,19 @@
 import { z } from 'zod';
 
+const environmentAllowlistSchema = z.preprocess(
+  value => {
+    if (typeof value !== 'string') {
+      return value;
+    }
+    const environmentIds = value
+      .split(',')
+      .map(item => item.trim())
+      .filter(Boolean);
+    return environmentIds.length > 0 ? environmentIds : undefined;
+  },
+  z.array(z.string().trim().min(1)).optional(),
+);
+
 export const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   HOST: z.string().trim().min(1).default('0.0.0.0'),
@@ -21,11 +35,7 @@ export const envSchema = z.object({
     'trace',
     'silent',
   ]).default('info'),
-  /**
-   * A production data-plane instance serves one concrete environment. In local
-   * development it may be omitted to load all non-conflicting seed deployments.
-   */
-  GATEWAY_ENVIRONMENT_ID: z.string().trim().min(1).optional(),
+  GATEWAY_ENVIRONMENT_ALLOWLIST: environmentAllowlistSchema,
   OAUTH_ISSUER: z.string().url().optional(),
   OAUTH_TOKEN_ENDPOINT_AUDIENCE: z.string().trim().min(1).optional(),
   OAUTH_SIGNING_PRIVATE_KEY_BASE64: z.string().trim().min(1).optional(),
@@ -34,7 +44,6 @@ export const envSchema = z.object({
 }).superRefine((value, context) => {
   if (value.NODE_ENV !== 'test') {
     const required = [
-      'GATEWAY_ENVIRONMENT_ID',
       'OAUTH_ISSUER',
       'OAUTH_TOKEN_ENDPOINT_AUDIENCE',
       'OAUTH_SIGNING_PRIVATE_KEY_BASE64',

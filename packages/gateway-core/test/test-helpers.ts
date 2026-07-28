@@ -8,7 +8,6 @@ export const TEST_ENV: GatewayEnv = {
   DATABASE_URL: 'postgresql://test:test@localhost:5432/test',
   REDIS_URL: 'redis://localhost:6379',
   LOG_LEVEL: 'silent',
-  GATEWAY_ENVIRONMENT_ID: 'env-qual-es',
 };
 
 export function createPolicyContext(

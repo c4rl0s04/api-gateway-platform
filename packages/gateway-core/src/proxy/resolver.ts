@@ -1,4 +1,8 @@
-import type { ProxyConfig, EndpointConfig } from '@api-gateway/shared';
+import type {
+  ProxyConfig,
+  EndpointConfig,
+  EnvironmentConfig,
+} from '@api-gateway/shared';
 
 /**
  * In-memory active deployment registry.
@@ -6,7 +10,26 @@ import type { ProxyConfig, EndpointConfig } from '@api-gateway/shared';
  * Second key: proxy basePath (e.g. "/api/users").
  */
 const registry = new Map<string, Map<string, ProxyConfig>>();
+const environmentsByAuthority = new Map<string, EnvironmentConfig>();
 let registryInitialized = false;
+
+function normalizeAuthority(authority: string): string | null {
+  try {
+    const url = new URL(`https://${authority.trim()}`);
+    if (
+      url.username
+      || url.password
+      || url.pathname !== '/'
+      || url.search
+      || url.hash
+    ) {
+      return null;
+    }
+    return url.host.toLowerCase();
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Loads (or reloads) the proxies registry in memory.
@@ -15,6 +38,7 @@ let registryInitialized = false;
  */
 export function loadProxies(proxies: ProxyConfig[]): void {
   registry.clear();
+  environmentsByAuthority.clear();
   for (const proxy of proxies) {
     if (proxy.active) {
       // Automatically sort endpoints:
@@ -36,6 +60,17 @@ export function loadProxies(proxies: ProxyConfig[]): void {
         environmentRegistry = new Map<string, ProxyConfig>();
         registry.set(proxy.environment.id, environmentRegistry);
       }
+      const authority = new URL(proxy.environment.publicOrigin).host.toLowerCase();
+      const existingEnvironment = environmentsByAuthority.get(authority);
+      if (
+        existingEnvironment
+        && existingEnvironment.id !== proxy.environment.id
+      ) {
+        throw new Error(
+          `Public authority "${authority}" is assigned to multiple environments`,
+        );
+      }
+      environmentsByAuthority.set(authority, proxy.environment);
       if (environmentRegistry.has(proxy.basePath)) {
         throw new Error(
           `Environment "${proxy.environment.id}" has multiple active deployments `
@@ -122,6 +157,16 @@ export function resolveProxy(
   }
 
   return bestMatch;
+}
+
+/** Resolves a request Host authority to its configured environment. */
+export function resolveEnvironment(
+  authority: string,
+): EnvironmentConfig | null {
+  const normalized = normalizeAuthority(authority);
+  return normalized
+    ? environmentsByAuthority.get(normalized) ?? null
+    : null;
 }
 
 /** Returns the number of active registered proxies. Useful for health checks and logs. */

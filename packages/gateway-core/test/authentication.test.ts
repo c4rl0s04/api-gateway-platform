@@ -21,7 +21,6 @@ const gatewayPrivatePem = gatewayPair.privateKey.export({
 }).toString();
 const AUTH_ENV: GatewayEnv = {
   ...TEST_ENV,
-  GATEWAY_ENVIRONMENT_ID: 'env-qual-es',
   OAUTH_ISSUER: 'https://gateway.test',
   OAUTH_TOKEN_ENDPOINT_AUDIENCE: 'https://gateway.test/oauth/token',
   OAUTH_SIGNING_PRIVATE_KEY_BASE64: Buffer.from(gatewayPrivatePem).toString('base64'),
@@ -419,6 +418,7 @@ describe('local endpoints', () => {
     const response = await server.inject({
       method: 'GET',
       url: '/oauth/.well-known/jwks.json',
+      headers: { host: 'qual-es.gateway.localhost:8443' },
     });
     await server.close();
 

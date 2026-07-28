@@ -115,6 +115,7 @@ describe('gateway forwarding', () => {
         method: 'POST',
         url: '/api/echo?source=gateway',
         headers: {
+          host: 'qual-es.gateway.localhost:8443',
           'content-type': sample.contentType,
           'x-client-custom': 'preserved',
         },
@@ -133,6 +134,7 @@ describe('gateway forwarding', () => {
     const response = await gateway.inject({
       method: 'GET',
       url: '/api/health',
+      headers: { host: 'qual-es.gateway.localhost:8443' },
     });
 
     assert.equal(response.statusCode, 201);
