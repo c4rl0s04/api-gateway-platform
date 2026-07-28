@@ -244,11 +244,25 @@ export async function registerDeveloperApplication(
           },
         },
       },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        organizationId: true,
+        createdAt: true,
         credentials: {
-          include: {
+          select: {
+            id: true,
+            consumerKey: true,
+            status: true,
+            issuedAt: true,
+            expiresAt: true,
+            createdAt: true,
             productGrants: {
-              include: {
+              select: {
+                id: true,
+                status: true,
+                scopes: true,
                 product: {
                   select: { id: true, name: true },
                 },
@@ -274,11 +288,12 @@ export async function registerDeveloperApplication(
         },
       },
     });
-    return { app, credential };
+    const { credentials: _credentials, ...application } = app;
+    return { application, credential };
   });
 
   return {
-    app: result.app,
+    application: result.application,
     credential: result.credential,
     consumerSecret,
   };
