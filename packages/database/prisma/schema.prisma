@@ -32,6 +32,22 @@ enum EndpointMode {
   local
 }
 
+enum HttpMethod {
+  GET
+  PUT
+  POST
+  DELETE
+  OPTIONS
+  HEAD
+  PATCH
+  TRACE
+}
+
+enum DeploymentStatus {
+  active
+  retired
+}
+
 enum AuthorizationStatus {
   pending
   approved
@@ -97,11 +113,14 @@ model Environment {
 model ApiProxy {
   id             String            @id @default(uuid())
   name           String
-  basePath       String            @unique
+  /// Legacy routing field retained while runtime consumers migrate to revisions.
+  basePath       String?           @unique
   active         Boolean           @default(true)
   systemManaged  Boolean           @default(false)
   organizationId String
   organization   Organization      @relation(fields: [organizationId], references: [id])
+  revisions      ApiProxyRevision[]
+  /// Legacy relation retained while seeds and runtime migrate to revisions.
   endpoints      Endpoint[]
   deployments    ProxyDeployment[]
   products       ApiProduct[]
@@ -109,29 +128,54 @@ model ApiProxy {
   updatedAt      DateTime          @updatedAt
 }
 
+/// Immutable functional configuration of an API proxy.
+model ApiProxyRevision {
+  id                    String            @id @default(uuid())
+  proxyId               String
+  proxy                 ApiProxy          @relation(fields: [proxyId], references: [id], onDelete: Cascade)
+  revisionNumber        Int
+  basePath              String
+  openapiVersion        String
+  openapiSource         String
+  openapiDocument       Json
+  gatewayConfigSource   String
+  gatewayConfig         Json
+  contentHash           String
+  operations            ProxyOperation[]
+  deployments           ProxyDeployment[]
+  createdAt             DateTime          @default(now())
+
+  @@unique([proxyId, revisionNumber])
+  @@index([proxyId, createdAt])
+}
+
 /// Concrete deployment of a logical proxy into one environment.
 model ProxyDeployment {
-  id              String      @id @default(uuid())
+  id              String             @id @default(uuid())
   proxyId         String
-  proxy           ApiProxy    @relation(fields: [proxyId], references: [id], onDelete: Cascade)
+  proxy           ApiProxy           @relation(fields: [proxyId], references: [id], onDelete: Cascade)
+  revisionId      String?
+  revision        ApiProxyRevision?  @relation(fields: [revisionId], references: [id], onDelete: Restrict)
   environmentId   String
-  environment     Environment @relation(fields: [environmentId], references: [id])
+  environment     Environment        @relation(fields: [environmentId], references: [id])
   /// Backend origin for this deployment. Ex: "https://accounts-qual.example.com".
   upstreamBaseUrl String?
-  active          Boolean     @default(true)
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  /// Legacy activation flag retained while runtime consumers migrate to status.
+  active          Boolean            @default(true)
+  status          DeploymentStatus   @default(active)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
 
+  @@index([proxyId, environmentId, status])
+  @@index([revisionId])
   @@unique([proxyId, environmentId])
 }
 
-/// Individual endpoint within a proxy.
+/// Legacy endpoint model retained only during the additive revision migration.
 model Endpoint {
   id         String           @id @default(uuid())
   mode       EndpointMode     @default(forward)
-  /// Public route suffix relative to the proxy basePath.
   path       String
-  /// Backend path relative to ProxyDeployment.upstreamBaseUrl.
   targetPath String?
   proxyId    String
   proxy      ApiProxy         @relation(fields: [proxyId], references: [id], onDelete: Cascade)
@@ -139,18 +183,48 @@ model Endpoint {
   createdAt  DateTime         @default(now())
 }
 
-/// Policy applied to a specific endpoint.
-/// `config` is free JSON — each policy type has its own parameters.
+/// Legacy policy model retained only during the additive revision migration.
 model EndpointPolicy {
   id         String   @id @default(uuid())
+  type       String
+  order      Int
+  enabled    Boolean  @default(true)
+  config     Json     @default("{}")
+  endpointId String
+  endpoint   Endpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+}
+
+/// OpenAPI operation compiled into an immutable proxy revision.
+model ProxyOperation {
+  id          String            @id @default(uuid())
+  revisionId  String
+  revision    ApiProxyRevision  @relation(fields: [revisionId], references: [id], onDelete: Cascade)
+  operationId String
+  method      HttpMethod
+  mode        EndpointMode      @default(forward)
+  path        String
+  targetPath  String?
+  policies    OperationPolicy[]
+  createdAt   DateTime          @default(now())
+
+  @@unique([revisionId, operationId])
+  @@unique([revisionId, method, path])
+}
+
+/// Policy applied to a specific operation.
+/// `config` is free JSON — each policy type has its own parameters.
+model OperationPolicy {
+  id          String         @id @default(uuid())
   /// Value of the closed PolicyType catalog from @api-gateway/shared.
   type       String
   order      Int
   enabled    Boolean  @default(true)
   /// Specific policy parameters. Ex: { "limit": 100, "windowSeconds": 60 }
   config     Json     @default("{}")
-  endpointId String
-  endpoint   Endpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+  operationId String
+  operation   ProxyOperation @relation(fields: [operationId], references: [id], onDelete: Cascade)
+
+  @@unique([operationId, order])
 }
 
 /// A consumable bundle of API Proxies.

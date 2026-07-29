@@ -8,6 +8,12 @@ CREATE TYPE "DeploymentRegion" AS ENUM ('ce', 'es', 'de', 'be', 'fr', 'us', 'uk'
 CREATE TYPE "EndpointMode" AS ENUM ('forward', 'local');
 
 -- CreateEnum
+CREATE TYPE "HttpMethod" AS ENUM ('GET', 'PUT', 'POST', 'DELETE', 'OPTIONS', 'HEAD', 'PATCH', 'TRACE');
+
+-- CreateEnum
+CREATE TYPE "DeploymentStatus" AS ENUM ('active', 'retired');
+
+-- CreateEnum
 CREATE TYPE "AuthorizationStatus" AS ENUM ('pending', 'approved', 'revoked');
 
 -- CreateEnum
@@ -49,7 +55,7 @@ CREATE TABLE "Environment" (
 CREATE TABLE "ApiProxy" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
-    "basePath" TEXT NOT NULL,
+    "basePath" TEXT,
     "active" BOOLEAN NOT NULL DEFAULT true,
     "systemManaged" BOOLEAN NOT NULL DEFAULT false,
     "organizationId" TEXT NOT NULL,
@@ -60,12 +66,31 @@ CREATE TABLE "ApiProxy" (
 );
 
 -- CreateTable
+CREATE TABLE "ApiProxyRevision" (
+    "id" TEXT NOT NULL,
+    "proxyId" TEXT NOT NULL,
+    "revisionNumber" INTEGER NOT NULL,
+    "basePath" TEXT NOT NULL,
+    "openapiVersion" TEXT NOT NULL,
+    "openapiSource" TEXT NOT NULL,
+    "openapiDocument" JSONB NOT NULL,
+    "gatewayConfigSource" TEXT NOT NULL,
+    "gatewayConfig" JSONB NOT NULL,
+    "contentHash" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ApiProxyRevision_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "ProxyDeployment" (
     "id" TEXT NOT NULL,
     "proxyId" TEXT NOT NULL,
+    "revisionId" TEXT,
     "environmentId" TEXT NOT NULL,
     "upstreamBaseUrl" TEXT,
     "active" BOOLEAN NOT NULL DEFAULT true,
+    "status" "DeploymentStatus" NOT NULL DEFAULT 'active',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -94,6 +119,32 @@ CREATE TABLE "EndpointPolicy" (
     "endpointId" TEXT NOT NULL,
 
     CONSTRAINT "EndpointPolicy_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ProxyOperation" (
+    "id" TEXT NOT NULL,
+    "revisionId" TEXT NOT NULL,
+    "operationId" TEXT NOT NULL,
+    "method" "HttpMethod" NOT NULL,
+    "mode" "EndpointMode" NOT NULL DEFAULT 'forward',
+    "path" TEXT NOT NULL,
+    "targetPath" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ProxyOperation_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "OperationPolicy" (
+    "id" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "order" INTEGER NOT NULL,
+    "enabled" BOOLEAN NOT NULL DEFAULT true,
+    "config" JSONB NOT NULL DEFAULT '{}',
+    "operationId" TEXT NOT NULL,
+
+    CONSTRAINT "OperationPolicy_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -283,7 +334,33 @@ CREATE UNIQUE INDEX "Environment_stage_region_key" ON "Environment"("stage", "re
 CREATE UNIQUE INDEX "ApiProxy_basePath_key" ON "ApiProxy"("basePath");
 
 -- CreateIndex
+CREATE INDEX "ApiProxyRevision_proxyId_createdAt_idx" ON "ApiProxyRevision"("proxyId", "createdAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ApiProxyRevision_proxyId_revisionNumber_key" ON "ApiProxyRevision"("proxyId", "revisionNumber");
+
+-- CreateIndex
+CREATE INDEX "ProxyDeployment_proxyId_environmentId_status_idx" ON "ProxyDeployment"("proxyId", "environmentId", "status");
+
+-- CreateIndex
+CREATE INDEX "ProxyDeployment_revisionId_idx" ON "ProxyDeployment"("revisionId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "ProxyDeployment_proxyId_environmentId_key" ON "ProxyDeployment"("proxyId", "environmentId");
+
+-- This becomes the authoritative uniqueness constraint after legacy cleanup.
+CREATE UNIQUE INDEX "ProxyDeployment_active_proxy_environment_key"
+ON "ProxyDeployment"("proxyId", "environmentId")
+WHERE "status" = 'active';
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ProxyOperation_revisionId_operationId_key" ON "ProxyOperation"("revisionId", "operationId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ProxyOperation_revisionId_method_path_key" ON "ProxyOperation"("revisionId", "method", "path");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "OperationPolicy_operationId_order_key" ON "OperationPolicy"("operationId", "order");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "AppCredential_consumerKey_key" ON "AppCredential"("consumerKey");
@@ -343,7 +420,13 @@ CREATE INDEX "_ApiProductToEnvironment_B_index" ON "_ApiProductToEnvironment"("B
 ALTER TABLE "ApiProxy" ADD CONSTRAINT "ApiProxy_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "ApiProxyRevision" ADD CONSTRAINT "ApiProxyRevision_proxyId_fkey" FOREIGN KEY ("proxyId") REFERENCES "ApiProxy"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "ProxyDeployment" ADD CONSTRAINT "ProxyDeployment_proxyId_fkey" FOREIGN KEY ("proxyId") REFERENCES "ApiProxy"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ProxyDeployment" ADD CONSTRAINT "ProxyDeployment_revisionId_fkey" FOREIGN KEY ("revisionId") REFERENCES "ApiProxyRevision"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "ProxyDeployment" ADD CONSTRAINT "ProxyDeployment_environmentId_fkey" FOREIGN KEY ("environmentId") REFERENCES "Environment"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -353,6 +436,12 @@ ALTER TABLE "Endpoint" ADD CONSTRAINT "Endpoint_proxyId_fkey" FOREIGN KEY ("prox
 
 -- AddForeignKey
 ALTER TABLE "EndpointPolicy" ADD CONSTRAINT "EndpointPolicy_endpointId_fkey" FOREIGN KEY ("endpointId") REFERENCES "Endpoint"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ProxyOperation" ADD CONSTRAINT "ProxyOperation_revisionId_fkey" FOREIGN KEY ("revisionId") REFERENCES "ApiProxyRevision"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "OperationPolicy" ADD CONSTRAINT "OperationPolicy_operationId_fkey" FOREIGN KEY ("operationId") REFERENCES "ProxyOperation"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "ApiProduct" ADD CONSTRAINT "ApiProduct_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
