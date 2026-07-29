@@ -1,4 +1,5 @@
 import Fastify, { type FastifyInstance } from 'fastify';
+import multipart from '@fastify/multipart';
 import { createAuthenticationHook, prismaMembershipStore, type MembershipStore } from './auth/middleware.js';
 import { canReadOrganization, isPlatformAdmin } from './auth/authorization.js';
 import { createOidcVerifier, type OidcVerifier } from './auth/oidc.js';
@@ -12,6 +13,8 @@ import { registerCertificateRoutes } from './routes/certificates.js';
 import type { CertificateOperations } from './services/certificates.js';
 import { registerGatewayCatalogRoutes } from './routes/proxies.routes.js';
 import type { GatewayCatalogOperations } from './services/gateway-catalog.js';
+import { registerProxyRevisionRoutes } from './routes/proxy-revisions.routes.js';
+import type { ProxyRevisionOperations } from './services/proxy-revisions.js';
 
 export interface ManagementServerOptions {
   config: ManagementEnv;
@@ -22,10 +25,14 @@ export interface ManagementServerOptions {
   certificateAuthorities?: CertificateAuthorityOperations;
   certificates?: CertificateOperations;
   gatewayCatalog?: GatewayCatalogOperations;
+  proxyRevisions?: ProxyRevisionOperations;
 }
 
 export function buildServer(options: ManagementServerOptions): FastifyInstance {
   const server = Fastify({ logger: options.logger ?? true });
+  void server.register(multipart, {
+    limits: { files: 2, fileSize: 5 * 1024 * 1024 },
+  });
   const verifier = options.verifier ?? createOidcVerifier({
     issuer: options.config.OIDC_ISSUER,
     audience: options.config.OIDC_AUDIENCE,
@@ -108,6 +115,9 @@ export function buildServer(options: ManagementServerOptions): FastifyInstance {
   }
   if (options.gatewayCatalog) {
     registerGatewayCatalogRoutes(server, options.gatewayCatalog);
+  }
+  if (options.proxyRevisions) {
+    registerProxyRevisionRoutes(server, options.proxyRevisions);
   }
   return server;
 }

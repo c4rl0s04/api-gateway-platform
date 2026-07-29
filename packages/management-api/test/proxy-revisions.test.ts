@@ -1,0 +1,139 @@
+import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
+import { buildServer } from '../src/server.js';
+import type { ManagementEnv } from '../src/config/env.js';
+import type { ProxyRevisionOperations } from '../src/services/proxy-revisions.js';
+
+const config: ManagementEnv = {
+  HOST: '127.0.0.1',
+  PORT: 3002,
+  DATABASE_URL: 'postgresql://test:test@localhost:5432/test',
+  OIDC_ISSUER: 'https://identity.test/realms/platform',
+  OIDC_AUDIENCE: 'management-api',
+  PKI_KEYSTORE_DIR: '/tmp/test-pki-keys',
+  PKI_MASTER_KEY_FILE: '/tmp/test-pki-master.key',
+  PKI_TRUST_BUNDLE_FILE: '/tmp/test-trust-bundle.pem',
+  PKI_CRL_BUNDLE_FILE: '/tmp/test-crl-bundle.pem',
+  PKI_SDS_TRIGGER_FILE: '/tmp/test-client-validation.yaml',
+};
+
+function multipart(files: Record<string, string>) {
+  const boundary = 'gateway-test-boundary';
+  const body = Object.entries(files).map(([name, content]) => [
+    `--${boundary}`,
+    `Content-Disposition: form-data; name="${name}"; filename="${name}.yaml"`,
+    'Content-Type: application/yaml',
+    '',
+    content,
+  ].join('\r\n')).join('\r\n') + `\r\n--${boundary}--\r\n`;
+  return {
+    payload: Buffer.from(body),
+    headers: {
+      authorization: 'Bearer token',
+      'content-type': `multipart/form-data; boundary=${boundary}`,
+    },
+  };
+}
+
+function serverWith(revisions: ProxyRevisionOperations) {
+  return buildServer({
+    config,
+    logger: false,
+    verifier: {
+      verify: async () => ({ issuer: config.OIDC_ISSUER, subject: 'admin', claims: {} }),
+    },
+    memberships: {
+      findActive: async () => [{
+        id: 'membership-1',
+        role: 'organizationAdmin',
+        organizationId: 'org-a',
+        active: true,
+      }],
+    },
+    proxyRevisions: revisions,
+  });
+}
+
+describe('proxy revision management routes', () => {
+  it('creates proxies and imports both bundle files', async () => {
+    const calls: string[] = [];
+    const revisions: ProxyRevisionOperations = {
+      createProxy: async (organizationId, input) => {
+        calls.push(`create:${organizationId}:${input.name}`);
+        return { id: 'proxy-1' };
+      },
+      importRevision: async (proxyId, input) => {
+        calls.push(`import:${proxyId}:${input.openapiSource}:${input.gatewayConfigSource}`);
+        return { revisionNumber: 1 };
+      },
+      listRevisions: async () => [],
+      getRevision: async () => ({ revisionNumber: 1 }),
+      getRevisionSource: async (_proxyId, _revision, source) => `${source}: source`,
+    };
+    const server = serverWith(revisions);
+    const created = await server.inject({
+      method: 'POST',
+      url: '/v1/organizations/org-a/proxies',
+      headers: { authorization: 'Bearer token' },
+      payload: { name: 'Accounts' },
+    });
+    assert.equal(created.statusCode, 201);
+    const imported = await server.inject({
+      method: 'POST',
+      url: '/v1/proxies/proxy-1/revisions',
+      ...multipart({ openapi: 'openapi: 3.1.0', gateway: 'apiVersion: gateway.platform/v1' }),
+    });
+    assert.equal(imported.statusCode, 201);
+    assert.deepEqual(calls, [
+      'create:org-a:Accounts',
+      'import:proxy-1:openapi: 3.1.0:apiVersion: gateway.platform/v1',
+    ]);
+    await server.close();
+  });
+
+  it('exposes revision metadata and original sources', async () => {
+    const revisions: ProxyRevisionOperations = {
+      createProxy: async () => ({}),
+      importRevision: async () => ({}),
+      listRevisions: async proxyId => [{ proxyId, revisionNumber: 1 }],
+      getRevision: async (proxyId, revisionNumber) => ({ proxyId, revisionNumber }),
+      getRevisionSource: async (_proxyId, _revision, source) => `${source}: source`,
+    };
+    const server = serverWith(revisions);
+    const headers = { authorization: 'Bearer token' };
+    for (const route of [
+      '/v1/proxies/proxy-1/revisions',
+      '/v1/proxies/proxy-1/revisions/1',
+      '/v1/proxies/proxy-1/revisions/1/openapi',
+      '/v1/proxies/proxy-1/revisions/1/gateway-config',
+    ]) {
+      const response = await server.inject({ method: 'GET', url: route, headers });
+      assert.equal(response.statusCode, 200, route);
+    }
+    await server.close();
+  });
+
+  it('rejects incomplete multipart bundles before calling the service', async () => {
+    let called = false;
+    const revisions: ProxyRevisionOperations = {
+      createProxy: async () => ({}),
+      importRevision: async () => {
+        called = true;
+        return {};
+      },
+      listRevisions: async () => [],
+      getRevision: async () => ({}),
+      getRevisionSource: async () => '',
+    };
+    const server = serverWith(revisions);
+    const response = await server.inject({
+      method: 'POST',
+      url: '/v1/proxies/proxy-1/revisions',
+      ...multipart({ openapi: 'openapi: 3.1.0' }),
+    });
+    assert.equal(response.statusCode, 400);
+    assert.equal(response.json().error, 'invalid_gateway_config');
+    assert.equal(called, false);
+    await server.close();
+  });
+});
