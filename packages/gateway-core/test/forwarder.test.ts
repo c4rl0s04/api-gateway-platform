@@ -71,6 +71,15 @@ describe('gateway forwarding', () => {
           targetPath: '/backend-health',
           policies: [],
         },
+        {
+          id: 'account',
+          operationId: 'getAccount',
+          method: 'GET',
+          mode: 'forward',
+          path: '/accounts/{id}',
+          targetPath: '/customers/{id}',
+          policies: [],
+        },
       ],
     }];
 
@@ -145,5 +154,16 @@ describe('gateway forwarding', () => {
 
     assert.equal(response.statusCode, 201);
     assert.equal(response.headers['x-upstream-url'], '/service/backend-health');
+  });
+
+  it('substitutes OpenAPI path parameters in the upstream target', async () => {
+    const response = await gateway.inject({
+      method: 'GET',
+      url: '/api/accounts/account-123',
+      headers: { host: 'qual-es.gateway.localhost:8443' },
+    });
+
+    assert.equal(response.statusCode, 201);
+    assert.equal(response.headers['x-upstream-url'], '/service/customers/account-123');
   });
 });

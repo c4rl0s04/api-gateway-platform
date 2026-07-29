@@ -29,6 +29,7 @@ export function buildTargetUrl(
   }
 
   for (const [key, value] of Object.entries(resolved.params)) {
+    targetPath = targetPath.replace(`{${key}}`, value);
     targetPath = targetPath.replace(`:${key}`, value);
   }
 
