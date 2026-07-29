@@ -19,6 +19,8 @@ function proxy(
     name: id,
     basePath,
     deploymentId: `deployment-${id}`,
+    revisionId: `revision-${id}`,
+    revisionNumber: 1,
     environment: {
       id: 'env-qual-es',
       stage: 'qual',
@@ -31,6 +33,8 @@ function proxy(
     active: true,
     endpoints: endpointPaths.map((path, index) => ({
       id: `${id}-${index}`,
+      operationId: `${id}-operation-${index}`,
+      method: 'GET',
       mode: 'forward',
       path,
       targetPath: path,
@@ -84,16 +88,22 @@ describe('proxy resolver', () => {
 
   it('prefers static endpoints and extracts dynamic parameters', () => {
     const configured = proxy('routing', '/api', [
-      '/users/:id',
+      '/users/{id}',
       '/users/me',
     ]);
     loadProxies([configured]);
 
-    const staticMatch = resolveEndpoint(configured, '/users/me');
-    const dynamicMatch = resolveEndpoint(configured, '/users/123');
+    const staticMatch = resolveEndpoint(configured, '/users/me', 'GET');
+    const dynamicMatch = resolveEndpoint(configured, '/users/123', 'GET');
 
-    assert.equal(staticMatch?.endpoint.path, '/users/me');
-    assert.deepEqual(dynamicMatch?.params, { id: '123' });
-    assert.equal(resolveEndpoint(configured, '/unknown'), null);
+    assert.ok(staticMatch && !('allowedMethods' in staticMatch));
+    assert.ok(dynamicMatch && !('allowedMethods' in dynamicMatch));
+    assert.equal(staticMatch.endpoint.path, '/users/me');
+    assert.deepEqual(dynamicMatch.params, { id: '123' });
+    assert.equal(resolveEndpoint(configured, '/unknown', 'GET'), null);
+    assert.deepEqual(
+      resolveEndpoint(configured, '/users/123', 'POST'),
+      { allowedMethods: ['GET'] },
+    );
   });
 });

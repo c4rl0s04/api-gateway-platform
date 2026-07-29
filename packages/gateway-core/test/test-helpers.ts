@@ -43,6 +43,8 @@ export function createPolicyContext(
       name: 'Test proxy',
       basePath: '/test',
       deploymentId: 'deployment-test',
+      revisionId: 'revision-test',
+      revisionNumber: 1,
       environment: {
         id: 'env-qual-es',
         stage: 'qual',
@@ -57,6 +59,8 @@ export function createPolicyContext(
     },
     endpoint: {
       id: 'endpoint-test',
+      operationId: 'getResource',
+      method: 'GET',
       mode: 'forward',
       path: '/resource',
       targetPath: '/resource',

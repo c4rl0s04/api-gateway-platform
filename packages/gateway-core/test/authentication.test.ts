@@ -404,6 +404,8 @@ describe('local endpoints', () => {
         name: 'OAuth',
         basePath: '/oauth',
         deploymentId: 'oauth-qual-es',
+        revisionId: 'oauth-revision-1',
+        revisionNumber: 1,
         environment: {
           id: 'env-qual-es',
           stage: 'qual',
@@ -416,6 +418,8 @@ describe('local endpoints', () => {
         active: true,
         endpoints: [{
           id: 'jwks',
+          operationId: 'getJwks',
+          method: 'GET',
           mode: 'local',
           path: '/.well-known/jwks.json',
           targetPath: null,
@@ -449,6 +453,8 @@ describe('local endpoints', () => {
         name: 'Invalid local',
         basePath: '/invalid',
         deploymentId: 'invalid-local-qual-es',
+        revisionId: 'invalid-local-revision-1',
+        revisionNumber: 1,
         environment: {
           id: 'env-qual-es',
           stage: 'qual',
@@ -461,6 +467,8 @@ describe('local endpoints', () => {
         active: true,
         endpoints: [{
           id: 'invalid',
+          operationId: 'invalidLocal',
+          method: 'GET',
           mode: 'local',
           path: '/resource',
           targetPath: null,

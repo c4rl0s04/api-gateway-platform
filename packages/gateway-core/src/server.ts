@@ -199,13 +199,21 @@ export async function buildServer(options: BuildServerOptions = {}) {
     }
 
     const requestSuffix = pathWithoutQuery.slice(proxy.basePath.length);
-    const resolved = resolveEndpoint(proxy, requestSuffix);
+    const resolved = resolveEndpoint(proxy, requestSuffix, req.method);
 
     if (!resolved) {
       return reply.status(404).send({
         error: 'Not Found',
         message: `Endpoint not found in proxy ${proxy.id} for path suffix: ${requestSuffix || '/'}`,
         hint: 'Check the explicit endpoints configured for this proxy',
+      });
+    }
+    if ('allowedMethods' in resolved) {
+      reply.header('allow', resolved.allowedMethods.join(', '));
+      return reply.status(405).send({
+        error: 'Method Not Allowed',
+        message: 'The path exists but does not allow this HTTP method',
+        requestId: req.id,
       });
     }
 

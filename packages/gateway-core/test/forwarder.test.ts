@@ -40,6 +40,8 @@ describe('gateway forwarding', () => {
       name: 'Echo proxy',
       basePath: '/api',
       deploymentId: 'deployment-echo',
+      revisionId: 'revision-echo',
+      revisionNumber: 1,
       environment: {
         id: 'env-qual-es',
         stage: 'qual',
@@ -53,6 +55,8 @@ describe('gateway forwarding', () => {
       endpoints: [
         {
           id: 'echo',
+          operationId: 'echo',
+          method: 'POST',
           mode: 'forward',
           path: '/echo',
           targetPath: '/echo',
@@ -60,6 +64,8 @@ describe('gateway forwarding', () => {
         },
         {
           id: 'backend-health',
+          operationId: 'backendHealth',
+          method: 'GET',
           mode: 'forward',
           path: '/health',
           targetPath: '/backend-health',

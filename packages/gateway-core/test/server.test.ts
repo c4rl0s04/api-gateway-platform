@@ -11,6 +11,8 @@ describe('gateway operational endpoints', () => {
     name: 'Test proxy',
     basePath: '/configured',
     deploymentId: 'deployment-test',
+    revisionId: 'revision-test',
+    revisionNumber: 1,
     environment: {
       id: 'env-qual-es',
       stage: 'qual',
@@ -23,6 +25,8 @@ describe('gateway operational endpoints', () => {
     active: true,
     endpoints: [{
       id: 'endpoint-test',
+      operationId: 'getResource',
+      method: 'GET',
       mode: 'forward',
       path: '/resource',
       targetPath: '/resource',
@@ -83,5 +87,16 @@ describe('gateway operational endpoints', () => {
 
     assert.equal(response.statusCode, 421);
     assert.equal(response.json().error, 'Misdirected Request');
+  });
+
+  it('returns 405 and Allow when the path exists for another method', async () => {
+    const response = await server.inject({
+      method: 'POST',
+      url: '/configured/resource',
+      headers: { host: 'qual-es.gateway.localhost:8443' },
+    });
+
+    assert.equal(response.statusCode, 405);
+    assert.equal(response.headers.allow, 'GET');
   });
 });

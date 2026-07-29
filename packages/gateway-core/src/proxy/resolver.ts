@@ -46,8 +46,8 @@ export function loadProxies(proxies: ProxyConfig[]): void {
       // 2. Dynamic routes after
       // 3. On tie, the longest (most specific) go first
       proxy.endpoints.sort((a: EndpointConfig, b: EndpointConfig) => {
-        const aDynamic = a.path.includes(':');
-        const bDynamic = b.path.includes(':');
+        const aDynamic = a.path.includes(':') || a.path.includes('{');
+        const bDynamic = b.path.includes(':') || b.path.includes('{');
         
         if (aDynamic && !bDynamic) return 1; // b goes before a
         if (!aDynamic && bDynamic) return -1; // a goes before b
@@ -86,12 +86,23 @@ export function loadProxies(proxies: ProxyConfig[]): void {
 /**
  * Converts a path with parameters (e.g. "/users/:id") into a RegExp.
  */
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function compileEndpointPath(path: string): { regex: RegExp; keys: string[] } {
   const keys: string[] = [];
-  const regexStr = path.replace(/:([a-zA-Z0-9_]+)/g, (_, key) => {
+  let regexStr = '';
+  let previousIndex = 0;
+  const parameters = /\{([a-zA-Z0-9_]+)\}|:([a-zA-Z0-9_]+)/g;
+  for (const match of path.matchAll(parameters)) {
+    regexStr += escapeRegExp(path.slice(previousIndex, match.index));
+    const key = match[1] ?? match[2];
     keys.push(key);
-    return '([^/]+)';
-  });
+    regexStr += '([^/]+)';
+    previousIndex = (match.index ?? 0) + match[0].length;
+  }
+  regexStr += escapeRegExp(path.slice(previousIndex));
   // Strict match, allowing an optional trailing slash
   return { regex: new RegExp(`^${regexStr}/?$`), keys };
 }
@@ -101,27 +112,41 @@ export interface ResolvedEndpoint {
   params: Record<string, string>;
 }
 
+export interface MethodNotAllowed {
+  allowedMethods: string[];
+}
+
+export type EndpointResolution = ResolvedEndpoint | MethodNotAllowed | null;
+
 /**
  * Finds an endpoint within a proxy using the URL suffix.
  * Supports variables in the path (e.g. "/:id") extracting them into "params".
  */
-export function resolveEndpoint(proxy: ProxyConfig, requestSuffix: string): ResolvedEndpoint | null {
+export function resolveEndpoint(
+  proxy: ProxyConfig,
+  requestSuffix: string,
+  requestMethod: string,
+): EndpointResolution {
   const suffix = requestSuffix || '/';
+  const allowedMethods = new Set<string>();
 
   for (const endpoint of proxy.endpoints) {
     const { regex, keys } = compileEndpointPath(endpoint.path);
     const match = suffix.match(regex);
     
-    if (match) {
+    if (match && endpoint.method === requestMethod.toUpperCase()) {
       const params: Record<string, string> = {};
       keys.forEach((key, index) => {
         params[key] = match[index + 1];
       });
       return { endpoint, params };
     }
+    if (match) allowedMethods.add(endpoint.method);
   }
 
-  return null;
+  return allowedMethods.size > 0
+    ? { allowedMethods: [...allowedMethods].sort() }
+    : null;
 }
 
 /**
