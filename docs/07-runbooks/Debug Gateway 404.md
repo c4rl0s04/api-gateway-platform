@@ -3,7 +3,7 @@ title: Debug Gateway 404
 type: runbook
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-07-27
+last_verified: 2026-07-29
 tags:
   - type/runbook
   - area/gateway-core
@@ -17,12 +17,12 @@ aliases: []
 # Debug Gateway 404
 
 > [!summary] At a glance
-> The response message distinguishes an unknown proxy from an undeclared endpoint, which determines whether to inspect deployments or endpoint paths.
+> Distinguish an unknown environment host (`421`) from an unknown proxy or endpoint (`404`) before changing deployment configuration.
 
 ## Symptoms
 
-The gateway returns `404` with either `No proxy is configured for path` or
-`Endpoint not found in proxy`.
+The gateway returns `421 Misdirected Request`, or `404` with either
+`No proxy is configured for path` or `Endpoint not found in proxy`.
 
 ## Impact
 
@@ -30,16 +30,19 @@ The request never reaches the upstream service.
 
 ## Diagnosis
 
-1. Call `GET /ready` and inspect `proxiesLoaded` and `environmentId`.
-2. For an unknown proxy, verify the active proxy, active deployment, selected environment, and boundary-safe `basePath`.
-3. For an unknown endpoint, remove the proxy base path and compare the remaining suffix with explicit endpoint `path` values.
-4. Check static/dynamic path spelling and named parameter positions.
-5. Restart the gateway after any database change.
+1. Call `GET /ready` and inspect `proxiesLoaded` and `environmentsLoaded`.
+2. For `421`, compare the request `Host` with `Environment.publicOrigin`.
+3. For an unknown proxy, verify an active deployment exists in the
+   hostname-selected environment and check its boundary-safe `basePath`.
+4. For an unknown endpoint, remove the proxy base path and compare the
+   remaining suffix with explicit endpoint `path` values.
+5. Check static/dynamic path spelling and named parameter positions.
+6. Restart the gateway after any database change.
 
 ## Resolution
 
 - Activate or seed the missing proxy deployment.
-- Select the correct `GATEWAY_ENVIRONMENT_ID`.
+- Use the intended environment hostname or correct its `publicOrigin`.
 - Add the explicit endpoint to the logical proxy.
 - Correct the request path; arbitrary suffixes are intentionally rejected.
 

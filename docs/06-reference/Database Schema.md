@@ -22,7 +22,7 @@ aliases: []
 | Model | Core fields | Important constraints |
 | --- | --- | --- |
 | `Organization` | `id`, `name`, `createdAt` | Owns proxies, products, apps, CAs, memberships, and audit events |
-| `Environment` | `stage`, `region` | Unique `(stage, region)` |
+| `Environment` | `stage`, `region`, HTTPS `publicOrigin` | Unique `(stage, region)` and unique origin |
 | `ApiProxy` | `name`, `basePath`, `active`, `systemManaged`, `organizationId` | Globally unique `basePath` |
 | `ProxyDeployment` | `proxyId`, `environmentId`, nullable `upstreamBaseUrl`, `active` | Unique `(proxyId, environmentId)` |
 | `Endpoint` | `mode`, `path`, nullable `targetPath`, `proxyId` | `forward` requires target; `local` returns from policy |
@@ -50,6 +50,12 @@ qual | pprod | prod
 
 ```text
 ce | es | de | be | fr | us | uk | jp | br | kr
+```
+
+Local origins are deterministically seeded as:
+
+```text
+https://<stage>-<region>.gateway.localhost:8443
 ```
 
 `AuthorizationStatus`:

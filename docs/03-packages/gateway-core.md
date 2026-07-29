@@ -3,7 +3,7 @@ title: gateway-core
 type: package
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-07-27
+last_verified: 2026-07-29
 tags:
   - type/package
   - area/gateway-core
@@ -27,7 +27,7 @@ configuration.
 ## Boundaries
 
 - Reads deployments from PostgreSQL once during startup.
-- Keeps active proxies and endpoints in an in-memory registry.
+- Keeps all active deployments in an environment-grouped in-memory registry.
 - Connects to Redis lazily when a Redis-backed policy executes.
 - Imports the gateway signing key and trusted ingress CIDRs at startup.
 - Trusts only Envoy's connection-derived certificate fingerprint from the
@@ -46,16 +46,20 @@ the server and tests.
 
 ```mermaid
 flowchart LR
-    ENV["Validate environment"] --> LOAD["Load deployments"]
+    ENV["Validate runtime config"] --> LOAD["Load deployments"]
     LOAD --> REGISTRY["Build routing registry"]
     REGISTRY --> REQUEST["Resolve request"]
-    REQUEST --> PIPELINE["Execute policies"]
+    REQUEST --> HOST["Resolve Host to environment"]
+    HOST --> ROUTE["Resolve proxy and endpoint"]
+    ROUTE --> PIPELINE["Execute policies"]
     PIPELINE --> RESULT{"Terminal or forward?"}
     RESULT --> LOCAL["Local response"]
     RESULT --> FORWARD["Forward upstream"]
 ```
 
-Proxy matching uses the longest boundary-safe `basePath`. Endpoint matching is
+Unknown business hosts return `421`; there is no default environment. Within
+the selected environment, proxy matching uses the longest boundary-safe
+`basePath`. Endpoint matching is
 exact, supports named path parameters, allows a trailing slash, and prioritizes
 static routes before dynamic routes.
 
@@ -65,15 +69,17 @@ removes hop-by-hop headers, adds forwarding and correlation headers, and returns
 
 ## Configuration
 
-See [[Environment Variables]]. Environment selection and cryptographic
-configuration are required in development and production.
+See [[Environment Variables]]. Cryptographic configuration is required in
+development and production. Environment loading defaults to all deployments
+and can be restricted with an optional allowlist.
 
 ## Tests
 
 The package covers environment validation, routing, operational endpoints,
 byte-preserving forwarding, policy ordering, API key authorization, OAuth
-issuance and verification, assertion replay, mTLS trust boundaries, local
-responses, Redis failure modes, and rate-limit behavior.
+issuance and cross-environment rejection, assertion replay, mTLS trust
+boundaries, local responses, Redis failure modes, and environment-isolated
+rate-limit behavior.
 
 Run:
 

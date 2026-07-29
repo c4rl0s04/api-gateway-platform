@@ -3,7 +3,7 @@ title: API Key Verification
 type: policy
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-07-27
+last_verified: 2026-07-29
 tags:
   - type/policy
   - area/policies
@@ -55,7 +55,7 @@ explicitly allow the current environment.
 ```bash
 curl -H "x-api-key: dev-bank-key-abc123" \
   --cacert .local-secrets/pki/authorities/local-development/ca.crt \
-  https://localhost:8443/es/banking/v1/accounts
+  https://qual-es.gateway.localhost:8443/es/banking/v1/accounts
 ```
 
 ## Source Files

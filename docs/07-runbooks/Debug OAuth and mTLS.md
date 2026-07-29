@@ -3,7 +3,7 @@ title: "Debug OAuth and mTLS"
 type: runbook
 doc_status: current
 implementation_status: implemented
-last_verified: "2026-07-27"
+last_verified: "2026-07-29"
 tags:
   - type/runbook
   - area/operations
@@ -37,29 +37,32 @@ configuration is broken.
 
 ## Diagnosis
 
-1. Confirm `GATEWAY_ENVIRONMENT_ID`, issuer, token endpoint audience, signing
-   `kid`, and trusted CIDRs.
-2. For `invalid_client`, inspect credential/app status, expiry, allowed method,
+1. Confirm the request hostname matches `Environment.publicOrigin`, then check
+   the signing `kid` and trusted CIDRs.
+2. Derive the expected issuer from that origin and the assertion audience as
+   `<publicOrigin>/oauth/token`; neither is a process variable.
+3. For `invalid_client`, inspect credential/app status, expiry, allowed method,
    and secret rotation state.
-3. For `invalid_grant`, check assertion RS256 `kid`, `iss=sub=consumerKey`,
+4. For `invalid_grant`, check assertion RS256 `kid`, `iss=sub=consumerKey`,
    audience, clock, maximum 120-second lifetime, `jti`, JWK status, and Redis.
-4. For `invalid_scope`, compare requested scopes with policy, grant, and product
+5. For `invalid_scope`, compare requested scopes with policy, grant, and product
    scopes.
-5. For Bearer `401`, check signature, issuer, audience, `iat`, `nbf`, and `exp`.
-6. For Bearer `403`, compare `environment_id`, `proxy_ids`, and required scopes.
-7. For a TLS handshake failure, inspect Envoy logs and verify the issuer is
+6. For Bearer `401`, check signature, hostname-derived issuer, audience, `iat`,
+   `nbf`, and `exp`.
+7. For Bearer `403`, compare `environment_id`, `proxy_ids`, and required scopes.
+8. For a TLS handshake failure, inspect Envoy logs and verify the issuer is
    active/retiring, the full chain is available, certificate dates and client
    EKU are valid, and the CA CRL is current.
-8. For mTLS `401`, calculate the leaf SHA-256 fingerprint and compare it with
+9. For mTLS `401`, calculate the leaf SHA-256 fingerprint and compare it with
    `AppCertificate`; verify certificate, credential, app, grant, product,
    environment, and proxy state.
-9. Confirm Envoy removed any external `x-gateway-client-cert-sha256` and added
+10. Confirm Envoy removed any external `x-gateway-client-cert-sha256` and added
    the connection-derived value. The gateway must see Envoy's trusted immediate
    CIDR.
-10. If revocation appears delayed, compare database `revokedAt`, CA CRL
+11. If revocation appears delayed, compare database `revokedAt`, CA CRL
     `thisUpdate`/`nextUpdate`, `.local-secrets/pki/crl-bundle.pem`, and Envoy SDS
     logs.
-11. For control-plane `401`, verify Keycloak issuer and Management API audience.
+12. For control-plane `401`, verify Keycloak issuer and Management API audience.
     For `403`, inspect active `AdminMembership` issuer, subject, role, and
     organization.
 

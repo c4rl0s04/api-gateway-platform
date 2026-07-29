@@ -68,6 +68,8 @@ entire aggregate.
 The system-managed `platform-oauth` proxy exposes local endpoints at
 `POST /oauth/token` and `GET /oauth/.well-known/jwks.json` in every environment.
 Local endpoints return from a terminal policy and never invoke an upstream.
+The request hostname selects the environment. Its `publicOrigin` is the access
+token issuer and `<publicOrigin>/oauth/token` is the assertion audience.
 
 ## Data Flow
 
@@ -132,7 +134,8 @@ sequenceDiagram
 | Redis unavailable during JWT assertion replay protection | Reject `invalid_grant`; always fail closed |
 | Invalid signing key or trusted CIDR configuration | Gateway startup fails; readiness is never reached |
 | Invalid access-token signature or claims | `401` |
-| Valid token for another environment, proxy, or missing scope | `403` |
+| Token issuer from another environment | `401` |
+| Wrong `environment_id`, proxy, or missing scope | `403` |
 | Credential, grant, JWK, or certificate revoked | New DB-backed authentication fails immediately |
 | Access token revoked indirectly after issuance | Remains valid until `exp` |
 

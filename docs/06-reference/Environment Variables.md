@@ -3,7 +3,7 @@ title: Environment Variables
 type: reference
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-07-27
+last_verified: 2026-07-29
 tags:
   - type/reference
   - area/operations
@@ -33,16 +33,18 @@ aliases: []
 | `DATABASE_URL` | Yes | None | Valid URL |
 | `REDIS_URL` | No | `redis://localhost:6379` | `redis://` or `rediss://` URL |
 | `LOG_LEVEL` | No | `info` | Pino level or `silent` |
-| `GATEWAY_ENVIRONMENT_ID` | Outside tests | None | Non-empty environment ID |
-| `OAUTH_ISSUER` | Outside tests | None | URL used as token `iss` |
-| `OAUTH_TOKEN_ENDPOINT_AUDIENCE` | Outside tests | None | Required JWT assertion `aud` |
+| `GATEWAY_ENVIRONMENT_ALLOWLIST` | No | All active deployments | Comma-separated environment IDs |
 | `OAUTH_SIGNING_PRIVATE_KEY_BASE64` | Outside tests | None | Base64 PKCS#8 RSA private key; imported at startup |
 | `OAUTH_SIGNING_KEY_ID` | Outside tests | None | Non-empty signing/JWKS `kid` |
 | `MTLS_TRUSTED_PROXY_CIDRS` | Outside tests | None | Comma-separated valid CIDRs |
 
 The gateway parses these variables before loading configuration or listening.
-It imports the private key and parses every CIDR before readiness. The private
-key must come from a secret manager or local untracked `.env`, never Git.
+An empty or absent allowlist loads every active deployment. The request
+hostname selects one loaded environment through its `publicOrigin`. OAuth
+issuer and JWT assertion audience are derived from that origin rather than
+process variables. The gateway imports the private key and parses every CIDR
+before readiness. The private key must come from a secret manager or local
+untracked `.env`, never Git.
 
 ### Local Compose bootstrap
 

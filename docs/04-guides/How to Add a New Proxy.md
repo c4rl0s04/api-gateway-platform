@@ -58,7 +58,8 @@ await createProxyDeployment({
 ## Troubleshooting or Rollback
 
 If progression is rejected, verify deployments for the same proxy and region.
-If the gateway loads duplicate base paths, set `GATEWAY_ENVIRONMENT_ID`.
+After restart, call the proxy through the selected environment's
+`publicOrigin`; deployments in other environments can reuse the logical path.
 Reverting a seed definition does not remove existing rows automatically; use the
 local reset runbook only when data loss is acceptable.
 

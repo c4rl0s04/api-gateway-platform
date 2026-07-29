@@ -17,7 +17,7 @@ aliases: []
 # Management API
 
 > [!summary] At a glance
-> The Management API is an internal Fastify service that verifies OIDC tokens, resolves database memberships, registers application aggregates, and manages organization-scoped PKI.
+> The Management API is an internal Fastify service that verifies OIDC tokens, exposes authorized deployment-catalog reads, registers application aggregates, and manages organization-scoped PKI.
 
 ## Context
 
@@ -28,7 +28,8 @@ to the host; the Admin Panel BFF is its browser-facing caller.
 
 - OIDC verifier: RS256, issuer, audience, expiry, and JWKS validation.
 - Membership authorization: `platformAdmin`, `organizationAdmin`, and `viewer`.
-- Read models for current identity, organizations, and applications.
+- Read models for identity, organizations, environments, proxies, deployments,
+  and applications.
 - Transactional application registration with generated consumer key/secret and
   approved product grants.
 - CA lifecycle: create/import, activate, retire, revoke, rotate, refresh/upload
@@ -53,7 +54,7 @@ Exact routes are listed in [[API Routes]]. Application registration passes
 through the database domain operation so product ownership, activity, scopes,
 credential generation, grants, and audit are committed or rolled back together.
 Proxy, deployment, product, policy, and later credential/grant mutations are
-not implemented in this phase.
+not implemented in this phase; their current catalog surface is read-only.
 
 ## Failure Modes
 

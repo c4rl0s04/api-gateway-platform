@@ -43,6 +43,7 @@ The detached variant returns control to the terminal. See
 [How to Start the Project](docs/04-guides/How%20to%20Start%20the%20Project.md)
 for verification, data persistence, and troubleshooting.
 
-- API ingress: `https://localhost:8443`
+- API ingress: `https://<stage>-<region>.gateway.localhost:8443`
+- Example QUAL ES ingress: `https://qual-es.gateway.localhost:8443`
 - Admin Panel: `http://localhost:8080`
 - Local Keycloak: `http://localhost:8081`

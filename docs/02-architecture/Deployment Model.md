@@ -3,7 +3,7 @@ title: Deployment Model
 type: architecture
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-07-27
+last_verified: 2026-07-29
 tags:
   - type/architecture
   - area/operations
@@ -62,8 +62,10 @@ flowchart TB
 `npm run dev:local` generates untracked cryptographic material and invokes
 Compose. Health and completion dependencies enforce PostgreSQL, migrations,
 seeds, Redis, Keycloak, mock backend, gateway, Management API, panel, and ingress
-startup order. The gateway
-selects deployments from PostgreSQL and forwards to the internal mock service.
+startup order. The gateway loads all active deployments from PostgreSQL,
+selects their environment from the request hostname, and forwards to the
+deployment-specific upstream. Local origins follow
+`https://<stage>-<region>.gateway.localhost:8443`.
 Prometheus and Grafana require the optional `observability` profile.
 
 ## Failure Modes
@@ -83,5 +85,6 @@ not published to the host.
 
 ## Sources
 
-See [[How to Start the Project]] for setup steps and [[Environment Variables]]
-for configurable process values.
+See [[How to Start the Project]] for setup steps, [[Environment Variables]] for
+configurable process values, and [[ADR-007 Hostname-Based Environment Routing]]
+for environment selection.

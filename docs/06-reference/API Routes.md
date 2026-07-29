@@ -11,6 +11,7 @@ sources:
   - packages/gateway-core/src/server.ts
   - packages/management-api/src/server.ts
   - packages/management-api/src/routes/apps.routes.ts
+  - packages/management-api/src/routes/proxies.routes.ts
 aliases: []
 ---
 
@@ -26,13 +27,14 @@ aliases: []
 | Method | Path | Success | Purpose |
 | --- | --- | --- | --- |
 | `GET` | `/live` | `200` | Process liveness and timestamp |
-| `GET` | `/ready` | `200` or `503` | Registry readiness, proxy count, and selected environment |
+| `GET` | `/ready` | `200` or `503` | Registry readiness plus deployment and environment counts |
 | `POST` | `/oauth/token` | `200` or OAuth error | Local Client Credentials and JWT Bearer token issuance |
 | `GET` | `/oauth/.well-known/jwks.json` | `200` | Local public gateway signing keys |
 | Any | `/*` | Upstream or gateway error | Proxy resolution, policies, and forwarding |
 
 The catch-all can return:
 
+- `421` when the request host does not identify a loaded environment.
 - `404` when no proxy matches.
 - `404` when a proxy matches but no explicit endpoint matches.
 - Policy-defined statuses such as `401`, `403`, `429`, or `503`.
@@ -53,6 +55,10 @@ The gateway intentionally does not expose a root `/health` route.
 | `GET` | `/v1/me` | `200` | Verified identity and active memberships |
 | `GET` | `/v1/organizations` | `200` | Organizations visible to the actor |
 | `GET` | `/v1/organizations/:organizationId` | `200` | Organization detail |
+| `GET` | `/v1/environments` | `200` | All closed environments and deployment/product counts |
+| `GET` | `/v1/proxies` | `200` | Proxies visible to the actor |
+| `GET` | `/v1/proxies/:proxyId` | `200` | Proxy, endpoints, policies, products, and counts |
+| `GET` | `/v1/proxies/:proxyId/deployments` | `200` | Environment origins, upstreams, and deployment state |
 | `GET` | `/v1/organizations/:organizationId/apps` | `200` | Apps, credentials, grants, and certificates |
 | `POST` | `/v1/organizations/:organizationId/apps` | `201` | Atomically create app, generated credential, and approved product grants |
 | `GET` | `/v1/apps/:appId` | `200` | App, credentials, grants, public keys, and certificates |
@@ -100,9 +106,9 @@ methods or provide custom credential material.
 
 ```bash
 curl --cacert .local-secrets/pki/authorities/local-development/ca.crt \
-  https://localhost:8443/live
+  https://qual-es.gateway.localhost:8443/live
 curl --cacert .local-secrets/pki/authorities/local-development/ca.crt \
-  https://localhost:8443/ready
+  https://qual-es.gateway.localhost:8443/ready
 ```
 
 Management API is intentionally not callable from the host.

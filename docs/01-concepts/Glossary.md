@@ -3,7 +3,7 @@ title: "Glossary"
 type: concept
 doc_status: current
 implementation_status: not-applicable
-last_verified: 2026-07-27
+last_verified: 2026-07-29
 tags:
   - type/concept
   - area/project
@@ -32,7 +32,7 @@ Quick reference for key terms used throughout this documentation vault.
 | **PreFlow**                 | The first flow stage — policies here always execute on every request. Typically used for authentication and input validation.                        |
 | **PostFlow**                | The last flow stage — policies here always execute after conditional flows. Typically used for logging and response transformation.                  |
 | **Organization**            | In Apigee, the top-level container representing a company or team. Our project is currently single-tenant.                                          |
-| **Environment**             | Closed deployment target defined exclusively by stage and country/region.                                                                             |
+| **Environment**             | Closed deployment target defined by stage and country/region, with one unique HTTPS public origin used for runtime selection.                          |
 | **Data Plane**              | The component that handles real-time API traffic (`gateway-core`). Loads config into RAM, never queries the DB per request. See [[Data Plane vs Control Plane]]. |
 | **Control Plane**           | The component that handles administrative operations (`management-api` + `admin-panel`). Persists config to PostgreSQL. See [[Data Plane vs Control Plane]]. |
 | **Longest Prefix Match**    | The routing algorithm that selects the proxy/endpoint with the longest matching basePath for a given request path. E.g., `/api/users` beats `/api` for `/api/users/123`. |

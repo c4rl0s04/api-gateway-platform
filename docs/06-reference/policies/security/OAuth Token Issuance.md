@@ -3,7 +3,7 @@ title: "OAuth Token Issuance"
 type: policy
 doc_status: current
 implementation_status: implemented
-last_verified: "2026-07-27"
+last_verified: "2026-07-29"
 tags:
   - type/policy
   - area/security
@@ -44,6 +44,8 @@ Rate limiting must run before this policy with `failureMode: closed`.
 `accessTokenTtlSeconds` is at most `3600`. Assertion claims require
 `iss=sub=consumerKey`, `aud`, `iat`, `exp`, `jti`, RS256, and `kid`.
 Assertion lifetime is at most 120 seconds.
+The selected environment's `publicOrigin` is the access-token issuer. JWT
+Bearer assertions must use `<publicOrigin>/oauth/token` as their audience.
 
 | Result | HTTP / OAuth error |
 | --- | --- |
@@ -61,7 +63,7 @@ curl -u 'consumer-key:consumer-secret' \
   -H 'content-type: application/x-www-form-urlencoded' \
   --data 'grant_type=client_credentials&scope=accounts%3Aread' \
   --cacert .local-secrets/pki/authorities/local-development/ca.crt \
-  https://localhost:8443/oauth/token
+  https://qual-es.gateway.localhost:8443/oauth/token
 ```
 
 JWT Bearer replaces Basic authentication with:

@@ -3,7 +3,7 @@ title: "OAuth Access Token Verification"
 type: policy
 doc_status: current
 implementation_status: implemented
-last_verified: "2026-07-27"
+last_verified: "2026-07-29"
 tags:
   - type/policy
   - area/security
@@ -23,7 +23,7 @@ aliases:
 ## Current Support
 
 The policy requires `Authorization: Bearer <token>`. It validates `alg`, `kid`,
-signature, issuer, audience, `sub`, `iat`, `nbf`, `exp`, `jti`, `client_id`,
+signature, hostname-derived issuer, audience, `sub`, `iat`, `nbf`, `exp`, `jti`, `client_id`,
 `credential_id`, `environment_id`, `product_ids`, `proxy_ids`, and `scope`.
 
 ## Authoritative Values
@@ -39,7 +39,8 @@ signature, issuer, audience, `sub`, `iat`, `nbf`, `exp`, `jti`, `client_id`,
 | Result | Status |
 | --- | --- |
 | Missing, invalid, or expired token | `401` |
-| Wrong environment or proxy | `403` |
+| Issuer from another environment | `401` |
+| Wrong `environment_id` or proxy | `403` |
 | Missing required scope | `403 insufficient_scope` |
 | Valid token | Continue and populate client context |
 
@@ -51,7 +52,7 @@ issued token only when it expires.
 ```bash
 curl -H 'Authorization: Bearer <access-token>' \
   --cacert .local-secrets/pki/authorities/local-development/ca.crt \
-  https://localhost:8443/es/banking/v1/accounts
+  https://qual-es.gateway.localhost:8443/es/banking/v1/accounts
 ```
 
 ## Source Files

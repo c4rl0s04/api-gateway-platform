@@ -61,8 +61,9 @@ never returns the persisted secret hash.
 
 ## Runtime Flow
 
-The base seed creates 30 stage/region environments, organizations, logical
-proxies, endpoints, and initial `qual` deployments. The policy seed adds
+The base seed creates 30 stage/region environments with unique local HTTPS
+origins, organizations, logical proxies, endpoints, and initial `qual`
+deployments. The policy seed adds
 products, apps, hashed credentials, explicit grants, a public development JWK,
 a local CA, two development client certificates, OIDC memberships, and endpoint policies. The base seed
 also deploys the local `platform-oauth` proxy to all 30 environments.

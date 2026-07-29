@@ -3,7 +3,7 @@ title: shared
 type: package
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-07-27
+last_verified: 2026-07-29
 tags:
   - type/package
   - area/shared
@@ -29,6 +29,7 @@ policy execution.
 
 - Defines `ProxyConfig` and `EndpointConfig`.
 - Defines stage and region catalogs.
+- Validates each environment's canonical HTTPS `publicOrigin`.
 - Defines deployment progression helpers.
 - Defines policy type catalogs and configuration schemas.
 - Applies defaults and validates external policy configuration with Zod.

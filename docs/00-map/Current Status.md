@@ -28,17 +28,19 @@ aliases: []
 | --- | --- | --- |
 | Proxy and endpoint routing | Implemented | Longest-prefix proxy matching, explicit endpoint matching, and parameter extraction |
 | HTTP forwarding | Implemented | Streams arbitrary request and response bytes through `undici` |
-| PostgreSQL configuration loading | Implemented | Active deployments are loaded once during gateway startup |
-| Environment-specific deployments | Implemented | Closed stage/region catalogs and `qual -> pprod -> prod` progression |
+| PostgreSQL configuration loading | Implemented | All active deployments are loaded once and grouped by environment |
+| Environment-specific deployments | Implemented | Closed stage/region catalogs, unique HTTPS origins, and `qual -> pprod -> prod` progression |
+| Hostname environment routing | Implemented | Request authority selects the environment; unknown hosts return `421` |
 | Policy pipeline | Partial | Ordering, forwarding halts, local responses, and per-policy failure modes are implemented; mediation factories remain planned |
 | API key authentication | Implemented | Resolves consumer key and validates status, expiry, approved grants, proxy, and environment |
 | OAuth token issuance | Implemented | Client Credentials and JWT Bearer Grant issue environment-bound RS256 tokens |
 | OAuth access-token verification | Implemented | Stateless signature, claims, proxy, environment, and scope validation |
+| Deployment catalog API | Implemented | OIDC-protected environment, proxy detail, and deployment reads |
 | Direct mTLS authentication | Implemented | Envoy chain/CRL validation, connection-derived fingerprints, trusted CIDR, and grants |
 | Multi-client PKI | Implemented | Managed/external organization CAs, encrypted keystore, issuance, CRLs, rotation, and SDS |
 | Rate limiting | Implemented | Fixed-window Redis counter with atomic Lua execution |
 | Application registration | Implemented | OIDC-protected atomic app, generated credential, approved grants, and one-time secret response |
-| Management API | Partial | Application registration and CA/certificate lifecycle are implemented; general gateway CRUD is not |
+| Management API | Partial | Deployment catalog reads, application registration, and CA/certificate lifecycle are implemented; gateway mutations are not |
 | Admin panel | Partial | OIDC login and PKI workflows are implemented; proxy/product mutation is not |
 | Configuration hot reload | Planned | Redis is used for rate limiting, not configuration invalidation |
 | Metrics and dashboards | Planned | Prometheus and Grafana containers exist; gateway metrics are not exposed |

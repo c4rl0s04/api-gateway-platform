@@ -3,7 +3,7 @@ title: Runtime Request Flow
 type: architecture
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-07-27
+last_verified: 2026-07-29
 tags:
   - type/architecture
   - area/gateway-core
@@ -18,7 +18,7 @@ aliases: []
 # Runtime Request Flow
 
 > [!summary] At a glance
-> Every non-operational request passes through proxy resolution, endpoint resolution, and the ordered policy pipeline; forwarding occurs only when a non-terminal forward endpoint continues.
+> Every non-operational request passes through hostname-based environment selection, proxy resolution, endpoint resolution, and the ordered policy pipeline; forwarding occurs only when a non-terminal forward endpoint continues.
 
 ## Context
 
@@ -32,7 +32,9 @@ flowchart TD
     REQUEST["Incoming HTTPS request"] --> ENVOY["Envoy validates optional client certificate and sanitizes identity"]
     ENVOY --> OPERATIONAL{"Operational path?"}
     OPERATIONAL -->|"/live or /ready"| HEALTH["Gateway response"]
-    OPERATIONAL -->|"No"| PROXY{"Resolve longest proxy prefix"}
+    OPERATIONAL -->|"No"| ENVIRONMENT{"Resolve Host to environment"}
+    ENVIRONMENT -->|"Unknown"| MISDIRECTED["421 Misdirected Request"]
+    ENVIRONMENT -->|"Known"| PROXY{"Resolve longest proxy prefix"}
     PROXY -->|"No match"| PROXY404["404 unknown proxy"]
     PROXY -->|"Match"| ENDPOINT{"Resolve explicit endpoint"}
     ENDPOINT -->|"No match"| ENDPOINT404["404 unknown endpoint"]
@@ -49,6 +51,9 @@ flowchart TD
 Dynamic route parameters are extracted from the public endpoint path and
 substituted into `targetPath`. Query parameters and arbitrary body bytes are
 preserved. Hop-by-hop headers are removed from both directions.
+The environment comes from the request authority matched against
+`Environment.publicOrigin`; no request header or default environment can
+override it.
 
 ## Failure Modes
 

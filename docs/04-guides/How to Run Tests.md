@@ -3,7 +3,7 @@ title: How to Run Tests
 type: guide
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-07-27
+last_verified: 2026-07-29
 tags:
   - type/guide
   - area/project
@@ -61,8 +61,9 @@ npm run test:integration:mtls
 npm run test:platform
 ```
 
-`test:platform` creates disposable CA and certificate records, revokes the test
-certificate, rotates its authority, and restarts Management API.
+`test:platform` checks all 30 environment origins, Management API catalog reads,
+API key and OAuth flows, cross-environment token rejection, disposable CA and
+certificate records, revocation, authority rotation, and persistence.
 
 Authentication tests generate ephemeral RSA keys. Clean migration/seed
 validation requires disposable PostgreSQL and must never target retained data.

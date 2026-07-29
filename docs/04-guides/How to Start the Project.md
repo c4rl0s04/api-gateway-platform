@@ -3,7 +3,7 @@ title: How to Start the Project
 type: guide
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-07-27
+last_verified: 2026-07-29
 tags:
   - type/guide
   - area/operations
@@ -60,7 +60,9 @@ applies pending migrations, loads both idempotent seeds, and starts:
 | `admin-panel` | Web administration on `8080` |
 
 The first execution downloads images and dependencies. Later executions reuse
-Docker's build cache and the generated keys and certificates.
+Docker's build cache and the generated keys and certificates. The Envoy
+certificate covers all 30 origins following
+`https://<stage>-<region>.gateway.localhost:8443`.
 
 2. Stop the foreground environment with `Ctrl+C`. To run it in the background
 instead:
@@ -81,22 +83,24 @@ npm run dev:local:down -- --volumes
 
 ```bash
 curl --cacert .local-secrets/pki/authorities/local-development/ca.crt \
-  https://localhost:8443/live
+  https://qual-es.gateway.localhost:8443/live
 curl --cacert .local-secrets/pki/authorities/local-development/ca.crt \
-  https://localhost:8443/ready
+  https://qual-es.gateway.localhost:8443/ready
 curl --cacert .local-secrets/pki/authorities/local-development/ca.crt \
-  https://localhost:8443/oauth/.well-known/jwks.json
+  https://prod-es.gateway.localhost:8443/oauth/.well-known/jwks.json
 curl -H "x-api-key: dev-bank-key-abc123" \
   --cacert .local-secrets/pki/authorities/local-development/ca.crt \
-  https://localhost:8443/es/banking/v1/accounts
+  https://qual-es.gateway.localhost:8443/es/banking/v1/accounts
 curl --cacert .local-secrets/pki/authorities/local-development/ca.crt \
   --cert .local-secrets/clients/cred-bank-001/client.crt \
   --key .local-secrets/clients/cred-bank-001/client.key \
-  https://localhost:8443/es/banking/v1/health
+  https://qual-es.gateway.localhost:8443/es/banking/v1/health
 ```
 
 The first two requests should report a live and ready gateway. Both protected
 banking requests should reach the mock backend.
+The JWKS request demonstrates that the managed OAuth proxy is deployed in
+`prod-es`, even though the banking proxy is currently seeded only in `qual-es`.
 Open `http://localhost:8080`; local usernames and generated passwords are in
 `.local-secrets/keycloak/users.env`.
 

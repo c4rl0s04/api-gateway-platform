@@ -58,6 +58,9 @@ erDiagram
 `Environment` and supplies its `upstreamBaseUrl`. The same proxy can therefore
 use different upstreams in `qual`, `pprod`, and `prod`.
 
+Each environment also owns one unique HTTPS `publicOrigin`. The gateway uses
+its authority to select the environment before resolving a proxy path.
+
 `createProxyDeployment()` enforces progression within the same region:
 
 - `qual` has no prerequisite.
@@ -89,6 +92,7 @@ proxies such as `platform-oauth`.
 ## Failure Modes
 
 - Duplicate proxy base paths are rejected globally.
+- Duplicate environment public origins are rejected.
 - Duplicate proxy/environment deployments are rejected.
 - Invalid deployment progression raises `DeploymentProgressionError`.
 - Unsupported upstream protocols are rejected before persistence.
