@@ -18,6 +18,16 @@ export {
 } from './deployments.js';
 export type { CreateProxyDeploymentInput } from './deployments.js';
 export {
+  compileProxyBundle,
+  ProxyBundleError,
+} from './proxy-bundle.js';
+export type {
+  CompileProxyBundleInput,
+  CompiledProxyBundle,
+  CompiledProxyOperation,
+  ProxyBundleErrorCode,
+} from './proxy-bundle.js';
+export {
   createAppCredential,
   hashConsumerSecret,
   normalizeCertificateFingerprint,
