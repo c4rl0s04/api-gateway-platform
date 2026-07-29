@@ -1,5 +1,6 @@
 import {
   ProxyBundleError,
+  ProxyDeploymentError,
   ProxyRevisionError,
 } from '@api-gateway/database';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
@@ -14,6 +15,10 @@ const deploymentRevisionParamsSchema = z.object({
   proxyId: z.string().trim().min(1),
   revisionNumber: z.coerce.number().int().positive(),
 });
+const deployRevisionSchema = z.object({
+  environmentId: z.string().trim().min(1).max(120),
+  upstreamBaseUrl: z.string().url().nullable().optional(),
+}).strict();
 
 function sendDomainError(reply: FastifyReply, error: unknown) {
   if (error instanceof ProxyBundleError) {
@@ -21,6 +26,12 @@ function sendDomainError(reply: FastifyReply, error: unknown) {
   }
   if (error instanceof ProxyRevisionError) {
     const statusCode = error.code.endsWith('_not_found') ? 404 : 409;
+    return reply.code(statusCode).send({ error: error.code, message: error.message });
+  }
+  if (error instanceof ProxyDeploymentError) {
+    const statusCode = error.code.endsWith('_not_found')
+      ? 404
+      : error.code === 'upstream_required' ? 400 : 409;
     return reply.code(statusCode).send({ error: error.code, message: error.message });
   }
   throw error;
@@ -138,4 +149,32 @@ export function registerProxyRevisionRoutes(
       },
     );
   }
+
+  server.post<{
+    Params: { proxyId: string; revisionNumber: string };
+    Body: unknown;
+  }>('/v1/proxies/:proxyId/revisions/:revisionNumber/deployments', async (request, reply) => {
+    const params = deploymentRevisionParamsSchema.safeParse(request.params);
+    const body = deployRevisionSchema.safeParse(request.body);
+    if (!params.success || !body.success) {
+      return reply.code(400).send({
+        error: 'invalid_request',
+        message: 'Proxy deployment request is invalid',
+      });
+    }
+    try {
+      const deployment = await revisions.deployRevision(
+        params.data.proxyId,
+        params.data.revisionNumber,
+        body.data,
+        request.adminPrincipal,
+      );
+      return reply.code(201).send({
+        deployment,
+        runtimeRefreshRequired: true,
+      });
+    } catch (error) {
+      return sendDomainError(reply, error);
+    }
+  });
 }

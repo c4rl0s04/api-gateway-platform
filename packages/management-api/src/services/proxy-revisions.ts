@@ -1,6 +1,7 @@
 import {
   AdminRole,
   createApiProxy,
+  deployProxyRevision,
   getProxyRevision,
   getProxyRevisionSource,
   importProxyRevision,
@@ -21,6 +22,11 @@ export interface CreateProxyInput {
 export interface ImportRevisionInput {
   openapiSource: string;
   gatewayConfigSource: string;
+}
+
+export interface DeployRevisionInput {
+  environmentId: string;
+  upstreamBaseUrl?: string | null;
 }
 
 export interface ProxyRevisionOperations {
@@ -46,6 +52,12 @@ export interface ProxyRevisionOperations {
     source: 'openapi' | 'gateway',
     actor: AdminPrincipal,
   ): Promise<string>;
+  deployRevision(
+    proxyId: string,
+    revisionNumber: number,
+    input: DeployRevisionInput,
+    actor: AdminPrincipal,
+  ): Promise<unknown>;
 }
 
 function forbidden(message: string): Error {
@@ -152,5 +164,27 @@ export class ProxyRevisionService implements ProxyRevisionOperations {
     return source === 'openapi'
       ? (revision as { openapiSource: string }).openapiSource
       : (revision as { gatewayConfigSource: string }).gatewayConfigSource;
+  }
+
+  async deployRevision(
+    proxyId: string,
+    revisionNumber: number,
+    input: DeployRevisionInput,
+    actor: AdminPrincipal,
+  ) {
+    const organizationId = await proxyOrganization(proxyId);
+    if (!canManageOrganization(actor, organizationId)) {
+      throw forbidden('Organization administration access denied');
+    }
+    return deployProxyRevision({
+      proxyId,
+      revisionNumber,
+      ...input,
+      actor: {
+        issuer: actor.issuer,
+        subject: actor.subject,
+        role: actorRole(actor, organizationId),
+      },
+    });
   }
 }

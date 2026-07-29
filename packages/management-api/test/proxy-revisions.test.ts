@@ -69,6 +69,7 @@ describe('proxy revision management routes', () => {
       listRevisions: async () => [],
       getRevision: async () => ({ revisionNumber: 1 }),
       getRevisionSource: async (_proxyId, _revision, source) => `${source}: source`,
+      deployRevision: async () => ({}),
     };
     const server = serverWith(revisions);
     const created = await server.inject({
@@ -98,6 +99,7 @@ describe('proxy revision management routes', () => {
       listRevisions: async proxyId => [{ proxyId, revisionNumber: 1 }],
       getRevision: async (proxyId, revisionNumber) => ({ proxyId, revisionNumber }),
       getRevisionSource: async (_proxyId, _revision, source) => `${source}: source`,
+      deployRevision: async () => ({}),
     };
     const server = serverWith(revisions);
     const headers = { authorization: 'Bearer token' };
@@ -124,6 +126,7 @@ describe('proxy revision management routes', () => {
       listRevisions: async () => [],
       getRevision: async () => ({}),
       getRevisionSource: async () => '',
+      deployRevision: async () => ({}),
     };
     const server = serverWith(revisions);
     const response = await server.inject({
@@ -134,6 +137,42 @@ describe('proxy revision management routes', () => {
     assert.equal(response.statusCode, 400);
     assert.equal(response.json().error, 'invalid_gateway_config');
     assert.equal(called, false);
+    await server.close();
+  });
+
+  it('activates a revision and reports that runtime restart is required', async () => {
+    const calls: unknown[] = [];
+    const revisions: ProxyRevisionOperations = {
+      createProxy: async () => ({}),
+      importRevision: async () => ({}),
+      listRevisions: async () => [],
+      getRevision: async () => ({}),
+      getRevisionSource: async () => '',
+      deployRevision: async (proxyId, revisionNumber, input) => {
+        calls.push({ proxyId, revisionNumber, input });
+        return { id: 'deployment-2', status: 'active' };
+      },
+    };
+    const server = serverWith(revisions);
+    const response = await server.inject({
+      method: 'POST',
+      url: '/v1/proxies/proxy-1/revisions/2/deployments',
+      headers: { authorization: 'Bearer token' },
+      payload: {
+        environmentId: 'env-qual-es',
+        upstreamBaseUrl: 'https://backend.test',
+      },
+    });
+    assert.equal(response.statusCode, 201);
+    assert.equal(response.json().runtimeRefreshRequired, true);
+    assert.deepEqual(calls, [{
+      proxyId: 'proxy-1',
+      revisionNumber: 2,
+      input: {
+        environmentId: 'env-qual-es',
+        upstreamBaseUrl: 'https://backend.test',
+      },
+    }]);
     await server.close();
   });
 });
