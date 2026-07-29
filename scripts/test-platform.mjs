@@ -181,6 +181,25 @@ try {
   if (!principal.memberships.some(membership => membership.role === 'platformAdmin')) {
     throw new Error('OIDC identity is not mapped to platformAdmin');
   }
+  const environments = await management(accessToken, 'environments');
+  if (
+    environments.length !== 30
+    || new Set(environments.map(environment => environment.publicOrigin)).size !== 30
+  ) {
+    throw new Error('Management API did not expose 30 unique environment origins');
+  }
+  const proxies = await management(accessToken, 'proxies');
+  const oauthProxy = proxies.find(proxy => proxy.id === 'proxy-platform-oauth');
+  if (!oauthProxy) {
+    throw new Error('Management API did not expose the managed OAuth proxy');
+  }
+  const oauthDeployments = await management(
+    accessToken,
+    `proxies/${oauthProxy.id}/deployments`,
+  );
+  if (oauthDeployments.length !== 30) {
+    throw new Error('Managed OAuth proxy is not deployed in every environment');
+  }
 
   const appsBefore = await management(
     accessToken,
@@ -285,6 +304,39 @@ try {
   ]);
   if (bearerResponse.stdout !== '200') {
     throw new Error(`Issued access token was not accepted: ${bearerResponse.stdout}`);
+  }
+  const prodOrigin = 'https://prod-es.gateway.localhost:8443';
+  const prodTokenResponse = await gatewayCurl([
+    '--user',
+    `${registration.credential.consumerKey}:${registration.consumerSecret}`,
+    '--header',
+    'content-type: application/x-www-form-urlencoded',
+    '--data',
+    'grant_type=client_credentials&scope=banking%3Aread',
+    `${prodOrigin}/oauth/token`,
+  ]);
+  const prodAccessToken = JSON.parse(prodTokenResponse.stdout).access_token;
+  const crossEnvironmentResponse = await gatewayCurl([
+    '--header',
+    `authorization: Bearer ${prodAccessToken}`,
+    '--output',
+    '/dev/null',
+    '--write-out',
+    '%{http_code}',
+    `${qualEsGatewayOrigin}/es/banking/v1/accounts/1`,
+  ]);
+  if (crossEnvironmentResponse.stdout !== '401') {
+    throw new Error('An access token was accepted outside its issuing environment');
+  }
+  const unknownEnvironment = await gatewayCurl([
+    '--output',
+    '/dev/null',
+    '--write-out',
+    '%{http_code}',
+    'https://localhost:8443/oauth/.well-known/jwks.json',
+  ]);
+  if (unknownEnvironment.stdout !== '421') {
+    throw new Error('An unknown gateway environment host was not rejected');
   }
 
   const authority = await management(
