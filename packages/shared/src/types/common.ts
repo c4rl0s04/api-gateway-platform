@@ -3,6 +3,8 @@ import type { EnvironmentConfig } from '../deployments/config';
 
 export interface EndpointConfig {
   id: string;
+  operationId: string;
+  method: 'GET' | 'PUT' | 'POST' | 'DELETE' | 'OPTIONS' | 'HEAD' | 'PATCH' | 'TRACE';
   mode: 'forward' | 'local';
   /** El sufijo exacto de la ruta. Ej: "/health", "/users", o con variables "/users/:id" */
   path: string;
@@ -24,6 +26,9 @@ export interface ProxyConfig {
   basePath: string;
   /** Deployment concreto cargado por esta instancia del gateway. */
   deploymentId: string;
+  /** Immutable revision selected by the active deployment. */
+  revisionId: string;
+  revisionNumber: number;
   environment: EnvironmentConfig;
   systemManaged: boolean;
   /** Origin del backend para el deployment seleccionado. */

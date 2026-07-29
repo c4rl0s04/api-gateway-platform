@@ -21,7 +21,8 @@ export async function loadProxiesFromDatabase(
 ): Promise<ProxyConfig[]> {
   const deployments = await prisma.proxyDeployment.findMany({
     where: {
-      active: true,
+      status: 'active',
+      revisionId: { not: null },
       proxy: { active: true },
       ...(environmentIds && environmentIds.length > 0
         ? { environmentId: { in: [...environmentIds] } }
@@ -29,9 +30,10 @@ export async function loadProxiesFromDatabase(
     },
     include: {
       environment: true,
-      proxy: {
+      proxy: true,
+      revision: {
         include: {
-          endpoints: {
+          operations: {
             include: {
               policies: { orderBy: { order: 'asc' } },
             },
@@ -43,12 +45,18 @@ export async function loadProxiesFromDatabase(
 
   return deployments.map((deployment): ProxyConfig => {
     const proxy = deployment.proxy;
+    const revision = deployment.revision;
+    if (!revision) {
+      throw new Error(`Active deployment "${deployment.id}" has no proxy revision`);
+    }
 
     return {
       id: proxy.id,
       name: proxy.name,
-      basePath: proxy.basePath,
+      basePath: revision.basePath,
       deploymentId: deployment.id,
+      revisionId: revision.id,
+      revisionNumber: revision.revisionNumber,
       environment: environmentConfigSchema.parse({
         id: deployment.environment.id,
         stage: deployment.environment.stage,
@@ -58,8 +66,8 @@ export async function loadProxiesFromDatabase(
       systemManaged: proxy.systemManaged,
       upstreamBaseUrl: deployment.upstreamBaseUrl,
       organizationId: proxy.organizationId,
-      active: deployment.active && proxy.active,
-      endpoints: proxy.endpoints.map((ep): EndpointConfig => {
+      active: deployment.status === 'active' && proxy.active,
+      endpoints: revision.operations.map((ep): EndpointConfig => {
         const policies = ep.policies.map((pol): PolicyConfig => {
           if (!isPolicyType(pol.type)) {
             throw new Error(
@@ -99,6 +107,8 @@ export async function loadProxiesFromDatabase(
         }
         return {
           id: ep.id,
+          operationId: ep.operationId,
+          method: ep.method,
           mode,
           path: ep.path,
           targetPath: ep.targetPath,
