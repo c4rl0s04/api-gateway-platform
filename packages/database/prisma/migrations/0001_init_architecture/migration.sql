@@ -342,16 +342,13 @@ CREATE UNIQUE INDEX "ApiProxyRevision_proxyId_revisionNumber_key" ON "ApiProxyRe
 -- CreateIndex
 CREATE INDEX "ProxyDeployment_proxyId_environmentId_status_idx" ON "ProxyDeployment"("proxyId", "environmentId", "status");
 
--- CreateIndex
-CREATE INDEX "ProxyDeployment_revisionId_idx" ON "ProxyDeployment"("revisionId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "ProxyDeployment_proxyId_environmentId_key" ON "ProxyDeployment"("proxyId", "environmentId");
-
--- This becomes the authoritative uniqueness constraint after legacy cleanup.
+-- Enforce one active deployment while retaining retired deployment history.
 CREATE UNIQUE INDEX "ProxyDeployment_active_proxy_environment_key"
 ON "ProxyDeployment"("proxyId", "environmentId")
 WHERE "status" = 'active';
+
+-- CreateIndex
+CREATE INDEX "ProxyDeployment_revisionId_idx" ON "ProxyDeployment"("revisionId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "ProxyOperation_revisionId_operationId_key" ON "ProxyOperation"("revisionId", "operationId");

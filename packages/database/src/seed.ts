@@ -288,25 +288,33 @@ async function main() {
       });
     }
 
-    await prisma.proxyDeployment.upsert({
+    const existingDeployment = await prisma.proxyDeployment.findFirst({
       where: {
-        proxyId_environmentId: {
-          proxyId: proxy.id,
-          environmentId: deployment.environmentId,
-        },
-      },
-      update: {
-        upstreamBaseUrl: deployment.upstreamBaseUrl,
-        active: true,
-      },
-      create: {
-        id: `deployment-${proxy.id}-qual`,
         proxyId: proxy.id,
         environmentId: deployment.environmentId,
-        upstreamBaseUrl: deployment.upstreamBaseUrl,
-        active: true,
       },
     });
+    if (existingDeployment) {
+      await prisma.proxyDeployment.update({
+        where: { id: existingDeployment.id },
+        data: {
+        upstreamBaseUrl: deployment.upstreamBaseUrl,
+        active: true,
+          status: 'active',
+        },
+      });
+    } else {
+      await prisma.proxyDeployment.create({
+        data: {
+          id: `deployment-${proxy.id}-qual`,
+          proxyId: proxy.id,
+          environmentId: deployment.environmentId,
+          upstreamBaseUrl: deployment.upstreamBaseUrl,
+          active: true,
+          status: 'active',
+        },
+      });
+    }
   }
 
   await prisma.apiProxy.upsert({
@@ -343,22 +351,29 @@ async function main() {
     });
   }
   for (const environment of ENVIRONMENTS) {
-    await prisma.proxyDeployment.upsert({
+    const existingDeployment = await prisma.proxyDeployment.findFirst({
       where: {
-        proxyId_environmentId: {
-          proxyId: 'proxy-platform-oauth',
-          environmentId: environment.id,
-        },
-      },
-      update: { upstreamBaseUrl: null, active: true },
-      create: {
-        id: `deployment-oauth-${environment.stage}-${environment.region}`,
         proxyId: 'proxy-platform-oauth',
         environmentId: environment.id,
-        upstreamBaseUrl: null,
-        active: true,
       },
     });
+    if (existingDeployment) {
+      await prisma.proxyDeployment.update({
+        where: { id: existingDeployment.id },
+        data: { upstreamBaseUrl: null, active: true, status: 'active' },
+      });
+    } else {
+      await prisma.proxyDeployment.create({
+        data: {
+          id: `deployment-oauth-${environment.stage}-${environment.region}`,
+          proxyId: 'proxy-platform-oauth',
+          environmentId: environment.id,
+          upstreamBaseUrl: null,
+          active: true,
+          status: 'active',
+        },
+      });
+    }
   }
 
   console.log(`${ORGANIZATIONS.length} organizations`);

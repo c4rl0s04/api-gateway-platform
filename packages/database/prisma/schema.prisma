@@ -168,7 +168,6 @@ model ProxyDeployment {
 
   @@index([proxyId, environmentId, status])
   @@index([revisionId])
-  @@unique([proxyId, environmentId])
 }
 
 /// Legacy endpoint model retained only during the additive revision migration.

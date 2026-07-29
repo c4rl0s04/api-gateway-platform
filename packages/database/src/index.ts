@@ -35,6 +35,16 @@ export {
   listProxyRevisions,
   ProxyRevisionError,
 } from './proxy-revisions.js';
+export {
+  deployProxyRevision,
+  listProxyDeployments,
+  ProxyDeploymentError,
+} from './proxy-deployments.js';
+export type {
+  DeployProxyRevisionInput,
+  DeploymentMutationActor,
+  ProxyDeploymentErrorCode,
+} from './proxy-deployments.js';
 export type {
   CreateApiProxyInput,
   ImportProxyRevisionInput,
