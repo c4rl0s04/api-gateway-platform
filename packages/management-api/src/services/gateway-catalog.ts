@@ -1,4 +1,4 @@
-import { prisma } from '@api-gateway/database';
+import { listProxyDeployments, prisma } from '@api-gateway/database';
 import {
   canReadOrganization,
   isPlatformAdmin,
@@ -38,7 +38,6 @@ export function readableOrganizationIds(
 const proxySummarySelection = {
   id: true,
   name: true,
-  basePath: true,
   active: true,
   systemManaged: true,
   organizationId: true,
@@ -47,9 +46,31 @@ const proxySummarySelection = {
   updatedAt: true,
   _count: {
     select: {
-      endpoints: true,
+      revisions: true,
       deployments: true,
       products: true,
+    },
+  },
+  revisions: {
+    orderBy: { revisionNumber: 'desc' as const },
+    take: 1,
+    select: {
+      id: true,
+      revisionNumber: true,
+      basePath: true,
+      openapiVersion: true,
+      contentHash: true,
+      createdAt: true,
+    },
+  },
+  deployments: {
+    where: { status: 'active' as const, revisionId: { not: null } },
+    orderBy: { createdAt: 'desc' as const },
+    select: {
+      id: true,
+      environmentId: true,
+      revisionId: true,
+      status: true,
     },
   },
 };
@@ -90,25 +111,6 @@ export class GatewayCatalogService implements GatewayCatalogOperations {
       where: { id: proxyId },
       select: {
         ...proxySummarySelection,
-        endpoints: {
-          orderBy: [{ path: 'asc' }, { id: 'asc' }],
-          select: {
-            id: true,
-            mode: true,
-            path: true,
-            targetPath: true,
-            policies: {
-              orderBy: { order: 'asc' },
-              select: {
-                id: true,
-                type: true,
-                order: true,
-                enabled: true,
-                config: true,
-              },
-            },
-          },
-        },
         products: {
           orderBy: { name: 'asc' },
           select: {
@@ -140,29 +142,6 @@ export class GatewayCatalogService implements GatewayCatalogOperations {
     if (!canReadOrganization(actor, proxy.organizationId)) {
       throw forbidden();
     }
-    return prisma.proxyDeployment.findMany({
-      where: { proxyId },
-      orderBy: [
-        { environment: { stage: 'asc' } },
-        { environment: { region: 'asc' } },
-      ],
-      select: {
-        id: true,
-        proxyId: true,
-        environmentId: true,
-        upstreamBaseUrl: true,
-        active: true,
-        createdAt: true,
-        updatedAt: true,
-        environment: {
-          select: {
-            id: true,
-            stage: true,
-            region: true,
-            publicOrigin: true,
-          },
-        },
-      },
-    });
+    return listProxyDeployments(proxyId);
   }
 }
