@@ -28,6 +28,20 @@ export type {
   ProxyBundleErrorCode,
 } from './proxy-bundle.js';
 export {
+  createApiProxy,
+  getProxyRevision,
+  getProxyRevisionSource,
+  importProxyRevision,
+  listProxyRevisions,
+  ProxyRevisionError,
+} from './proxy-revisions.js';
+export type {
+  CreateApiProxyInput,
+  ImportProxyRevisionInput,
+  ProxyMutationActor,
+  ProxyRevisionErrorCode,
+} from './proxy-revisions.js';
+export {
   createAppCredential,
   hashConsumerSecret,
   normalizeCertificateFingerprint,
