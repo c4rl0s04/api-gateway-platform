@@ -7,7 +7,13 @@ import {
   PrismaClient,
 } from './generated';
 import { hashConsumerSecret } from './credentials.js';
+import { deployProxyRevision } from './proxy-deployments.js';
 import { importProxyRevision } from './proxy-revisions.js';
+import {
+  ENVIRONMENTS,
+  PLATFORM_OAUTH_ENDPOINTS,
+  PROXIES,
+} from './seed.js';
 import { X509Certificate } from 'node:crypto';
 
 const prisma = new PrismaClient();
@@ -228,22 +234,37 @@ function pathParameters(path: string) {
 }
 
 async function seedProxyRevisions(): Promise<void> {
-  const proxies = await prisma.apiProxy.findMany({
-    include: {
-      revisions: { select: { id: true, revisionNumber: true } },
-      endpoints: {
-        include: { policies: { orderBy: { order: 'asc' } } },
-        orderBy: { path: 'asc' },
-      },
+  const configurations = [
+    ...PROXIES.map(proxy => ({ ...proxy, systemManaged: false })),
+    {
+      id: 'proxy-platform-oauth',
+      name: 'Platform OAuth',
+      basePath: '/oauth',
+      organizationId: 'org-platform',
+      systemManaged: true,
+      deployment: null,
+      endpoints: PLATFORM_OAUTH_ENDPOINTS.map(endpoint => ({
+        ...endpoint,
+        targetPath: null,
+      })),
     },
-  });
-  for (const proxy of proxies) {
-    let revision = proxy.revisions.find(candidate => candidate.revisionNumber === 1);
+  ];
+  const actor = {
+    issuer: 'seed://local',
+    subject: 'database-seed',
+    role: AdminRole.platformAdmin,
+  };
+  for (const proxy of configurations) {
+    let revision = await prisma.apiProxyRevision.findUnique({
+      where: {
+        proxyId_revisionNumber: { proxyId: proxy.id, revisionNumber: 1 },
+      },
+      select: { id: true, revisionNumber: true },
+    });
     if (!revision) {
-      if (!proxy.basePath) throw new Error(`Proxy ${proxy.id} has no legacy basePath`);
       const paths = Object.fromEntries(proxy.endpoints.map(endpoint => {
         const path = openApiPath(endpoint.path);
-        const method = endpoint.id === 'ep-oauth-token' ? 'post' : 'get';
+        const method = 'method' in endpoint ? endpoint.method : 'get';
         return [path, {
           [method]: {
             operationId: endpoint.id,
@@ -263,11 +284,16 @@ async function seedProxyRevisions(): Promise<void> {
         operations: Object.fromEntries(proxy.endpoints.map(endpoint => [
           endpoint.id,
           {
-            ...(endpoint.mode === 'local' ? { mode: 'local' } : {}),
+            ...('mode' in endpoint && endpoint.mode === 'local'
+              ? { mode: 'local' }
+              : {}),
             targetPath: endpoint.targetPath
               ? openApiPath(endpoint.targetPath)
               : undefined,
-            policies: endpoint.policies.map(policy => ({
+            policies: ENDPOINT_POLICIES
+              .filter(policy => policy.endpointId === endpoint.id)
+              .sort((left, right) => left.order - right.order)
+              .map(policy => ({
               type: policy.type,
               enabled: policy.enabled,
               config: policy.config,
@@ -280,20 +306,40 @@ async function seedProxyRevisions(): Promise<void> {
         openapiSource,
         gatewayConfigSource,
         allowSystemManaged: true,
-        actor: {
-          issuer: 'seed://local',
-          subject: 'database-seed',
-          role: AdminRole.platformAdmin,
-        },
+        actor,
       });
       revision = { id: imported.id, revisionNumber: imported.revisionNumber };
     }
-    await prisma.proxyDeployment.updateMany({
-      where: { proxyId: proxy.id, revisionId: null },
-      data: { revisionId: revision.id, status: 'active', active: true },
-    });
+    const targets = proxy.systemManaged
+      ? ENVIRONMENTS.map(environment => ({
+          environmentId: environment.id,
+          upstreamBaseUrl: null,
+        }))
+      : [proxy.deployment];
+    for (const target of targets) {
+      if (!target) continue;
+      const active = await prisma.proxyDeployment.findFirst({
+        where: {
+          proxyId: proxy.id,
+          environmentId: target.environmentId,
+          revisionId: revision.id,
+          status: 'active',
+        },
+        select: { id: true },
+      });
+      if (!active) {
+        await deployProxyRevision({
+          proxyId: proxy.id,
+          revisionNumber: revision.revisionNumber,
+          environmentId: target.environmentId,
+          upstreamBaseUrl: target.upstreamBaseUrl,
+          allowSystemManaged: true,
+          actor,
+        });
+      }
+    }
   }
-  console.log(`✓ ${proxies.length} immutable proxy revisions`);
+  console.log(`✓ ${configurations.length} immutable proxy revisions`);
 }
 
 // ─── Seed ─────────────────────────────────────────────────────────────────────
@@ -586,23 +632,7 @@ async function main() {
     },
   });
 
-  // 4. Create Endpoint Policies
-  for (const policy of ENDPOINT_POLICIES) {
-    await prisma.endpointPolicy.upsert({
-      where:  { id: policy.id },
-      update: {
-        endpointId: policy.endpointId,
-        type: policy.type,
-        order: policy.order,
-        enabled: policy.enabled,
-        config: policy.config,
-      },
-      create: policy,
-    });
-  }
-  console.log(`✓ ${ENDPOINT_POLICIES.length} endpoint policies`);
-
-  // Compile the legacy seed catalog into immutable revision 1 bundles.
+  // Compile immutable revision 1 bundles and deploy them through domain rules.
   await seedProxyRevisions();
 
   console.log('');

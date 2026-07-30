@@ -155,7 +155,7 @@ export async function deployProxyRevision(input: DeployProxyRevisionInput) {
     if (previous) {
       await transaction.proxyDeployment.update({
         where: { id: previous.id },
-        data: { status: DeploymentStatus.retired, active: false },
+        data: { status: DeploymentStatus.retired },
       });
     }
     const deployment = await transaction.proxyDeployment.create({
@@ -165,7 +165,6 @@ export async function deployProxyRevision(input: DeployProxyRevisionInput) {
         environmentId: input.environmentId,
         upstreamBaseUrl,
         status: DeploymentStatus.active,
-        active: true,
       },
       include: {
         revision: {
@@ -200,7 +199,7 @@ export async function deployProxyRevision(input: DeployProxyRevisionInput) {
 
 export function listProxyDeployments(proxyId: string) {
   return prisma.proxyDeployment.findMany({
-    where: { proxyId, revisionId: { not: null } },
+    where: { proxyId },
     orderBy: { createdAt: 'desc' },
     select: {
       id: true,

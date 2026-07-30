@@ -64,7 +64,7 @@ const proxySummarySelection = {
     },
   },
   deployments: {
-    where: { status: 'active' as const, revisionId: { not: null } },
+    where: { status: 'active' as const },
     orderBy: { createdAt: 'desc' as const },
     select: {
       id: true,

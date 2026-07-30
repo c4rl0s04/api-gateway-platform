@@ -22,7 +22,6 @@ export async function loadProxiesFromDatabase(
   const deployments = await prisma.proxyDeployment.findMany({
     where: {
       status: 'active',
-      revisionId: { not: null },
       proxy: { active: true },
       ...(environmentIds && environmentIds.length > 0
         ? { environmentId: { in: [...environmentIds] } }

@@ -55,7 +55,6 @@ CREATE TABLE "Environment" (
 CREATE TABLE "ApiProxy" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
-    "basePath" TEXT,
     "active" BOOLEAN NOT NULL DEFAULT true,
     "systemManaged" BOOLEAN NOT NULL DEFAULT false,
     "organizationId" TEXT NOT NULL,
@@ -86,39 +85,14 @@ CREATE TABLE "ApiProxyRevision" (
 CREATE TABLE "ProxyDeployment" (
     "id" TEXT NOT NULL,
     "proxyId" TEXT NOT NULL,
-    "revisionId" TEXT,
+    "revisionId" TEXT NOT NULL,
     "environmentId" TEXT NOT NULL,
     "upstreamBaseUrl" TEXT,
-    "active" BOOLEAN NOT NULL DEFAULT true,
     "status" "DeploymentStatus" NOT NULL DEFAULT 'active',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "ProxyDeployment_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "Endpoint" (
-    "id" TEXT NOT NULL,
-    "mode" "EndpointMode" NOT NULL DEFAULT 'forward',
-    "path" TEXT NOT NULL,
-    "targetPath" TEXT,
-    "proxyId" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "Endpoint_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "EndpointPolicy" (
-    "id" TEXT NOT NULL,
-    "type" TEXT NOT NULL,
-    "order" INTEGER NOT NULL,
-    "enabled" BOOLEAN NOT NULL DEFAULT true,
-    "config" JSONB NOT NULL DEFAULT '{}',
-    "endpointId" TEXT NOT NULL,
-
-    CONSTRAINT "EndpointPolicy_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -331,9 +305,6 @@ CREATE UNIQUE INDEX "Environment_publicOrigin_key" ON "Environment"("publicOrigi
 CREATE UNIQUE INDEX "Environment_stage_region_key" ON "Environment"("stage", "region");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "ApiProxy_basePath_key" ON "ApiProxy"("basePath");
-
--- CreateIndex
 CREATE INDEX "ApiProxyRevision_proxyId_createdAt_idx" ON "ApiProxyRevision"("proxyId", "createdAt");
 
 -- CreateIndex
@@ -427,12 +398,6 @@ ALTER TABLE "ProxyDeployment" ADD CONSTRAINT "ProxyDeployment_revisionId_fkey" F
 
 -- AddForeignKey
 ALTER TABLE "ProxyDeployment" ADD CONSTRAINT "ProxyDeployment_environmentId_fkey" FOREIGN KEY ("environmentId") REFERENCES "Environment"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Endpoint" ADD CONSTRAINT "Endpoint_proxyId_fkey" FOREIGN KEY ("proxyId") REFERENCES "ApiProxy"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "EndpointPolicy" ADD CONSTRAINT "EndpointPolicy_endpointId_fkey" FOREIGN KEY ("endpointId") REFERENCES "Endpoint"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "ProxyOperation" ADD CONSTRAINT "ProxyOperation_revisionId_fkey" FOREIGN KEY ("revisionId") REFERENCES "ApiProxyRevision"("id") ON DELETE CASCADE ON UPDATE CASCADE;

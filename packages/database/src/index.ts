@@ -13,11 +13,6 @@ export {
 } from './generated/index.js';
 
 export {
-  createProxyDeployment,
-  DeploymentProgressionError,
-} from './deployments.js';
-export type { CreateProxyDeploymentInput } from './deployments.js';
-export {
   compileProxyBundle,
   ProxyBundleError,
 } from './proxy-bundle.js';

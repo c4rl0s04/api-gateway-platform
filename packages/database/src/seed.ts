@@ -42,7 +42,7 @@ function environmentPublicOrigin(
   return `https://${stage}-${region}.gateway.localhost:8443`;
 }
 
-const ENVIRONMENTS = DEPLOYMENT_REGIONS.flatMap(region =>
+export const ENVIRONMENTS = DEPLOYMENT_REGIONS.flatMap(region =>
   DEPLOYMENT_STAGES.map(stage => ({
     id: environmentId(stage, region),
     stage,
@@ -51,7 +51,7 @@ const ENVIRONMENTS = DEPLOYMENT_REGIONS.flatMap(region =>
   })),
 );
 
-const PROXIES = [
+export const PROXIES = [
   {
     id: 'proxy-es-banking',
     name: 'ES Banking',
@@ -234,6 +234,16 @@ const PROXIES = [
   },
 ];
 
+export const PLATFORM_OAUTH_ENDPOINTS = [
+  { id: 'ep-oauth-token', path: '/token', method: 'post', mode: 'local' },
+  {
+    id: 'ep-oauth-jwks',
+    path: '/.well-known/jwks.json',
+    method: 'get',
+    mode: 'local',
+  },
+] as const;
+
 async function main() {
   console.log('Starting base seed...');
 
@@ -258,70 +268,26 @@ async function main() {
   }
 
   for (const proxy of PROXIES) {
-    const { endpoints, deployment, ...proxyData } = proxy;
-
     await prisma.apiProxy.upsert({
-      where: { id: proxyData.id },
+      where: { id: proxy.id },
       update: {
-        name: proxyData.name,
-        basePath: proxyData.basePath,
+        name: proxy.name,
         active: true,
-        organizationId: proxyData.organizationId,
+        organizationId: proxy.organizationId,
       },
       create: {
-        ...proxyData,
+        id: proxy.id,
+        name: proxy.name,
+        organizationId: proxy.organizationId,
         active: true,
       },
     });
-
-    for (const endpoint of endpoints) {
-      await prisma.endpoint.upsert({
-        where: { id: endpoint.id },
-        update: {
-          path: endpoint.path,
-          targetPath: endpoint.targetPath,
-        },
-        create: {
-          ...endpoint,
-          proxyId: proxy.id,
-        },
-      });
-    }
-
-    const existingDeployment = await prisma.proxyDeployment.findFirst({
-      where: {
-        proxyId: proxy.id,
-        environmentId: deployment.environmentId,
-      },
-    });
-    if (existingDeployment) {
-      await prisma.proxyDeployment.update({
-        where: { id: existingDeployment.id },
-        data: {
-        upstreamBaseUrl: deployment.upstreamBaseUrl,
-        active: true,
-          status: 'active',
-        },
-      });
-    } else {
-      await prisma.proxyDeployment.create({
-        data: {
-          id: `deployment-${proxy.id}-qual`,
-          proxyId: proxy.id,
-          environmentId: deployment.environmentId,
-          upstreamBaseUrl: deployment.upstreamBaseUrl,
-          active: true,
-          status: 'active',
-        },
-      });
-    }
   }
 
   await prisma.apiProxy.upsert({
     where: { id: 'proxy-platform-oauth' },
     update: {
       name: 'Platform OAuth',
-      basePath: '/oauth',
       active: true,
       systemManaged: true,
       organizationId: 'org-platform',
@@ -329,62 +295,21 @@ async function main() {
     create: {
       id: 'proxy-platform-oauth',
       name: 'Platform OAuth',
-      basePath: '/oauth',
       active: true,
       systemManaged: true,
       organizationId: 'org-platform',
     },
   });
-  for (const endpoint of [
-    { id: 'ep-oauth-token', path: '/token' },
-    { id: 'ep-oauth-jwks', path: '/.well-known/jwks.json' },
-  ]) {
-    await prisma.endpoint.upsert({
-      where: { id: endpoint.id },
-      update: { path: endpoint.path, mode: 'local', targetPath: null },
-      create: {
-        ...endpoint,
-        mode: 'local',
-        targetPath: null,
-        proxyId: 'proxy-platform-oauth',
-      },
-    });
-  }
-  for (const environment of ENVIRONMENTS) {
-    const existingDeployment = await prisma.proxyDeployment.findFirst({
-      where: {
-        proxyId: 'proxy-platform-oauth',
-        environmentId: environment.id,
-      },
-    });
-    if (existingDeployment) {
-      await prisma.proxyDeployment.update({
-        where: { id: existingDeployment.id },
-        data: { upstreamBaseUrl: null, active: true, status: 'active' },
-      });
-    } else {
-      await prisma.proxyDeployment.create({
-        data: {
-          id: `deployment-oauth-${environment.stage}-${environment.region}`,
-          proxyId: 'proxy-platform-oauth',
-          environmentId: environment.id,
-          upstreamBaseUrl: null,
-          active: true,
-          status: 'active',
-        },
-      });
-    }
-  }
-
   console.log(`${ORGANIZATIONS.length} organizations`);
   console.log(`${ENVIRONMENTS.length} closed-choice environments`);
-  console.log(`${PROXIES.length} logical proxies with QUAL deployments`);
-  console.log(`Platform OAuth proxy deployed to ${ENVIRONMENTS.length} environments`);
+  console.log(`${PROXIES.length + 1} logical proxies`);
 }
 
-main()
-  .catch(error => {
-    console.error('Base seed failed:', error);
-    process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+if (require.main === module) {
+  main()
+    .catch(error => {
+      console.error('Base seed failed:', error);
+      process.exit(1);
+    })
+    .finally(() => prisma.$disconnect());
+}
