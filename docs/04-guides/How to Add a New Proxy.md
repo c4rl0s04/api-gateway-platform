@@ -3,14 +3,14 @@ title: How to Add a New Proxy
 type: guide
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-07-27
+last_verified: 2026-07-31
 tags:
   - type/guide
   - area/database
 sources:
-  - packages/database/src/seed.ts
-  - packages/database/src/deployments.ts
-  - packages/database/prisma/schema.prisma
+  - packages/management-api/src/routes/proxy-revisions.routes.ts
+  - packages/database/src/proxy-revisions.ts
+  - packages/database/src/proxy-deployments.ts
 aliases:
   - How to Add and Deploy a Proxy
 ---
@@ -18,53 +18,57 @@ aliases:
 # How to Add a New Proxy
 
 > [!summary] At a glance
-> Until Management API CRUD exists, add reproducible development proxies through seeds and create deployments through the database domain operation.
+> Create the logical proxy through Management API, import an immutable OpenAPI and Gateway YAML bundle, and then deploy that exact revision.
 
 ## Goal
 
-Create a logical proxy, its explicit endpoints, and an environment-specific
-deployment without bypassing progression rules.
+Create a logical proxy, version its operations and policies, and activate a
+revision in an environment without bypassing validation or promotion rules.
 
 ## Prerequisites
 
-- PostgreSQL is running and migrated.
-- Prisma Client is generated.
-- The target organization and environment exist.
+- The local platform is running.
+- The caller has an OIDC token and `platformAdmin` or matching
+  `organizationAdmin` membership.
+- The organization and destination environment exist.
+- An OpenAPI 3.0/3.1 document and Gateway YAML are ready.
 
 ## Steps
 
-1. Add the logical `ApiProxy` to `packages/database/src/seed.ts`.
-2. Define each public `path` and backend-relative `targetPath`.
-3. Choose a closed stage and region combination.
-4. Create the deployment through `createProxyDeployment()`:
+1. Create the logical identity with
+   `POST /v1/organizations/:organizationId/proxies`.
+2. Import `openapi` and `gateway` as multipart files with
+   `POST /v1/proxies/:proxyId/revisions`.
+3. Review the returned revision number, hash, operations, and effective
+   policies.
+4. Deploy it with
+   `POST /v1/proxies/:proxyId/revisions/:revisionNumber/deployments`.
+5. Restart `gateway-core` because configuration hot reload is not implemented.
+6. Promote the same revision through `qual`, `pprod`, and `prod` for the same
+   region.
 
-```typescript
-await createProxyDeployment({
-  proxyId: 'proxy-es-banking',
-  environmentId: 'env-qual-es',
-  upstreamBaseUrl: 'https://banking-qual.example.com',
-});
-```
-
-5. Add `pprod` only after `qual`, and `prod` only after `pprod`, for the same region.
-6. Run the seed and restart `gateway-core`.
+The complete request bodies and bundle format are in
+[[How to Import and Deploy a Proxy Revision]]. Seeds are reserved for the
+reproducible local baseline and are not the normal configuration interface.
 
 ## Verification
 
-- `GET /ready` reports the expected number of loaded proxies.
-- A configured endpoint reaches the expected upstream.
-- An undeclared endpoint under the same base path returns an endpoint `404`.
+- `GET /ready` reports the expected active deployment count after restart.
+- A declared method and operation reaches the expected upstream.
+- An undeclared path returns `404`; a known path with a different method returns
+  `405` and an `Allow` header.
 
 ## Troubleshooting or Rollback
 
-If progression is rejected, verify deployments for the same proxy and region.
-After restart, call the proxy through the selected environment's
-`publicOrigin`; deployments in other environments can reuse the logical path.
-Reverting a seed definition does not remove existing rows automatically; use the
-local reset runbook only when data loss is acceptable.
+If promotion is rejected, confirm that the exact revision was deployed in the
+preceding stage for the same region. A failed import or deployment does not
+change the active revision. Roll back by deploying an older revision number;
+this creates another deployment history record and also requires a gateway
+restart.
 
 ## Related Notes
 
 - [[Data Model]]
 - [[Deployment Model]]
+- [[How to Import and Deploy a Proxy Revision]]
 - [[Reset Local Database]]
