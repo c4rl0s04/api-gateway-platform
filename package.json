@@ -16,6 +16,7 @@
     "build": "npm run build -w packages/shared && npm run build -w packages/pki && npm run build -w packages/database && npm run build -w packages/gateway-core && npm run build -w packages/management-api && npm run build -w packages/admin-panel",
     "test": "npm run test --workspaces --if-present",
     "test:integration:mtls": "bash scripts/test-mtls-envoy.sh",
+    "test:integration:revisions": "npm run test:integration:revisions --workspace=packages/database",
     "test:platform": "npm run build --workspace=packages/pki --silent && node scripts/test-platform.mjs",
     "pki:client": "npm run build --workspace=packages/pki --silent && node scripts/generate-client-csr.mjs",
     "lint": "npm run lint --workspaces --if-present",

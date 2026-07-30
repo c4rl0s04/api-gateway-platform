@@ -46,3 +46,6 @@ jobs:
       - run: npm run test
         env:
           DATABASE_URL: postgresql://postgres:password@localhost:5432/apigw?schema=public
+      - run: npm run test:integration:revisions
+        env:
+          DATABASE_URL: postgresql://postgres:password@localhost:5432/apigw?schema=public

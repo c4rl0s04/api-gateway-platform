@@ -201,7 +201,7 @@ export async function importProxyRevision(input: ImportProxyRevisionInput) {
       },
     });
     return created;
-  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
 
   return { ...revision, warnings: bundle.warnings };
 }
