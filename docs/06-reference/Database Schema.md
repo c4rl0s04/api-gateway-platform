@@ -3,7 +3,7 @@ title: Database Schema
 type: reference
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-07-29
+last_verified: 2026-07-31
 tags:
   - type/reference
   - area/database
@@ -23,10 +23,11 @@ aliases: []
 | --- | --- | --- |
 | `Organization` | `id`, `name`, `createdAt` | Owns proxies, products, apps, CAs, memberships, and audit events |
 | `Environment` | `stage`, `region`, HTTPS `publicOrigin` | Unique `(stage, region)` and unique origin |
-| `ApiProxy` | `name`, `basePath`, `active`, `systemManaged`, `organizationId` | Globally unique `basePath` |
-| `ProxyDeployment` | `proxyId`, `environmentId`, nullable `upstreamBaseUrl`, `active` | Unique `(proxyId, environmentId)` |
-| `Endpoint` | `mode`, `path`, nullable `targetPath`, `proxyId` | `forward` requires target; `local` returns from policy |
-| `EndpointPolicy` | `type`, `order`, `enabled`, `config`, `endpointId` | Deleted with its endpoint |
+| `ApiProxy` | `name`, `active`, `systemManaged`, `organizationId` | Stable identity owned by an organization |
+| `ApiProxyRevision` | proxy, number, `basePath`, source/parsed documents, version, content hash | Unique proxy/revision number; immutable through Management API |
+| `ProxyOperation` | revision, `operationId`, method, mode, path, target | Unique operation ID and method/path inside the revision |
+| `OperationPolicy` | `type`, `order`, `enabled`, `config`, operation | Unique execution order inside one operation |
+| `ProxyDeployment` | proxy, revision, environment, nullable upstream, status | Partial unique active proxy/environment; retired history retained |
 | `ApiProduct` | `name`, `active`, `scopes`, `organizationId` | Many-to-many proxies and optional environment allowlist |
 | `DeveloperApp` | `name`, `status`, `organizationId` | Owns credentials |
 | `AppCredential` | `consumerKey`, required `consumerSecretHash`, `status`, validity | Unique `consumerKey`; plaintext secret is returned once |
@@ -64,6 +65,18 @@ https://<stage>-<region>.gateway.localhost:8443
 pending | approved | revoked
 ```
 
+`DeploymentStatus`:
+
+```text
+active | retired
+```
+
+`HttpMethod`:
+
+```text
+GET | PUT | POST | DELETE | OPTIONS | HEAD | PATCH | TRACE
+```
+
 `CertificateAuthorityKind`:
 
 ```text
@@ -82,7 +95,7 @@ draft | active | retiring | revoked
 platformAdmin | organizationAdmin | viewer
 ```
 
-`EndpointPolicy.type` is stored as a string. Runtime acceptance is restricted by
+`OperationPolicy.type` is stored as a string. Runtime acceptance is restricted by
 `@api-gateway/shared` during gateway loading.
 
 ## Examples
@@ -90,7 +103,7 @@ platformAdmin | organizationAdmin | viewer
 The final upstream URL combines:
 
 ```text
-ProxyDeployment.upstreamBaseUrl + Endpoint.targetPath
+ProxyDeployment.upstreamBaseUrl + ProxyOperation.targetPath
 ```
 
 ## Source Files
@@ -103,3 +116,4 @@ ProxyDeployment.upstreamBaseUrl + Endpoint.targetPath
 - [[database]]
 - [[Policy Types]]
 - [[Multi-Client PKI]]
+- [[Proxy Revisions and Deployments]]
