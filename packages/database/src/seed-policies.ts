@@ -7,6 +7,7 @@ import {
   PrismaClient,
 } from './generated';
 import { hashConsumerSecret } from './credentials.js';
+import { importProxyRevision } from './proxy-revisions.js';
 import { X509Certificate } from 'node:crypto';
 
 const prisma = new PrismaClient();
@@ -212,6 +213,88 @@ const ENDPOINT_POLICIES = [
     config:     { header: 'x-api-key', failureMode: 'closed' },
   },
 ];
+
+function openApiPath(path: string): string {
+  return path.replace(/:([A-Za-z0-9_]+)/g, '{$1}');
+}
+
+function pathParameters(path: string) {
+  return [...path.matchAll(/\{([A-Za-z0-9_]+)\}/g)].map(match => ({
+    name: match[1],
+    in: 'path',
+    required: true,
+    schema: { type: 'string' },
+  }));
+}
+
+async function seedProxyRevisions(): Promise<void> {
+  const proxies = await prisma.apiProxy.findMany({
+    include: {
+      revisions: { select: { id: true, revisionNumber: true } },
+      endpoints: {
+        include: { policies: { orderBy: { order: 'asc' } } },
+        orderBy: { path: 'asc' },
+      },
+    },
+  });
+  for (const proxy of proxies) {
+    let revision = proxy.revisions.find(candidate => candidate.revisionNumber === 1);
+    if (!revision) {
+      if (!proxy.basePath) throw new Error(`Proxy ${proxy.id} has no legacy basePath`);
+      const paths = Object.fromEntries(proxy.endpoints.map(endpoint => {
+        const path = openApiPath(endpoint.path);
+        const method = endpoint.id === 'ep-oauth-token' ? 'post' : 'get';
+        return [path, {
+          [method]: {
+            operationId: endpoint.id,
+            parameters: pathParameters(path),
+            responses: { '200': { description: 'Development seed response' } },
+          },
+        }];
+      }));
+      const openapiSource = JSON.stringify({
+        openapi: '3.1.0',
+        info: { title: proxy.name, version: '1.0.0' },
+        paths,
+      }, null, 2);
+      const gatewayConfigSource = JSON.stringify({
+        apiVersion: 'gateway.platform/v1',
+        basePath: proxy.basePath,
+        operations: Object.fromEntries(proxy.endpoints.map(endpoint => [
+          endpoint.id,
+          {
+            ...(endpoint.mode === 'local' ? { mode: 'local' } : {}),
+            targetPath: endpoint.targetPath
+              ? openApiPath(endpoint.targetPath)
+              : undefined,
+            policies: endpoint.policies.map(policy => ({
+              type: policy.type,
+              enabled: policy.enabled,
+              config: policy.config,
+            })),
+          },
+        ])),
+      }, null, 2);
+      const imported = await importProxyRevision({
+        proxyId: proxy.id,
+        openapiSource,
+        gatewayConfigSource,
+        allowSystemManaged: true,
+        actor: {
+          issuer: 'seed://local',
+          subject: 'database-seed',
+          role: AdminRole.platformAdmin,
+        },
+      });
+      revision = { id: imported.id, revisionNumber: imported.revisionNumber };
+    }
+    await prisma.proxyDeployment.updateMany({
+      where: { proxyId: proxy.id, revisionId: null },
+      data: { revisionId: revision.id, status: 'active', active: true },
+    });
+  }
+  console.log(`✓ ${proxies.length} immutable proxy revisions`);
+}
 
 // ─── Seed ─────────────────────────────────────────────────────────────────────
 
@@ -518,6 +601,9 @@ async function main() {
     });
   }
   console.log(`✓ ${ENDPOINT_POLICIES.length} endpoint policies`);
+
+  // Compile the legacy seed catalog into immutable revision 1 bundles.
+  await seedProxyRevisions();
 
   console.log('');
   console.log('✅ Policy seed complete');
