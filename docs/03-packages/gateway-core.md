@@ -3,7 +3,7 @@ title: gateway-core
 type: package
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-07-29
+last_verified: 2026-07-31
 tags:
   - type/package
   - area/gateway-core
@@ -26,7 +26,7 @@ configuration.
 
 ## Boundaries
 
-- Reads deployments from PostgreSQL once during startup.
+- Reads active deployments and their exact revisions once during startup.
 - Keeps all active deployments in an environment-grouped in-memory registry.
 - Connects to Redis lazily when a Redis-backed policy executes.
 - Imports the gateway signing key and trusted ingress CIDRs at startup.
@@ -47,10 +47,10 @@ the server and tests.
 ```mermaid
 flowchart LR
     ENV["Validate runtime config"] --> LOAD["Load deployments"]
-    LOAD --> REGISTRY["Build routing registry"]
+    LOAD --> REGISTRY["Build revision routing registry"]
     REGISTRY --> REQUEST["Resolve request"]
     REQUEST --> HOST["Resolve Host to environment"]
-    HOST --> ROUTE["Resolve proxy and endpoint"]
+    HOST --> ROUTE["Resolve proxy, path, and method"]
     ROUTE --> PIPELINE["Execute policies"]
     PIPELINE --> RESULT{"Terminal or forward?"}
     RESULT --> LOCAL["Local response"]
@@ -59,9 +59,10 @@ flowchart LR
 
 Unknown business hosts return `421`; there is no default environment. Within
 the selected environment, proxy matching uses the longest boundary-safe
-`basePath`. Endpoint matching is
-exact, supports named path parameters, allows a trailing slash, and prioritizes
-static routes before dynamic routes.
+`basePath` from the active revision. Operation matching is exact by method and
+path, supports OpenAPI `{name}` parameters, allows a trailing slash, and
+prioritizes static routes before dynamic routes. A known path with a different
+method returns `405` and an `Allow` header.
 
 The forwarding layer preserves query parameters and arbitrary body bytes,
 removes hop-by-hop headers, adds forwarding and correlation headers, and returns
@@ -76,7 +77,8 @@ and can be restricted with an optional allowlist.
 ## Tests
 
 The package covers environment validation, routing, operational endpoints,
-byte-preserving forwarding, policy ordering, API key authorization, OAuth
+byte-preserving forwarding, method-aware operation routing, OpenAPI target
+parameter substitution, policy ordering, API key authorization, OAuth
 issuance and cross-environment rejection, assertion replay, mTLS trust
 boundaries, local responses, Redis failure modes, and environment-isolated
 rate-limit behavior.
@@ -101,3 +103,4 @@ npm test --workspace=packages/gateway-core
 - [[Debug Gateway 404]]
 - [[Debug Policy Failure]]
 - [[Authentication and Authorization]]
+- [[Proxy Revisions and Deployments]]

@@ -3,7 +3,7 @@ title: Runtime Request Flow
 type: architecture
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-07-29
+last_verified: 2026-07-31
 tags:
   - type/architecture
   - area/gateway-core
@@ -18,7 +18,7 @@ aliases: []
 # Runtime Request Flow
 
 > [!summary] At a glance
-> Every non-operational request passes through hostname-based environment selection, proxy resolution, endpoint resolution, and the ordered policy pipeline; forwarding occurs only when a non-terminal forward endpoint continues.
+> Every non-operational request passes through hostname environment selection, active-revision proxy resolution, method-aware operation resolution, and the ordered policy pipeline.
 
 ## Context
 
@@ -36,9 +36,10 @@ flowchart TD
     ENVIRONMENT -->|"Unknown"| MISDIRECTED["421 Misdirected Request"]
     ENVIRONMENT -->|"Known"| PROXY{"Resolve longest proxy prefix"}
     PROXY -->|"No match"| PROXY404["404 unknown proxy"]
-    PROXY -->|"Match"| ENDPOINT{"Resolve explicit endpoint"}
-    ENDPOINT -->|"No match"| ENDPOINT404["404 unknown endpoint"]
-    ENDPOINT -->|"Match"| POLICIES["Run enabled policies by order"]
+    PROXY -->|"Match"| ENDPOINT{"Resolve path and method"}
+    ENDPOINT -->|"No path"| ENDPOINT404["404 unknown operation"]
+    ENDPOINT -->|"Wrong method"| METHOD405["405 plus Allow"]
+    ENDPOINT -->|"Match"| POLICIES["Run revision policies by order"]
     POLICIES -->|"Halt denial"| POLICYRESPONSE["Policy error response"]
     POLICIES -->|"Terminal response"| LOCAL["Return local OAuth or JWKS response"]
     POLICIES -->|"Continue + forward"| FORWARD["Build upstream URL and forward bytes"]
@@ -48,7 +49,7 @@ flowchart TD
 
 ## Data Flow
 
-Dynamic route parameters are extracted from the public endpoint path and
+Dynamic `{parameter}` values are extracted from the OpenAPI operation path and
 substituted into `targetPath`. Query parameters and arbitrary body bytes are
 preserved. Hop-by-hop headers are removed from both directions.
 The environment comes from the request authority matched against
@@ -69,8 +70,10 @@ gateway; `mtls-auth` then authorizes the connection-derived fingerprint.
 
 ## Constraints
 
-The gateway routing registry changes only at startup. Envoy certificate and CRL
-trust is a separate runtime and reloads atomically through file SDS.
+The gateway loads only `active` deployments and their selected immutable
+revision. The registry changes only at startup, so a Management API deployment
+returns `runtimeRefreshRequired: true`. Envoy certificate and CRL trust is a
+separate runtime and reloads atomically through file SDS.
 
 ## Sources
 
