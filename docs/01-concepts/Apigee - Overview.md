@@ -3,7 +3,7 @@ title: "Apigee - Overview"
 type: concept
 doc_status: current
 implementation_status: not-applicable
-last_verified: 2026-07-27
+last_verified: 2026-07-31
 tags:
   - type/concept
   - area/project
@@ -70,12 +70,13 @@ Policies are **reusable units of logic** attached to flows. Examples: rate limit
 | Organization      | `Organization` model                | Owns proxies, products and apps                  |
 | Environment       | `Environment` model                 | Closed stage and country/region target           |
 | API Proxy         | `ApiProxy` model                    | Logical definition independent of deployment    |
-| Deployment        | `ProxyDeployment` model             | Links proxy, environment and upstream server     |
-| ProxyEndpoint     | `Endpoint` model in Prisma          | Each proxy has multiple endpoints with basePaths |
-| TargetEndpoint    | `upstreamBaseUrl` + `targetPath`    | Deployment server plus endpoint path             |
-| BasePath          | `basePath` field on ApiProxy        | Used for Longest Prefix Match routing            |
+| Revision          | `ApiProxyRevision` model             | Immutable OpenAPI and Gateway YAML configuration |
+| Deployment        | `ProxyDeployment` model              | Links proxy, revision, environment, and upstream |
+| ProxyEndpoint     | `ProxyOperation` model               | Method/path operations derived from OpenAPI      |
+| TargetEndpoint    | `upstreamBaseUrl` + `targetPath`     | Deployment server plus operation path            |
+| BasePath          | `basePath` on `ApiProxyRevision`     | Used for Longest Prefix Match routing            |
 | Flows             | Policy pipeline                     | Ordered request policies implemented             |
-| Policies          | `EndpointPolicy` + registry         | JSON configuration validated at startup          |
+| Policies          | `OperationPolicy` + registry         | JSON configuration validated during import       |
 | XML policy input  | Planned compatibility layer         | Current persistence and runtime config are JSON  |
 
 ---

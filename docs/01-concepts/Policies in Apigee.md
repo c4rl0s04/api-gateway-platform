@@ -3,7 +3,7 @@ title: Policies in Apigee
 type: concept
 doc_status: current
 implementation_status: partial
-last_verified: 2026-07-27
+last_verified: 2026-07-31
 tags:
   - type/concept
   - area/policies
@@ -17,7 +17,7 @@ aliases: []
 # Policies in Apigee
 
 > [!summary] At a glance
-> Apigee offers policies across request and response flows; this project currently implements a smaller ordered request pipeline with two executable policy types.
+> Apigee offers policies across request and response flows; this project implements a smaller ordered request pipeline attached to immutable proxy operations.
 
 ## Definition
 
@@ -44,20 +44,24 @@ See [[Policy Reference Index]] for individual research notes.
 ## Project Mapping
 
 This project stores policy configuration as JSON in PostgreSQL and validates it
-against shared Zod schemas during gateway startup. Enabled endpoint policies are
-sorted by `order` and executed until one returns `halt`.
+against shared Zod schemas during revision import. Enabled operation policies
+are sorted by `order` and executed until one returns `halt`.
 
 Current runtime factories:
 
 - `api-key-auth`
 - `rate-limit`
+- `oauth-token`
+- `oauth-access-token`
+- `jwks-endpoint`
+- `mtls-auth`
 
 Shared contracts also name planned policies. A contract name is not executable
 until a factory is registered in `gateway-core`.
 
 ```mermaid
 flowchart LR
-    RECORD["EndpointPolicy JSON"] --> VALIDATE["Shared schema validation"]
+    RECORD["OperationPolicy JSON"] --> VALIDATE["Shared schema validation"]
     VALIDATE --> ORDER["Sort enabled policies"]
     ORDER --> EXECUTE["Execute registered factory"]
     EXECUTE -->|"continue"| NEXT["Next policy or upstream"]

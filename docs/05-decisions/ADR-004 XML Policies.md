@@ -4,7 +4,7 @@ type: decision
 doc_status: current
 implementation_status: planned
 decision_status: accepted
-last_verified: 2026-07-27
+last_verified: 2026-07-31
 tags:
   - type/decision
   - area/policies
@@ -24,8 +24,9 @@ aliases: []
 Apigee represents policies as XML. The project wants a migration path familiar
 to Apigee users without parsing XML on the request hot path.
 
-Current implementation is JSON-only: `EndpointPolicy.config` is a Prisma JSON
-field and shared Zod schemas validate it during gateway startup.
+Current implementation is JSON/YAML-only: Gateway YAML is normalized into the
+Prisma JSON field `OperationPolicy.config`, and shared Zod schemas validate it
+during immutable revision import.
 
 ## Decision
 
@@ -35,7 +36,7 @@ configuration is saved, and continue storing and executing normalized JSON.
 ```mermaid
 flowchart LR
     XML["XML authoring input"] -. "planned converter" .-> JSON["Validated JSON"]
-    JSON --> DATABASE["EndpointPolicy.config"]
+    JSON --> DATABASE["OperationPolicy.config"]
     DATABASE --> GATEWAY["gateway-core"]
 ```
 
