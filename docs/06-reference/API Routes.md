@@ -3,7 +3,7 @@ title: API Routes
 type: reference
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-07-29
+last_verified: 2026-07-31
 tags:
   - type/reference
   - area/project
@@ -12,6 +12,7 @@ sources:
   - packages/management-api/src/server.ts
   - packages/management-api/src/routes/apps.routes.ts
   - packages/management-api/src/routes/proxies.routes.ts
+  - packages/management-api/src/routes/proxy-revisions.routes.ts
 aliases: []
 ---
 
@@ -36,7 +37,8 @@ The catch-all can return:
 
 - `421` when the request host does not identify a loaded environment.
 - `404` when no proxy matches.
-- `404` when a proxy matches but no explicit endpoint matches.
+- `404` when a proxy matches but no operation path matches.
+- `405` with `Allow` when the path exists but the HTTP method is not defined.
 - Policy-defined statuses such as `401`, `403`, `429`, or `503`.
 - `502` when the upstream cannot be reached.
 
@@ -56,9 +58,16 @@ The gateway intentionally does not expose a root `/health` route.
 | `GET` | `/v1/organizations` | `200` | Organizations visible to the actor |
 | `GET` | `/v1/organizations/:organizationId` | `200` | Organization detail |
 | `GET` | `/v1/environments` | `200` | All closed environments and deployment/product counts |
+| `POST` | `/v1/organizations/:organizationId/proxies` | `201` | Create a logical proxy identity |
 | `GET` | `/v1/proxies` | `200` | Proxies visible to the actor |
-| `GET` | `/v1/proxies/:proxyId` | `200` | Proxy, endpoints, policies, products, and counts |
-| `GET` | `/v1/proxies/:proxyId/deployments` | `200` | Environment origins, upstreams, and deployment state |
+| `GET` | `/v1/proxies/:proxyId` | `200` | Proxy, latest revision, active deployments, products, and counts |
+| `POST` | `/v1/proxies/:proxyId/revisions` | `201` | Import an immutable OpenAPI and Gateway YAML bundle |
+| `GET` | `/v1/proxies/:proxyId/revisions` | `200` | Revision summaries visible to the actor |
+| `GET` | `/v1/proxies/:proxyId/revisions/:revisionNumber` | `200` | Revision operations and effective policies |
+| `GET` | `/v1/proxies/:proxyId/revisions/:revisionNumber/openapi` | `200` | Download the original OpenAPI document |
+| `GET` | `/v1/proxies/:proxyId/revisions/:revisionNumber/gateway-config` | `200` | Download the original Gateway YAML |
+| `POST` | `/v1/proxies/:proxyId/revisions/:revisionNumber/deployments` | `201` | Activate or roll back a revision in an environment |
+| `GET` | `/v1/proxies/:proxyId/deployments` | `200` | Active and retired deployment history |
 | `GET` | `/v1/organizations/:organizationId/apps` | `200` | Apps, credentials, grants, and certificates |
 | `POST` | `/v1/organizations/:organizationId/apps` | `201` | Atomically create app, generated credential, and approved product grants |
 | `GET` | `/v1/apps/:appId` | `200` | App, credentials, grants, public keys, and certificates |
@@ -79,8 +88,9 @@ The gateway intentionally does not expose a root `/health` route.
 | `GET` | `/v1/pki/status` | `200` | CA expiry, CRL, certificate, and audit status |
 
 Every `/v1` route requires an accepted OIDC Bearer token and at least one active
-database membership. CA mutations require `platformAdmin`; certificate
-mutations require `platformAdmin` or the matching `organizationAdmin`.
+database membership. CA mutations require `platformAdmin`; certificate and
+proxy mutations require `platformAdmin` or the matching `organizationAdmin`.
+A `viewer` has read-only access.
 
 Application registration accepts:
 
@@ -102,6 +112,19 @@ The `201` response contains `application`, `credential`, and
 never return the secret or its hash. The request cannot select authentication
 methods or provide custom credential material.
 
+Revision import requires `multipart/form-data` with exactly two file fields,
+`openapi` and `gateway`, each limited to 5 MiB. Deployment receives:
+
+```json
+{
+  "environmentId": "env-qual-es",
+  "upstreamBaseUrl": "http://banking-backend:9000"
+}
+```
+
+The deployment response includes `runtimeRefreshRequired: true`. The active
+runtime changes only after restarting the gateway.
+
 ## Examples
 
 ```bash
@@ -117,9 +140,11 @@ Management API is intentionally not callable from the host.
 
 - `packages/gateway-core/src/server.ts`
 - `packages/management-api/src/server.ts`
+- `packages/management-api/src/routes/proxy-revisions.routes.ts`
 
 ## Related Notes
 
 - [[Runtime Request Flow]]
 - [[Management API]]
+- [[How to Import and Deploy a Proxy Revision]]
 - [[Debug Gateway 404]]
