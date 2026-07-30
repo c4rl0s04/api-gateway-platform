@@ -3,7 +3,7 @@ title: How to Use Prisma Studio
 type: guide
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-07-27
+last_verified: 2026-07-31
 tags:
   - type/guide
   - area/database
@@ -36,22 +36,27 @@ npm run db:studio --workspace=packages/database
 
 Prisma Studio normally opens on `http://localhost:5555`.
 
-Use it to inspect organizations, environments, proxies, deployments,
-endpoints, policies, products, applications, and credentials.
+Use it to inspect organizations, environments, logical proxies, revisions,
+operations, policies, deployment history, products, applications, and
+credentials.
 
 ## Verification
 
-Confirm that each active proxy has an active deployment and explicit endpoints.
-For protected endpoints, verify the policy order and enabled state.
+Confirm that each deployed proxy has exactly one active deployment per
+environment and that it references the expected immutable revision. For
+protected operations, verify policy order and enabled state.
 
 ## Troubleshooting or Rollback
 
-Do not create deployments manually: that bypasses `createProxyDeployment()` and
-its stage progression. A running gateway will not see changes until it restarts.
-Use [[Reset Local Database]] only for disposable local data.
+Do not create revisions or deployments manually: that bypasses bundle
+validation, audit events, active-deployment uniqueness, conflict checks, and
+stage progression. Use Management API for mutations. A running gateway will not
+see changes until it restarts. Use [[Reset Local Database]] only for disposable
+local data.
 
 ## Related Notes
 
 - [[Data Model]]
 - [[Database Schema]]
+- [[How to Import and Deploy a Proxy Revision]]
 - [[Hot Reload Sync]]
