@@ -3,7 +3,7 @@ title: How to Run Tests
 type: guide
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-07-29
+last_verified: 2026-07-31
 tags:
   - type/guide
   - area/project
@@ -19,7 +19,7 @@ aliases: []
 # How to Run Tests
 
 > [!summary] At a glance
-> The root suite covers all six workspaces; live Compose tests separately verify Envoy mTLS and the complete OIDC/PKI workflow.
+> The root suite covers all six workspaces; live Compose tests separately verify revision transactions, Envoy mTLS, and the complete control-plane workflow.
 
 ## Goal
 
@@ -57,13 +57,19 @@ npm run docs:test
 With the local platform running:
 
 ```bash
+npm run test:integration:revisions
 npm run test:integration:mtls
 npm run test:platform
 ```
 
-`test:platform` checks all 30 environment origins, Management API catalog reads,
-API key and OAuth flows, cross-environment token rejection, disposable CA and
-certificate records, revocation, authority rotation, and persistence.
+`test:integration:revisions` uses live PostgreSQL to verify concurrent revision
+numbering, atomic failures, deployment history, rollback, promotion, and base
+path conflicts.
+
+`test:platform` checks all 30 environment origins, Management API revision
+import and deployment, gateway restart and rollback, API key and OAuth flows,
+cross-environment token rejection, disposable CA and certificate records,
+revocation, authority rotation, and persistence.
 
 Authentication tests generate ephemeral RSA keys. Clean migration/seed
 validation requires disposable PostgreSQL and must never target retained data.
