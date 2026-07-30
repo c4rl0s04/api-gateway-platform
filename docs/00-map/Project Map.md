@@ -3,7 +3,7 @@ title: Project Map
 type: map
 doc_status: current
 implementation_status: partial
-last_verified: 2026-07-27
+last_verified: 2026-07-31
 tags:
   - type/map
   - area/project
@@ -25,7 +25,7 @@ aliases: []
 | Understand the platform | [[Global Architecture]] | [[Data Plane vs Control Plane]] |
 | Trace a gateway request | [[Runtime Request Flow]] | [[Routing Engine]], [[gateway-core]] |
 | Change persistence | [[Data Model]] | [[Database Schema]], [[database]] |
-| Add a proxy deployment | [[How to Add a New Proxy]] | [[Deployment Model]] |
+| Import or deploy a proxy | [[How to Add a New Proxy]] | [[How to Import and Deploy a Proxy Revision]], [[Proxy Revisions and Deployments]] |
 | Work on policies | [[Policy Types]] | [[Policy Reference Index]], [[Debug Policy Failure]] |
 | Configure client authentication | [[Authentication and Authorization]] | [[How to Configure Application Authentication]], [[Debug OAuth and mTLS]] |
 | Work on certificates or trust | [[Multi-Client PKI]] | [[pki]], [[ADR-006 Envoy and Managed Client PKI]] |
@@ -63,6 +63,6 @@ Solid arrows represent current runtime interactions.
 
 ## Current Gaps
 
-General gateway CRUD, routing configuration hot reload, production key
-management, and Prometheus metrics are not implemented. See [[Current Status]]
-for the verified feature matrix.
+Product management, proxy configuration hot reload, production key management,
+and Prometheus metrics are not implemented. The Admin Panel does not yet expose
+the proxy revision API. See [[Current Status]] for the verified feature matrix.
