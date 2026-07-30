@@ -3,7 +3,7 @@ title: database
 type: package
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-07-29
+last_verified: 2026-07-31
 tags:
   - type/package
   - area/database
@@ -17,7 +17,7 @@ aliases: []
 # database
 
 > [!summary] At a glance
-> `@api-gateway/database` owns PostgreSQL persistence, generated Prisma access, seeds, migrations, and transactional deployment creation.
+> `@api-gateway/database` owns persistence plus validated proxy-bundle compilation, immutable revision creation, deployment history, promotion, and rollback invariants.
 
 ## Responsibility
 
@@ -29,7 +29,11 @@ This package is the persistence boundary for the monorepo.
 - Exports a shared `PrismaClient`.
 - Builds the generated client before compiling TypeScript.
 - Provides reproducible base and policy seeds.
-- Enforces deployment progression through `createProxyDeployment()`.
+- Compiles OpenAPI 3.0/3.1 and gateway YAML into validated operations and
+  policies through `compileProxyBundle()`.
+- Creates monotonically numbered revisions through `importProxyRevision()`.
+- Enforces exact-revision promotion and active deployment replacement through
+  `deployProxyRevision()`.
 - Exports credential, secret rotation, grant, public-key, and certificate
   domain operations.
 - Registers an app, generated credential, approved product grants, and audit
@@ -43,16 +47,18 @@ direct model writes.
 ## Public Contracts
 
 ```typescript
-await createProxyDeployment({
+await deployProxyRevision({
   proxyId: 'proxy-es-banking',
+  revisionNumber: 2,
   environmentId: 'env-pprod-es',
   upstreamBaseUrl: 'https://banking-pprod.example.com',
+  actor,
 });
 ```
 
-The operation normalizes trailing slashes, accepts only HTTP(S) upstreams, runs
-inside a transaction, and raises `DeploymentProgressionError` for an invalid
-stage transition.
+The operation normalizes trailing slashes, accepts only HTTP(S) upstreams,
+serializes activation, detects active base-path conflicts, retires the previous
+row, records audit metadata, and raises stable `ProxyDeploymentError` codes.
 
 `registerDeveloperApplication()` validates organization ownership, active
 products, unique product assignments, and scope subsets. Omitted grant scopes
@@ -62,11 +68,11 @@ never returns the persisted secret hash.
 ## Runtime Flow
 
 The base seed creates 30 stage/region environments with unique local HTTPS
-origins, organizations, logical proxies, endpoints, and initial `qual`
-deployments. The policy seed adds
+origins, organizations, and logical proxies. The policy seed compiles immutable
+revision 1 bundles, deploys business revisions to qual and `platform-oauth` to
+all environments, and adds
 products, apps, hashed credentials, explicit grants, a public development JWK,
-a local CA, two development client certificates, OIDC memberships, and endpoint policies. The base seed
-also deploys the local `platform-oauth` proxy to all 30 environments.
+a local CA, two development client certificates, and OIDC memberships.
 
 ## Configuration
 
@@ -75,9 +81,10 @@ PostgreSQL.
 
 ## Tests
 
-Tests cover closed deployment catalogs, progression, scrypt hashing, secret
-comparison, and certificate fingerprint normalization. Migration and seeds are
-validated against a disposable PostgreSQL database before release.
+Unit tests cover bundle validation, policy inheritance, scrypt hashing, secret
+comparison, and fingerprint normalization. PostgreSQL integration tests cover
+concurrent numbering, atomic invalid imports, promotion, one-active invariants,
+base-path conflicts, deployment history, and rollback.
 
 ## Limitations
 
@@ -95,3 +102,4 @@ validated against a disposable PostgreSQL database before release.
 - [[How to Use Prisma Studio]]
 - [[Reset Local Database]]
 - [[pki]]
+- [[Proxy Revisions and Deployments]]
