@@ -98,11 +98,12 @@ async function ensureTestClient(adminToken) {
 }
 
 async function management(token, route, options = {}) {
+  const multipartBody = typeof FormData !== 'undefined' && options.body instanceof FormData;
   return request(`${adminPanelBaseUrl}/api/management/${route}`, {
     ...options,
     headers: {
       cookie: `management_access_token=${token}`,
-      ...(options.body ? { 'content-type': 'application/json' } : {}),
+      ...(options.body && !multipartBody ? { 'content-type': 'application/json' } : {}),
       ...options.headers,
     },
   });
@@ -157,6 +158,32 @@ async function gatewayCurl(arguments_) {
   ]);
 }
 
+async function restartGateway() {
+  await exec('docker', [
+    'compose',
+    '--env-file',
+    composeEnvironment,
+    'restart',
+    'gateway',
+  ], { cwd: root });
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    try {
+      const response = await gatewayCurl([
+        '--output',
+        '/dev/null',
+        '--write-out',
+        '%{http_code}',
+        `${qualEsGatewayOrigin}/oauth/.well-known/jwks.json`,
+      ]);
+      if (response.stdout === '200') return;
+    } catch {
+      // Envoy may briefly observe the gateway restart.
+    }
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+  throw new Error('Gateway did not become ready after restart');
+}
+
 try {
   const users = parseEnvironment(await readFile(usersEnvironment, 'utf8'));
   await waitFor(`${keycloakBaseUrl}/realms/api-gateway`);
@@ -199,6 +226,96 @@ try {
   );
   if (oauthDeployments.length !== 30) {
     throw new Error('Managed OAuth proxy is not deployed in every environment');
+  }
+
+  const revisionSuffix = Date.now();
+  const revisionBasePath = `/management-revision-e2e-${revisionSuffix}`;
+  const managedProxy = await management(
+    accessToken,
+    'organizations/org-bank-dev/proxies',
+    {
+      method: 'POST',
+      body: JSON.stringify({ name: `Revision E2E ${revisionSuffix}` }),
+    },
+  );
+  const importRevision = async (operationId, publicPath) => {
+    const form = new FormData();
+    form.append('openapi', new Blob([JSON.stringify({
+      openapi: '3.1.0',
+      info: { title: 'Revision E2E', version: '1.0.0' },
+      paths: {
+        [publicPath]: {
+          get: {
+            operationId,
+            responses: { '200': { description: 'OK' } },
+          },
+        },
+      },
+    })], { type: 'application/json' }), 'openapi.json');
+    form.append('gateway', new Blob([JSON.stringify({
+      apiVersion: 'gateway.platform/v1',
+      basePath: revisionBasePath,
+      defaults: { policies: [] },
+      operations: { [operationId]: { targetPath: '/health' } },
+    })], { type: 'application/json' }), 'gateway.json');
+    return management(accessToken, `proxies/${managedProxy.id}/revisions`, {
+      method: 'POST',
+      body: form,
+    });
+  };
+  const deployRevision = revisionNumber => management(
+    accessToken,
+    `proxies/${managedProxy.id}/revisions/${revisionNumber}/deployments`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        environmentId: 'env-qual-es',
+        upstreamBaseUrl: 'http://mock-backend:4000',
+      }),
+    },
+  );
+
+  const revision1 = await importRevision('getRevisionOne', '/revision-one');
+  const firstDeployment = await deployRevision(revision1.revisionNumber);
+  if (!firstDeployment.runtimeRefreshRequired) {
+    throw new Error('Deployment did not report the required runtime restart');
+  }
+  await restartGateway();
+  const revisionOneResponse = await gatewayCurl([
+    '--output', '/dev/null', '--write-out', '%{http_code}',
+    `${qualEsGatewayOrigin}${revisionBasePath}/revision-one`,
+  ]);
+  if (revisionOneResponse.stdout !== '200') {
+    throw new Error('Gateway did not load revision 1 after restart');
+  }
+
+  const revision2 = await importRevision('getRevisionTwo', '/revision-two');
+  await deployRevision(revision2.revisionNumber);
+  await restartGateway();
+  const revisionTwoResponse = await gatewayCurl([
+    '--output', '/dev/null', '--write-out', '%{http_code}',
+    `${qualEsGatewayOrigin}${revisionBasePath}/revision-two`,
+  ]);
+  if (revisionTwoResponse.stdout !== '200') {
+    throw new Error('Gateway did not load revision 2 after restart');
+  }
+
+  await deployRevision(revision1.revisionNumber);
+  await restartGateway();
+  const rollbackResponse = await gatewayCurl([
+    '--output', '/dev/null', '--write-out', '%{http_code}',
+    `${qualEsGatewayOrigin}${revisionBasePath}/revision-one`,
+  ]);
+  const deploymentHistory = await management(
+    accessToken,
+    `proxies/${managedProxy.id}/deployments`,
+  );
+  if (
+    rollbackResponse.stdout !== '200'
+    || deploymentHistory.length !== 3
+    || deploymentHistory.filter(item => item.status === 'active').length !== 1
+  ) {
+    throw new Error('Proxy revision rollback history is inconsistent');
   }
 
   const appsBefore = await management(
@@ -433,7 +550,7 @@ try {
     throw new Error('An unrelated mTLS client stopped working');
   }
 
-  console.log('Platform application, OIDC, OAuth, PKI and persistence checks passed');
+  console.log('Platform revisions, OIDC, OAuth, PKI and persistence checks passed');
 } finally {
   await rm(workDirectory, { recursive: true, force: true });
 }
