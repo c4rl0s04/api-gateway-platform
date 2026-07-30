@@ -3,7 +3,7 @@ title: Management API
 type: architecture
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-07-29
+last_verified: 2026-07-31
 tags:
   - type/architecture
   - area/management-api
@@ -17,7 +17,7 @@ aliases: []
 # Management API
 
 > [!summary] At a glance
-> The Management API is an internal Fastify service that verifies OIDC tokens, exposes authorized deployment-catalog reads, registers application aggregates, and manages organization-scoped PKI.
+> The Management API is an internal Fastify control plane for immutable proxy revisions, deployments, application aggregates, and organization-scoped PKI.
 
 ## Context
 
@@ -30,6 +30,9 @@ to the host; the Admin Panel BFF is its browser-facing caller.
 - Membership authorization: `platformAdmin`, `organizationAdmin`, and `viewer`.
 - Read models for identity, organizations, environments, proxies, deployments,
   and applications.
+- Logical proxy creation and multipart OpenAPI/gateway bundle import.
+- Immutable revision metadata, compiled operation, and original-source reads.
+- Revision-specific promotion, deployment replacement, history, and rollback.
 - Transactional application registration with generated consumer key/secret and
   approved product grants.
 - CA lifecycle: create/import, activate, retire, revoke, rotate, refresh/upload
@@ -45,7 +48,7 @@ flowchart LR
     CLIENT["Admin Panel BFF"] --> OIDC["Verify OIDC JWT"]
     OIDC --> MEMBERSHIP["Load active memberships"]
     MEMBERSHIP --> DOMAIN["Validate role and organization"]
-    DOMAIN --> DATABASE["Transactional database and audit write"]
+    DOMAIN --> DATABASE["Revision, deployment, and audit transaction"]
     DOMAIN --> KEYSTORE["Managed CA key operation"]
     DOMAIN --> SDS["Atomic CA and CRL bundle update"]
 ```
@@ -53,8 +56,9 @@ flowchart LR
 Exact routes are listed in [[API Routes]]. Application registration passes
 through the database domain operation so product ownership, activity, scopes,
 credential generation, grants, and audit are committed or rolled back together.
-Proxy, deployment, product, policy, and later credential/grant mutations are
-not implemented in this phase; their current catalog surface is read-only.
+Proxy configuration writes create immutable revisions. Deployments select an
+existing revision and report that the gateway must restart. Products and later
+credential/grant mutations remain outside this phase.
 
 ## Failure Modes
 
@@ -67,10 +71,11 @@ not implemented in this phase; their current catalog surface is read-only.
 
 ## Constraints
 
-Application registration and certificate/PKI control-plane mutations are
-complete. General gateway configuration CRUD, credential rotation routes, grant
-mutation routes, JWK routes, and routing-registry hot reload remain future work.
+Revision import and deployment, application registration, and certificate/PKI
+mutations are implemented. Revision editing, product CRUD, credential rotation,
+grant mutation, JWK routes, and routing-registry hot reload remain future work.
 
 ## Sources
 
-See [[Control Plane Flow]], [[management-api]], and [[Current Status]].
+See [[Control Plane Flow]], [[management-api]], [[Proxy Revisions and Deployments]],
+and [[Current Status]].

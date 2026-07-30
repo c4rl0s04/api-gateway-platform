@@ -3,7 +3,7 @@ title: management-api
 type: package
 doc_status: current
 implementation_status: partial
-last_verified: 2026-07-29
+last_verified: 2026-07-31
 tags:
   - type/package
   - area/management-api
@@ -17,14 +17,13 @@ aliases: []
 # management-api
 
 > [!summary] At a glance
-> `management-api` is the OIDC-protected control plane for reading the gateway deployment catalog, registering applications, and operating organization-scoped PKI.
+> `management-api` is the OIDC-protected control plane for proxy revision imports and deployments, application registration, catalog reads, and organization-scoped PKI.
 
 ## Responsibility
 
-The implemented responsibility includes authorized reads of environments,
-proxies, endpoints, policies, products, and deployments; validated application
-registration; and mutation of certificate authorities, certificates, CRLs,
-runtime trust, and audit records.
+The implemented responsibility includes logical proxy creation, atomic
+OpenAPI/gateway bundle import, immutable revision reads and source downloads,
+revision deployment and rollback, application registration, and PKI lifecycle.
 
 ## Boundaries
 
@@ -37,6 +36,10 @@ runtime trust, and audit records.
   event through one database-domain transaction.
 - Exposes all environments while filtering proxy reads to the actor's visible
   organizations; platform admins can read the complete catalog.
+- Accepts exactly two multipart bundle files with 5 MiB limits.
+- Delegates revision numbering, compilation, promotion, activation, conflicts,
+  history, and audit to database domain operations.
+- Prevents public mutation of system-managed proxies.
 
 ## Public Contracts
 
@@ -57,13 +60,15 @@ internal.
 ## Tests
 
 Tests cover cryptographic token verification, missing identities, membership
-resolution, role boundaries, deployment-catalog routes, application route
-contracts, and CA mutation authorization.
+resolution, role boundaries, multipart revision contracts, deployment
+activation responses, catalog routes, application contracts, and CA mutation
+authorization. `test:platform` verifies import, restart, replacement, and
+rollback through the real BFF and Management API.
 
 ## Limitations
 
-- Proxy, product, deployment, policy, and post-registration credential/grant
-  mutation routes are absent; these resources are read-only for now.
+- Product, post-registration credential/grant, and direct revision editing
+  routes are absent.
 - No scheduled external CRL refresh.
 - No routing-registry hot reload.
 
@@ -72,3 +77,4 @@ contracts, and CA mutation authorization.
 - [[Management API]]
 - [[Control Plane Flow]]
 - [[API Routes]]
+- [[Proxy Revisions and Deployments]]

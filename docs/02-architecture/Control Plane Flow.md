@@ -3,7 +3,7 @@ title: Control Plane Flow
 type: architecture
 doc_status: current
 implementation_status: partial
-last_verified: 2026-07-27
+last_verified: 2026-07-31
 tags:
   - type/architecture
   - area/management-api
@@ -17,7 +17,7 @@ aliases: []
 # Control Plane Flow
 
 > [!summary] At a glance
-> The current control plane provides OIDC-protected PKI administration and audit views; general proxy, product, application, and policy CRUD remains planned.
+> The control plane provides OIDC-protected revision deployment, application registration, PKI administration, and audit; product administration and hot reload remain planned.
 
 ## Context
 
@@ -35,16 +35,17 @@ flowchart LR
     API --> KEYSTORE["Encrypted CA keystore"]
     API --> SDS["Envoy SDS resources"]
     SDS --> ENVOY["Envoy"]
-    DATABASE -. "routing reload planned" .-> GATEWAY["gateway-core"]
+    DATABASE -. "loaded on restart" .-> GATEWAY["gateway-core"]
 ```
 
 ## Data Flow
 
 Authorization Code with PKCE creates an HttpOnly panel session. The BFF sends
 the access token to Management API, which validates identity and database
-membership before executing PKI mutations and audit writes. CA/CRL changes are
-published atomically to Envoy. Gateway routing configuration still reloads only
-at process startup.
+membership before proxy, deployment, application, or PKI mutations. Proxy
+imports compile OpenAPI and gateway configuration atomically; deployment
+activation persists desired routing and requires gateway restart. CA/CRL
+changes continue to publish dynamically to Envoy.
 
 ## Failure Modes
 
@@ -56,8 +57,8 @@ at process startup.
 
 ## Constraints
 
-PKI workflows are implemented. Product and proxy pages remain contextual
-placeholders, and Redis-based routing hot reload remains a design only.
+PKI and proxy revision APIs are implemented. Product and proxy web pages remain
+contextual placeholders, and Redis-based routing hot reload remains a design.
 
 ## Sources
 
