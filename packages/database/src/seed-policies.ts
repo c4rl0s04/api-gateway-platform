@@ -135,6 +135,36 @@ const DEVELOPER_APPS = [
     name:           'Bank Partner Secondary App',
     organizationId: 'org-bank-dev',
   },
+  {
+    id:             'app-logistics-portal',
+    name:           'Logistics Operations Portal',
+    organizationId: 'org-log-dev',
+  },
+  {
+    id:             'app-commerce-storefront',
+    name:           'Commerce Storefront',
+    organizationId: 'org-ecom-dev',
+  },
+  {
+    id:             'app-healthcare-analytics',
+    name:           'Healthcare Analytics',
+    organizationId: 'org-health-dev',
+  },
+  {
+    id:             'app-iot-operations',
+    name:           'IoT Operations Console',
+    organizationId: 'org-iot-dev',
+  },
+  {
+    id:             'app-streaming-catalog',
+    name:           'Streaming Catalog Consumer',
+    organizationId: 'org-stream-dev',
+  },
+  {
+    id:             'app-gaming-scoreboard',
+    name:           'Gaming Scoreboard',
+    organizationId: 'org-game-dev',
+  },
 ];
 
 // ─── Credentials ──────────────────────────────────────────────────────────────
@@ -153,7 +183,7 @@ const API_CREDENTIALS = [
     consumerSecret: 'dev-bank-secret-xyz789-0123456789abcdef',
     // This credential grants access to the Banking APIs product
     productIds:     ['product-banking-apis'],
-    scopes:         ['banking:read'],
+    scopes:         ['banking:read', 'banking:write'],
   },
   {
     id:             'cred-id-001',
@@ -170,7 +200,55 @@ const API_CREDENTIALS = [
     consumerKey:    'dev-bank-key-secondary',
     consumerSecret: 'dev-bank-secret-secondary-0123456789abcdef',
     productIds:     ['product-banking-apis'],
-    scopes:         ['banking:read'],
+    scopes:         ['banking:read', 'banking:write'],
+  },
+  {
+    id:             'cred-logistics-001',
+    appId:          'app-logistics-portal',
+    consumerKey:    'dev-logistics-key-001',
+    consumerSecret: 'dev-logistics-secret-001-0123456789abcdef',
+    productIds:     ['product-logistics-apis'],
+    scopes:         ['logistics:read'],
+  },
+  {
+    id:             'cred-commerce-001',
+    appId:          'app-commerce-storefront',
+    consumerKey:    'dev-commerce-key-001',
+    consumerSecret: 'dev-commerce-secret-001-0123456789abcdef',
+    productIds:     ['product-commerce-apis'],
+    scopes:         ['commerce:read', 'commerce:write'],
+  },
+  {
+    id:             'cred-healthcare-001',
+    appId:          'app-healthcare-analytics',
+    consumerKey:    'dev-healthcare-key-001',
+    consumerSecret: 'dev-healthcare-secret-001-0123456789abcdef',
+    productIds:     ['product-healthcare-apis'],
+    scopes:         ['healthcare:read'],
+  },
+  {
+    id:             'cred-iot-001',
+    appId:          'app-iot-operations',
+    consumerKey:    'dev-iot-key-001',
+    consumerSecret: 'dev-iot-secret-001-0123456789abcdef',
+    productIds:     ['product-iot-apis'],
+    scopes:         ['iot:read'],
+  },
+  {
+    id:             'cred-streaming-001',
+    appId:          'app-streaming-catalog',
+    consumerKey:    'dev-streaming-key-001',
+    consumerSecret: 'dev-streaming-secret-001-0123456789abcdef',
+    productIds:     ['product-streaming-apis'],
+    scopes:         ['streaming:read'],
+  },
+  {
+    id:             'cred-gaming-001',
+    appId:          'app-gaming-scoreboard',
+    consumerKey:    'dev-gaming-key-001',
+    consumerSecret: 'dev-gaming-secret-001-0123456789abcdef',
+    productIds:     ['product-gaming-apis'],
+    scopes:         ['gaming:read'],
   },
 ];
 
