@@ -55,7 +55,7 @@ const API_PRODUCTS = [
     organizationId: 'org-bank-dev',
     // Proxies bundled into this product
     proxyIds:       ['proxy-es-banking', 'proxy-us-banking'],
-    scopes:         ['banking:read'],
+    scopes:         ['banking:read', 'banking:write'],
     // Empty means the product is available in every environment.
     environmentIds: [],
   },
@@ -66,6 +66,54 @@ const API_PRODUCTS = [
     proxyIds:       ['proxy-us-identity'],
     scopes:         ['identity:read'],
     environmentIds: [],
+  },
+  {
+    id:             'product-logistics-apis',
+    name:           'Logistics APIs',
+    organizationId: 'org-log-dev',
+    proxyIds:       ['proxy-uk-logistics'],
+    scopes:         ['logistics:read'],
+    environmentIds: ['env-qual-uk', 'env-pprod-uk', 'env-prod-uk'],
+  },
+  {
+    id:             'product-commerce-apis',
+    name:           'Commerce APIs',
+    organizationId: 'org-ecom-dev',
+    proxyIds:       ['proxy-fr-ecommerce', 'proxy-es-ecommerce'],
+    scopes:         ['commerce:read', 'commerce:write'],
+    environmentIds: [],
+  },
+  {
+    id:             'product-healthcare-apis',
+    name:           'Healthcare APIs',
+    organizationId: 'org-health-dev',
+    proxyIds:       ['proxy-de-healthcare'],
+    scopes:         ['healthcare:read'],
+    environmentIds: ['env-qual-de'],
+  },
+  {
+    id:             'product-iot-apis',
+    name:           'IoT APIs',
+    organizationId: 'org-iot-dev',
+    proxyIds:       ['proxy-jp-iot'],
+    scopes:         ['iot:read'],
+    environmentIds: [],
+  },
+  {
+    id:             'product-streaming-apis',
+    name:           'Streaming APIs',
+    organizationId: 'org-stream-dev',
+    proxyIds:       ['proxy-br-streaming'],
+    scopes:         ['streaming:read'],
+    environmentIds: [],
+  },
+  {
+    id:             'product-gaming-apis',
+    name:           'Gaming APIs',
+    organizationId: 'org-game-dev',
+    proxyIds:       ['proxy-kr-gaming'],
+    scopes:         ['gaming:read'],
+    environmentIds: ['env-qual-kr'],
   },
 ];
 
