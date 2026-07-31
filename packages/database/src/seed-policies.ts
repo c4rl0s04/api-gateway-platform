@@ -7,16 +7,16 @@ import {
   PrismaClient,
 } from './generated';
 import { hashConsumerSecret } from './credentials.js';
+import { compileProxyBundle } from './proxy-bundle.js';
 import { deployProxyRevision } from './proxy-deployments.js';
 import { importProxyRevision } from './proxy-revisions.js';
-import {
-  ENVIRONMENTS,
-  PLATFORM_OAUTH_ENDPOINTS,
-  PROXIES,
-} from './seed.js';
+import { PROXY_SEED_SCENARIOS, type SeedRevision } from './seed-proxy-scenarios.js';
+import { ENVIRONMENTS } from './seed.js';
 import { X509Certificate } from 'node:crypto';
 
 const prisma = new PrismaClient();
+const DEV_UPSTREAM_BASE_URL =
+  process.env.DEV_UPSTREAM_BASE_URL ?? 'http://localhost:4000';
 const DEFAULT_DEV_CLIENT_PUBLIC_JWK = {
   kty: 'RSA',
   n: 'w7H7s7ANk9hYBcJY6cLOUqGCGj-UWapwAY09a4tcR9AgHR20RTH_h-XD8VXN-BPTmDWCNulTn4JJ0FFVRj3_pd3Y686cPLyz8Yl6IUSdDm4oYp-6fHzCf9lzH7UbuLvrUaAbJ3yCMg8HFRGTiBpgX8PCji5xHxRh2yumfHed7x4VGYJ3odGnzfD2rA1p4G-jjyAYD_6xAfBdnGP0vhPRp-9xn6P-qCDEelkbnChEvo6v9t8pvKd-3QnfvKFakjFFiy7gg4_XrqY10_sIMjtEFPOv2kW4Y71pxAfYfnDAd4KXSeyn-KT8tXO_-GMz8lTNUynol4FcER1z9YlecTGbdQ',
@@ -126,104 +126,6 @@ const API_CREDENTIALS = [
   },
 ];
 
-// ─── Endpoint Policies ────────────────────────────────────────────────────────
-//
-// Local development coverage:
-//   - ep-oauth-token: rate-limit + oauth-token
-//   - ep-oauth-jwks: jwks-endpoint
-//   - ep-esb-accounts (/es/banking/v1/accounts): api-key-auth + rate-limit (5 req/min)
-//   - ep-esb-acc-id  (/es/banking/v1/accounts/:id): oauth-access-token
-//   - ep-esb-health  (/es/banking/v1/health): mtls-auth
-//   - ep-usi-users    (/us/identity/v1/users):   api-key-auth only
-
-const ENDPOINT_POLICIES = [
-  {
-    id:         'pol-oauth-token-ratelimit',
-    endpointId: 'ep-oauth-token',
-    type:       'rate-limit',
-    order:      1,
-    enabled:    true,
-    config:     { limit: 30, windowSeconds: 60, failureMode: 'closed' },
-  },
-  {
-    id:         'pol-oauth-token-issue',
-    endpointId: 'ep-oauth-token',
-    type:       'oauth-token',
-    order:      2,
-    enabled:    true,
-    config: {
-      failureMode: 'closed',
-      grantTypes: [
-        'client_credentials',
-        'urn:ietf:params:oauth:grant-type:jwt-bearer',
-      ],
-      accessTokenTtlSeconds: 900,
-      audience: 'api-gateway',
-      allowedScopes: ['banking:read', 'identity:read'],
-    },
-  },
-  {
-    id:         'pol-oauth-jwks',
-    endpointId: 'ep-oauth-jwks',
-    type:       'jwks-endpoint',
-    order:      1,
-    enabled:    true,
-    config:     { failureMode: 'closed' },
-  },
-  {
-    id:         'pol-esb-acc-id-oauth',
-    endpointId: 'ep-esb-acc-id',
-    type:       'oauth-access-token',
-    order:      1,
-    enabled:    true,
-    config: {
-      failureMode: 'closed',
-      audience: 'api-gateway',
-      requiredScopes: ['banking:read'],
-    },
-  },
-  {
-    id:         'pol-esb-health-mtls',
-    endpointId: 'ep-esb-health',
-    type:       'mtls-auth',
-    order:      1,
-    enabled:    true,
-    config:     { failureMode: 'closed' },
-  },
-  // ES Banking /accounts — api-key-auth first (order 1)
-  {
-    id:         'pol-esb-acc-apikey',
-    endpointId: 'ep-esb-accounts',
-    type:       'api-key-auth',
-    order:      1,
-    enabled:    true,
-    config:     { header: 'x-api-key', failureMode: 'closed' },
-  },
-  // ES Banking /accounts — rate-limit second (order 2)
-  // Low limit (5/min) for easy testing in development
-  {
-    id:         'pol-esb-acc-ratelimit',
-    endpointId: 'ep-esb-accounts',
-    type:       'rate-limit',
-    order:      2,
-    enabled:    true,
-    config:     { limit: 5, windowSeconds: 60, failureMode: 'open' },
-  },
-  // US Identity /users — api-key-auth only
-  {
-    id:         'pol-usi-users-apikey',
-    endpointId: 'ep-usi-users',
-    type:       'api-key-auth',
-    order:      1,
-    enabled:    true,
-    config:     { header: 'x-api-key', failureMode: 'closed' },
-  },
-];
-
-function openApiPath(path: string): string {
-  return path.replace(/:([A-Za-z0-9_]+)/g, '{$1}');
-}
-
 function pathParameters(path: string) {
   return [...path.matchAll(/\{([A-Za-z0-9_]+)\}/g)].map(match => ({
     name: match[1],
@@ -233,113 +135,132 @@ function pathParameters(path: string) {
   }));
 }
 
+function revisionSources(proxyId: string, revision: SeedRevision) {
+  const paths: Record<string, Record<string, unknown>> = {};
+  for (const operation of revision.operations) {
+    paths[operation.path] ??= {};
+    paths[operation.path][operation.method] = {
+      operationId: operation.operationId,
+      parameters: pathParameters(operation.path),
+      responses: { '200': { description: 'Development seed response' } },
+    };
+  }
+  const openapiSource = JSON.stringify({
+    openapi: '3.1.0',
+    info: { title: proxyId, version: revision.apiVersion },
+    paths,
+  }, null, 2);
+  const gatewayConfigSource = JSON.stringify({
+    apiVersion: 'gateway.platform/v1',
+    basePath: revision.basePath,
+    ...(revision.defaults === undefined
+      ? {}
+      : { defaults: { policies: revision.defaults } }),
+    operations: Object.fromEntries(revision.operations.map(operation => [
+      operation.operationId,
+      {
+        ...(operation.mode ? { mode: operation.mode } : {}),
+        ...(operation.targetPath ? { targetPath: operation.targetPath } : {}),
+        ...(operation.policies === undefined
+          ? {}
+          : { policies: operation.policies }),
+      },
+    ])),
+  }, null, 2);
+  return { openapiSource, gatewayConfigSource };
+}
+
 async function seedProxyRevisions(): Promise<void> {
-  const configurations = [
-    ...PROXIES.map(proxy => ({ ...proxy, systemManaged: false })),
-    {
-      id: 'proxy-platform-oauth',
-      name: 'Platform OAuth',
-      basePath: '/oauth',
-      organizationId: 'org-platform',
-      systemManaged: true,
-      deployment: null,
-      endpoints: PLATFORM_OAUTH_ENDPOINTS.map(endpoint => ({
-        ...endpoint,
-        targetPath: null,
-      })),
-    },
-  ];
-  const actor = {
+  const importActor = {
     issuer: 'seed://local',
-    subject: 'database-seed',
+    subject: 'database-seed:revision-catalog',
     role: AdminRole.platformAdmin,
   };
-  for (const proxy of configurations) {
-    let revision = await prisma.apiProxyRevision.findUnique({
-      where: {
-        proxyId_revisionNumber: { proxyId: proxy.id, revisionNumber: 1 },
-      },
-      select: { id: true, revisionNumber: true },
-    });
-    if (!revision) {
-      const paths = Object.fromEntries(proxy.endpoints.map(endpoint => {
-        const path = openApiPath(endpoint.path);
-        const method = 'method' in endpoint ? endpoint.method : 'get';
-        return [path, {
-          [method]: {
-            operationId: endpoint.id,
-            parameters: pathParameters(path),
-            responses: { '200': { description: 'Development seed response' } },
-          },
-        }];
-      }));
-      const openapiSource = JSON.stringify({
-        openapi: '3.1.0',
-        info: { title: proxy.name, version: '1.0.0' },
-        paths,
-      }, null, 2);
-      const gatewayConfigSource = JSON.stringify({
-        apiVersion: 'gateway.platform/v1',
-        basePath: proxy.basePath,
-        operations: Object.fromEntries(proxy.endpoints.map(endpoint => [
-          endpoint.id,
-          {
-            ...('mode' in endpoint && endpoint.mode === 'local'
-              ? { mode: 'local' }
-              : {}),
-            targetPath: endpoint.targetPath
-              ? openApiPath(endpoint.targetPath)
-              : undefined,
-            policies: ENDPOINT_POLICIES
-              .filter(policy => policy.endpointId === endpoint.id)
-              .sort((left, right) => left.order - right.order)
-              .map(policy => ({
-              type: policy.type,
-              enabled: policy.enabled,
-              config: policy.config,
-            })),
-          },
-        ])),
-      }, null, 2);
-      const imported = await importProxyRevision({
-        proxyId: proxy.id,
-        openapiSource,
-        gatewayConfigSource,
-        allowSystemManaged: true,
-        actor,
+  let importedRevisionCount = 0;
+  let deploymentEventCount = 0;
+  for (const scenario of PROXY_SEED_SCENARIOS) {
+    const revisions = [];
+    for (const definition of scenario.revisions) {
+      const sources = revisionSources(scenario.proxyId, definition);
+      const compiled = await compileProxyBundle({
+        ...sources,
+        systemManaged: scenario.systemManaged === true,
       });
-      revision = { id: imported.id, revisionNumber: imported.revisionNumber };
+      let revision = await prisma.apiProxyRevision.findFirst({
+        where: { proxyId: scenario.proxyId, contentHash: compiled.contentHash },
+        select: { id: true, revisionNumber: true },
+      });
+      if (!revision) {
+        const imported = await importProxyRevision({
+          proxyId: scenario.proxyId,
+          ...sources,
+          allowSystemManaged: true,
+          actor: importActor,
+        });
+        revision = { id: imported.id, revisionNumber: imported.revisionNumber };
+        importedRevisionCount += 1;
+      }
+      revisions.push(revision);
     }
-    const targets = proxy.systemManaged
-      ? ENVIRONMENTS.map(environment => ({
+
+    if (scenario.deployLatestToAllEnvironments) {
+      const revision = revisions.at(-1)!;
+      for (const environment of ENVIRONMENTS) {
+        const active = await prisma.proxyDeployment.findFirst({
+          where: {
+            proxyId: scenario.proxyId,
+            environmentId: environment.id,
+            revisionId: revision.id,
+            status: 'active',
+          },
+          select: { id: true },
+        });
+        if (active) continue;
+        await deployProxyRevision({
+          proxyId: scenario.proxyId,
+          revisionNumber: revision.revisionNumber,
           environmentId: environment.id,
           upstreamBaseUrl: null,
-        }))
-      : [proxy.deployment];
-    for (const target of targets) {
-      if (!target) continue;
-      const active = await prisma.proxyDeployment.findFirst({
+          allowSystemManaged: true,
+          actor: {
+            ...importActor,
+            subject: `database-seed:oauth:${environment.id}`,
+          },
+        });
+        deploymentEventCount += 1;
+      }
+    }
+
+    for (const event of scenario.deployments ?? []) {
+      const actorSubject = `database-seed:deployment:${event.key}`;
+      const applied = await prisma.auditEvent.findFirst({
         where: {
-          proxyId: proxy.id,
-          environmentId: target.environmentId,
-          revisionId: revision.id,
-          status: 'active',
+          actorIssuer: importActor.issuer,
+          actorSubject,
+          resourceType: 'ProxyDeployment',
         },
         select: { id: true },
       });
-      if (!active) {
-        await deployProxyRevision({
-          proxyId: proxy.id,
-          revisionNumber: revision.revisionNumber,
-          environmentId: target.environmentId,
-          upstreamBaseUrl: target.upstreamBaseUrl,
-          allowSystemManaged: true,
-          actor,
-        });
-      }
+      if (applied) continue;
+      const revision = revisions[event.revision - 1];
+      if (!revision) throw new Error(`Unknown revision ${event.revision} in ${event.key}`);
+      await deployProxyRevision({
+        proxyId: scenario.proxyId,
+        revisionNumber: revision.revisionNumber,
+        environmentId: event.environmentId,
+        upstreamBaseUrl: DEV_UPSTREAM_BASE_URL,
+        allowSystemManaged: true,
+        actor: { ...importActor, subject: actorSubject },
+      });
+      deploymentEventCount += 1;
     }
   }
-  console.log(`✓ ${configurations.length} immutable proxy revisions`);
+  const totalRevisions = PROXY_SEED_SCENARIOS.reduce(
+    (total, scenario) => total + scenario.revisions.length,
+    0,
+  );
+  console.log(`✓ ${totalRevisions} immutable proxy revision examples (${importedRevisionCount} imported)`);
+  console.log(`✓ ${deploymentEventCount} deployment timeline events applied`);
 }
 
 // ─── Seed ─────────────────────────────────────────────────────────────────────
