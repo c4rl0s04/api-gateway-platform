@@ -133,7 +133,7 @@ integration('proxy revision persistence', () => {
       upstreamBaseUrl: 'https://revision-one.example.test',
       actor,
     });
-    await deployProxyRevision({
+    const replacement = await deployProxyRevision({
       proxyId: proxy.id,
       revisionNumber: revision2.revisionNumber,
       environmentId: 'env-qual-es',
@@ -154,6 +154,18 @@ integration('proxy revision persistence', () => {
     });
     assert.equal(history.length, 3);
     assert.equal(history.filter(item => item.status === 'active').length, 1);
+    const auditEvents = await prisma.auditEvent.findMany({
+      where: {
+        resourceType: 'ProxyDeployment',
+        resourceId: { in: [replacement.id, rollback.id] },
+      },
+    });
+    const rollbackFlags = new Map(auditEvents.map(event => [
+      event.resourceId,
+      (event.metadata as { rollback: boolean }).rollback,
+    ]));
+    assert.equal(rollbackFlags.get(replacement.id), false);
+    assert.equal(rollbackFlags.get(rollback.id), true);
 
     await deployProxyRevision({
       proxyId: proxy.id,

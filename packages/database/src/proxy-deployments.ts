@@ -150,7 +150,10 @@ export async function deployProxyRevision(input: DeployProxyRevisionInput) {
         environmentId: input.environmentId,
         status: DeploymentStatus.active,
       },
-      select: { id: true, revisionId: true },
+      select: {
+        id: true,
+        revision: { select: { revisionNumber: true } },
+      },
     });
     if (previous) {
       await transaction.proxyDeployment.update({
@@ -189,7 +192,9 @@ export async function deployProxyRevision(input: DeployProxyRevisionInput) {
           revisionNumber: input.revisionNumber,
           environmentId: input.environmentId,
           replacedDeploymentId: previous?.id ?? null,
-          rollback: Boolean(previous?.revisionId && previous.revisionId !== revision.id),
+          rollback: previous
+            ? input.revisionNumber < previous.revision.revisionNumber
+            : false,
         },
       },
     });
