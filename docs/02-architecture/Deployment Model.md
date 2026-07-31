@@ -3,7 +3,7 @@ title: Deployment Model
 type: architecture
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-07-29
+last_verified: 2026-07-31
 tags:
   - type/architecture
   - area/operations
@@ -63,8 +63,10 @@ flowchart TB
 Compose. Health and completion dependencies enforce PostgreSQL, migrations,
 seeds, Redis, Keycloak, mock backend, gateway, Management API, panel, and ingress
 startup order. The gateway loads all active deployments from PostgreSQL,
-selects their environment from the request hostname, and forwards to the
-deployment-specific upstream. Local origins follow
+including each immutable revision's base path, operations, and policies. It
+selects the environment from the request hostname and forwards to the
+deployment-specific upstream. Retired deployment rows remain as history but
+are never loaded by the runtime. Local origins follow
 `https://<stage>-<region>.gateway.localhost:8443`.
 Prometheus and Grafana require the optional `observability` profile.
 
@@ -75,6 +77,8 @@ Prometheus and Grafana require the optional `observability` profile.
   mTLS material until the environment is recreated.
 - A stale Keycloak volume does not re-import a changed local realm; use the
   documented volume reset when bootstrap definitions change.
+- Importing or deploying a revision does not refresh a running gateway; restart
+  it to load the new active deployment set.
 
 ## Constraints
 
