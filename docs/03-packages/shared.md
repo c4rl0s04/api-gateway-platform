@@ -3,7 +3,7 @@ title: shared
 type: package
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-07-29
+last_verified: 2026-07-31
 tags:
   - type/package
   - area/shared
@@ -42,6 +42,8 @@ interface ProxyConfig {
   name: string;
   basePath: string;
   deploymentId: string;
+  revisionId: string;
+  revisionNumber: number;
   environment: EnvironmentConfig;
   systemManaged: boolean;
   upstreamBaseUrl: string | null;
@@ -51,7 +53,9 @@ interface ProxyConfig {
 }
 ```
 
-`EndpointConfig.mode` is `forward | local`; local endpoints have nullable
+`EndpointConfig` is the runtime representation of one persisted
+`ProxyOperation`; it includes `operationId`, HTTP `method`, and `path`.
+`EndpointConfig.mode` is `forward | local`; local operations have nullable
 `targetPath`. Use [[Policy Types]] to distinguish executable and planned types.
 
 ## Runtime Flow
