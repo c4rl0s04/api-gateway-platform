@@ -4,7 +4,7 @@ type: decision
 doc_status: current
 implementation_status: implemented
 decision_status: accepted
-last_verified: 2026-07-27
+last_verified: 2026-07-31
 tags:
   - type/decision
   - area/gateway-core
@@ -16,7 +16,7 @@ aliases: []
 # ADR-002: Explicit Endpoints
 
 > [!summary] At a glance
-> A matched proxy forwards only requests that also match an explicitly configured endpoint.
+> A matched proxy forwards only requests that match an explicit OpenAPI operation in its active immutable revision.
 
 | Field | Value |
 | ----- | ----- |
@@ -36,20 +36,24 @@ The question: should the proxy forward **any** suffix to the backend, or should 
 
 ## Decision
 
-Endpoints must be **explicitly configured** in the database. There is no catch-all or wildcard forwarding. Every path that the gateway should accept must have a corresponding `Endpoint` record.
+Operations must be **explicitly declared** in the imported OpenAPI document.
+There is no catch-all or wildcard forwarding. Every path and HTTP method that
+the gateway should accept must have a corresponding `ProxyOperation` in the
+active `ApiProxyRevision`.
 
 ### Auto-Sort Rules
 
-Endpoints are automatically sorted to ensure deterministic matching:
+Operation paths are automatically sorted to ensure deterministic matching:
 
 1. **Static segments before dynamic** — `/accounts/summary` is checked before `/accounts/:id`
 2. **Longer paths before shorter** — `/accounts/:id/details` is checked before `/accounts/:id`
 
-This means administrators only need to define endpoints — they don't need to worry about ordering.
+This means administrators define OpenAPI operations without assigning routing
+priorities manually.
 
 ### Example
 
-Given these endpoints for a proxy:
+Given these operations for a proxy revision:
 
 ```
 /accounts/:id/details   ← longest, checked first
@@ -65,6 +69,9 @@ Given these endpoints for a proxy:
 | `/accounts/42/details` | `/accounts/:id/details` |
 | `/accounts` | `/accounts` |
 | `/transfers` | ❌ 404 — not configured |
+
+If `/accounts/42` exists only for `GET`, a `POST` to that path returns `405`
+with `Allow: GET`.
 
 ---
 
@@ -94,8 +101,8 @@ Require administrators to manually set the priority order of endpoints.
 
 ### Constraints
 
-- **Every path needs a DB entry** — Can be verbose for APIs with many endpoints
-- **New paths require configuration** — Adding a backend endpoint isn't enough; it must also be registered in the gateway
+- **Every path and method needs an OpenAPI operation** — Large APIs produce many operation records during import
+- **New paths require a revision** — Adding a backend endpoint is not enough; a new immutable bundle must be imported and deployed
 
 ---
 
