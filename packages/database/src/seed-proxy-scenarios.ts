@@ -43,6 +43,54 @@ export interface ProxySeedScenario {
   deployLatestToAllEnvironments?: boolean;
 }
 
+function pathParameters(path: string) {
+  return [...path.matchAll(/\{([A-Za-z0-9_]+)\}/g)].map(match => ({
+    name: match[1],
+    in: 'path',
+    required: true,
+    schema: { type: 'string' },
+  }));
+}
+
+export function buildSeedRevisionSources(
+  proxyId: string,
+  revision: SeedRevision,
+) {
+  const paths: Record<string, Record<string, unknown>> = {};
+  for (const operation of revision.operations) {
+    paths[operation.path] ??= {};
+    paths[operation.path][operation.method] = {
+      operationId: operation.operationId,
+      parameters: pathParameters(operation.path),
+      responses: { '200': { description: 'Development seed response' } },
+    };
+  }
+  return {
+    openapiSource: JSON.stringify({
+      openapi: '3.1.0',
+      info: { title: proxyId, version: revision.apiVersion },
+      paths,
+    }, null, 2),
+    gatewayConfigSource: JSON.stringify({
+      apiVersion: 'gateway.platform/v1',
+      basePath: revision.basePath,
+      ...(revision.defaults === undefined
+        ? {}
+        : { defaults: { policies: revision.defaults } }),
+      operations: Object.fromEntries(revision.operations.map(operation => [
+        operation.operationId,
+        {
+          ...(operation.mode ? { mode: operation.mode } : {}),
+          ...(operation.targetPath ? { targetPath: operation.targetPath } : {}),
+          ...(operation.policies === undefined
+            ? {}
+            : { policies: operation.policies }),
+        },
+      ])),
+    }, null, 2),
+  };
+}
+
 const closedApiKey = (header = 'x-api-key'): SeedPolicy => ({
   type: 'api-key-auth',
   config: { header, failureMode: 'closed' },

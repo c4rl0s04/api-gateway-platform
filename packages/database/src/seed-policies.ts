@@ -10,7 +10,10 @@ import { hashConsumerSecret } from './credentials.js';
 import { compileProxyBundle } from './proxy-bundle.js';
 import { deployProxyRevision } from './proxy-deployments.js';
 import { importProxyRevision } from './proxy-revisions.js';
-import { PROXY_SEED_SCENARIOS, type SeedRevision } from './seed-proxy-scenarios.js';
+import {
+  buildSeedRevisionSources,
+  PROXY_SEED_SCENARIOS,
+} from './seed-proxy-scenarios.js';
 import { ENVIRONMENTS } from './seed.js';
 import { X509Certificate } from 'node:crypto';
 
@@ -252,50 +255,6 @@ const API_CREDENTIALS = [
   },
 ];
 
-function pathParameters(path: string) {
-  return [...path.matchAll(/\{([A-Za-z0-9_]+)\}/g)].map(match => ({
-    name: match[1],
-    in: 'path',
-    required: true,
-    schema: { type: 'string' },
-  }));
-}
-
-function revisionSources(proxyId: string, revision: SeedRevision) {
-  const paths: Record<string, Record<string, unknown>> = {};
-  for (const operation of revision.operations) {
-    paths[operation.path] ??= {};
-    paths[operation.path][operation.method] = {
-      operationId: operation.operationId,
-      parameters: pathParameters(operation.path),
-      responses: { '200': { description: 'Development seed response' } },
-    };
-  }
-  const openapiSource = JSON.stringify({
-    openapi: '3.1.0',
-    info: { title: proxyId, version: revision.apiVersion },
-    paths,
-  }, null, 2);
-  const gatewayConfigSource = JSON.stringify({
-    apiVersion: 'gateway.platform/v1',
-    basePath: revision.basePath,
-    ...(revision.defaults === undefined
-      ? {}
-      : { defaults: { policies: revision.defaults } }),
-    operations: Object.fromEntries(revision.operations.map(operation => [
-      operation.operationId,
-      {
-        ...(operation.mode ? { mode: operation.mode } : {}),
-        ...(operation.targetPath ? { targetPath: operation.targetPath } : {}),
-        ...(operation.policies === undefined
-          ? {}
-          : { policies: operation.policies }),
-      },
-    ])),
-  }, null, 2);
-  return { openapiSource, gatewayConfigSource };
-}
-
 async function seedProxyRevisions(): Promise<void> {
   const importActor = {
     issuer: 'seed://local',
@@ -307,7 +266,7 @@ async function seedProxyRevisions(): Promise<void> {
   for (const scenario of PROXY_SEED_SCENARIOS) {
     const revisions = [];
     for (const definition of scenario.revisions) {
-      const sources = revisionSources(scenario.proxyId, definition);
+      const sources = buildSeedRevisionSources(scenario.proxyId, definition);
       const compiled = await compileProxyBundle({
         ...sources,
         systemManaged: scenario.systemManaged === true,
