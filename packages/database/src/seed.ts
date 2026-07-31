@@ -5,8 +5,6 @@ import {
 } from './generated';
 
 const prisma = new PrismaClient();
-const DEV_UPSTREAM_BASE_URL =
-  process.env.DEV_UPSTREAM_BASE_URL ?? 'http://localhost:4000';
 
 const ORGANIZATIONS = [
   { id: 'org-platform', name: 'API Gateway Platform' },
@@ -52,197 +50,17 @@ export const ENVIRONMENTS = DEPLOYMENT_REGIONS.flatMap(region =>
 );
 
 export const PROXIES = [
-  {
-    id: 'proxy-es-banking',
-    name: 'ES Banking',
-    basePath: '/es/banking/v1',
-    organizationId: 'org-bank-dev',
-    deployment: {
-      environmentId: environmentId(
-        DeploymentStage.qual,
-        DeploymentRegion.es,
-      ),
-      upstreamBaseUrl: DEV_UPSTREAM_BASE_URL,
-    },
-    endpoints: [
-      { id: 'ep-esb-health', path: '/health', targetPath: '/health' },
-      { id: 'ep-esb-accounts', path: '/accounts', targetPath: '/accounts' },
-      { id: 'ep-esb-acc-id', path: '/accounts/:id', targetPath: '/accounts/:id' },
-    ],
-  },
-  {
-    id: 'proxy-us-banking',
-    name: 'US Banking',
-    basePath: '/us/banking/v2',
-    organizationId: 'org-bank-dev',
-    deployment: {
-      environmentId: environmentId(
-        DeploymentStage.qual,
-        DeploymentRegion.us,
-      ),
-      upstreamBaseUrl: DEV_UPSTREAM_BASE_URL,
-    },
-    endpoints: [
-      { id: 'ep-usb-ping', path: '/ping', targetPath: '/ping' },
-      { id: 'ep-usb-cards', path: '/cards', targetPath: '/cards' },
-      { id: 'ep-usb-card-id', path: '/cards/:id', targetPath: '/cards/:id' },
-    ],
-  },
-  {
-    id: 'proxy-uk-logistics',
-    name: 'UK Logistics',
-    basePath: '/uk/logistics/v1',
-    organizationId: 'org-log-dev',
-    deployment: {
-      environmentId: environmentId(
-        DeploymentStage.qual,
-        DeploymentRegion.uk,
-      ),
-      upstreamBaseUrl: DEV_UPSTREAM_BASE_URL,
-    },
-    endpoints: [
-      { id: 'ep-ukl-health', path: '/health', targetPath: '/health' },
-      { id: 'ep-ukl-shipments', path: '/shipments', targetPath: '/shipments' },
-      { id: 'ep-ukl-ship-id', path: '/shipments/:id', targetPath: '/shipments/:id' },
-    ],
-  },
-  {
-    id: 'proxy-fr-ecommerce',
-    name: 'FR E-commerce',
-    basePath: '/fr/ecommerce/v1',
-    organizationId: 'org-ecom-dev',
-    deployment: {
-      environmentId: environmentId(
-        DeploymentStage.qual,
-        DeploymentRegion.fr,
-      ),
-      upstreamBaseUrl: DEV_UPSTREAM_BASE_URL,
-    },
-    endpoints: [
-      { id: 'ep-fre-ping', path: '/ping', targetPath: '/ping' },
-      { id: 'ep-fre-products', path: '/products', targetPath: '/products' },
-      { id: 'ep-fre-product-id', path: '/products/:id', targetPath: '/products/:id' },
-    ],
-  },
-  {
-    id: 'proxy-es-ecommerce',
-    name: 'ES E-commerce',
-    basePath: '/es/ecommerce/v2',
-    organizationId: 'org-ecom-dev',
-    deployment: {
-      environmentId: environmentId(
-        DeploymentStage.qual,
-        DeploymentRegion.es,
-      ),
-      upstreamBaseUrl: DEV_UPSTREAM_BASE_URL,
-    },
-    endpoints: [
-      { id: 'ep-ese-health', path: '/health', targetPath: '/health' },
-      { id: 'ep-ese-orders', path: '/orders', targetPath: '/orders' },
-      { id: 'ep-ese-order-id', path: '/orders/:id', targetPath: '/orders/:id' },
-    ],
-  },
-  {
-    id: 'proxy-de-healthcare',
-    name: 'DE Healthcare',
-    basePath: '/de/healthcare/v1',
-    organizationId: 'org-health-dev',
-    deployment: {
-      environmentId: environmentId(
-        DeploymentStage.qual,
-        DeploymentRegion.de,
-      ),
-      upstreamBaseUrl: DEV_UPSTREAM_BASE_URL,
-    },
-    endpoints: [
-      { id: 'ep-deh-ping', path: '/ping', targetPath: '/ping' },
-      { id: 'ep-deh-patients', path: '/patients', targetPath: '/patients' },
-      { id: 'ep-deh-patient-id', path: '/patients/:id', targetPath: '/patients/:id' },
-    ],
-  },
-  {
-    id: 'proxy-us-identity',
-    name: 'US Identity',
-    basePath: '/us/identity/v1',
-    organizationId: 'org-id-dev',
-    deployment: {
-      environmentId: environmentId(
-        DeploymentStage.qual,
-        DeploymentRegion.us,
-      ),
-      upstreamBaseUrl: DEV_UPSTREAM_BASE_URL,
-    },
-    endpoints: [
-      { id: 'ep-usi-health', path: '/health', targetPath: '/health' },
-      { id: 'ep-usi-users', path: '/users', targetPath: '/users' },
-      { id: 'ep-usi-user-id', path: '/users/:id', targetPath: '/users/:id' },
-    ],
-  },
-  {
-    id: 'proxy-jp-iot',
-    name: 'JP IoT',
-    basePath: '/jp/iot/v1',
-    organizationId: 'org-iot-dev',
-    deployment: {
-      environmentId: environmentId(
-        DeploymentStage.qual,
-        DeploymentRegion.jp,
-      ),
-      upstreamBaseUrl: DEV_UPSTREAM_BASE_URL,
-    },
-    endpoints: [
-      { id: 'ep-jpi-ping', path: '/ping', targetPath: '/ping' },
-      { id: 'ep-jpi-devices', path: '/devices', targetPath: '/devices' },
-      { id: 'ep-jpi-device-id', path: '/devices/:id', targetPath: '/devices/:id' },
-    ],
-  },
-  {
-    id: 'proxy-br-streaming',
-    name: 'BR Streaming',
-    basePath: '/br/streaming/v1',
-    organizationId: 'org-stream-dev',
-    deployment: {
-      environmentId: environmentId(
-        DeploymentStage.qual,
-        DeploymentRegion.br,
-      ),
-      upstreamBaseUrl: DEV_UPSTREAM_BASE_URL,
-    },
-    endpoints: [
-      { id: 'ep-brs-health', path: '/health', targetPath: '/health' },
-      { id: 'ep-brs-catalog', path: '/catalog', targetPath: '/catalog' },
-      { id: 'ep-brs-catalog-id', path: '/catalog/:id', targetPath: '/catalog/:id' },
-    ],
-  },
-  {
-    id: 'proxy-kr-gaming',
-    name: 'KR Gaming',
-    basePath: '/kr/gaming/v1',
-    organizationId: 'org-game-dev',
-    deployment: {
-      environmentId: environmentId(
-        DeploymentStage.qual,
-        DeploymentRegion.kr,
-      ),
-      upstreamBaseUrl: DEV_UPSTREAM_BASE_URL,
-    },
-    endpoints: [
-      { id: 'ep-krg-ping', path: '/ping', targetPath: '/ping' },
-      { id: 'ep-krg-leaderboards', path: '/leaderboards', targetPath: '/leaderboards' },
-      { id: 'ep-krg-leaderboard-id', path: '/leaderboards/:id', targetPath: '/leaderboards/:id' },
-    ],
-  },
+  { id: 'proxy-es-banking', name: 'ES Banking', organizationId: 'org-bank-dev' },
+  { id: 'proxy-us-banking', name: 'US Banking', organizationId: 'org-bank-dev' },
+  { id: 'proxy-uk-logistics', name: 'UK Logistics', organizationId: 'org-log-dev' },
+  { id: 'proxy-fr-ecommerce', name: 'FR E-commerce', organizationId: 'org-ecom-dev' },
+  { id: 'proxy-es-ecommerce', name: 'ES E-commerce', organizationId: 'org-ecom-dev' },
+  { id: 'proxy-de-healthcare', name: 'DE Healthcare', organizationId: 'org-health-dev' },
+  { id: 'proxy-us-identity', name: 'US Identity', organizationId: 'org-id-dev' },
+  { id: 'proxy-jp-iot', name: 'JP IoT', organizationId: 'org-iot-dev' },
+  { id: 'proxy-br-streaming', name: 'BR Streaming', organizationId: 'org-stream-dev' },
+  { id: 'proxy-kr-gaming', name: 'KR Gaming', organizationId: 'org-game-dev' },
 ];
-
-export const PLATFORM_OAUTH_ENDPOINTS = [
-  { id: 'ep-oauth-token', path: '/token', method: 'post', mode: 'local' },
-  {
-    id: 'ep-oauth-jwks',
-    path: '/.well-known/jwks.json',
-    method: 'get',
-    mode: 'local',
-  },
-] as const;
 
 async function main() {
   console.log('Starting base seed...');
@@ -276,9 +94,7 @@ async function main() {
         organizationId: proxy.organizationId,
       },
       create: {
-        id: proxy.id,
-        name: proxy.name,
-        organizationId: proxy.organizationId,
+        ...proxy,
         active: true,
       },
     });
@@ -300,6 +116,7 @@ async function main() {
       organizationId: 'org-platform',
     },
   });
+
   console.log(`${ORGANIZATIONS.length} organizations`);
   console.log(`${ENVIRONMENTS.length} closed-choice environments`);
   console.log(`${PROXIES.length + 1} logical proxies`);
