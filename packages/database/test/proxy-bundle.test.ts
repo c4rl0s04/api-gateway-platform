@@ -117,6 +117,30 @@ describe('proxy bundle compiler', () => {
     );
   });
 
+  it('rejects non-boolean policy state and unknown operation modes', async () => {
+    await assert.rejects(
+      compileProxyBundle({
+        openapiSource: openapi(),
+        gatewayConfigSource: gateway.replace(
+          '    - type: api-key-auth',
+          '    - type: api-key-auth\n      enabled: "false"',
+        ),
+      }),
+      /enabled must be a boolean/,
+    );
+    await assert.rejects(
+      compileProxyBundle({
+        openapiSource: openapi(),
+        gatewayConfigSource: gateway.replace(
+          '    targetPath: /customers/{id}',
+          '    mode: passthrough\n    targetPath: /customers/{id}',
+        ),
+        systemManaged: true,
+      }),
+      /mode must be forward or local/,
+    );
+  });
+
   it('rejects target parameters missing from the public path', async () => {
     await assert.rejects(
       compileProxyBundle({

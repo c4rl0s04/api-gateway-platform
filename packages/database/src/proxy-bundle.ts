@@ -157,11 +157,17 @@ function compilePolicies(
         `Policy type "${candidate.type}" is not supported for this proxy`,
       );
     }
+    if (candidate.enabled !== undefined && typeof candidate.enabled !== 'boolean') {
+      throw new ProxyBundleError(
+        'invalid_gateway_config',
+        `Policy ${candidate.type} enabled must be a boolean`,
+      );
+    }
     try {
       return {
         type: candidate.type,
         order: index + 1,
-        enabled: candidate.enabled === undefined ? true : candidate.enabled === true,
+        enabled: candidate.enabled ?? true,
         config: parsePolicyConfig(candidate.type, candidate.config),
       } as PolicyConfig;
     } catch (error) {
@@ -276,6 +282,16 @@ export async function compileProxyBundle(
         throw new ProxyBundleError(
           'invalid_gateway_config',
           `Configuration for ${operationId} must be an object`,
+        );
+      }
+      if (
+        override.mode !== undefined
+        && override.mode !== 'forward'
+        && override.mode !== 'local'
+      ) {
+        throw new ProxyBundleError(
+          'invalid_gateway_config',
+          `Operation ${operationId} mode must be forward or local`,
         );
       }
       const mode = input.systemManaged && override.mode === 'local' ? 'local' : 'forward';
