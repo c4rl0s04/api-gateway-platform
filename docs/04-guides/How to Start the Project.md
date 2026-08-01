@@ -91,18 +91,25 @@ curl --cacert .local-secrets/pki/authorities/local-development/ca.crt \
 curl -H "x-api-key: dev-bank-key-abc123" \
   --cacert .local-secrets/pki/authorities/local-development/ca.crt \
   https://qual-es.gateway.localhost:8443/es/banking/v1/accounts
+curl -H "x-api-key: dev-bank-key-abc123" \
+  --cacert .local-secrets/pki/authorities/local-development/ca.crt \
+  https://pprod-es.gateway.localhost:8443/es/banking/v1/accounts
 curl --cacert .local-secrets/pki/authorities/local-development/ca.crt \
   --cert .local-secrets/clients/cred-bank-001/client.crt \
   --key .local-secrets/clients/cred-bank-001/client.key \
   https://qual-es.gateway.localhost:8443/es/banking/v1/health
 ```
 
-The first two requests should report a live and ready gateway. Both protected
-banking requests should reach the mock backend.
+The first two requests should report a live and ready gateway. The API-key
+requests demonstrate ES Banking revision 2 in both `qual-es` and `pprod-es`;
+the mTLS request should also reach the mock backend.
 The JWKS request demonstrates that the managed OAuth proxy is deployed in
-`prod-es`, even though the banking proxy is currently seeded only in `qual-es`.
+`prod-es`. ES Banking revision 3 is intentionally not deployed, so
+`/es/banking/v2/accounts` returns `404`.
 Open `http://localhost:8080`; local usernames and generated passwords are in
 `.local-secrets/keycloak/users.env`.
+
+See [[Seed Example Catalog]] for the complete revision and policy examples.
 
 ## Troubleshooting or Rollback
 
