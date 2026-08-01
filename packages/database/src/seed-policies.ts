@@ -645,8 +645,9 @@ async function main() {
   console.log('✅ Policy seed complete');
   console.log('');
   console.log('Product → Proxy mapping:');
-  console.log('  Banking APIs  → ES Banking, US Banking');
-  console.log('  Identity APIs → US Identity');
+  for (const product of API_PRODUCTS) {
+    console.log(`  ${product.name} → ${product.proxyIds.join(', ')}`);
+  }
 }
 
 main()
