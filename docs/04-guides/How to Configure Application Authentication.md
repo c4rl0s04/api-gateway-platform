@@ -63,8 +63,12 @@ The development seed provides concrete examples in `env-qual-es`:
 | Endpoint | Authentication |
 | --- | --- |
 | `/es/banking/v1/accounts` | API key |
-| `/es/banking/v1/accounts/:id` | OAuth Bearer |
+| `/es/banking/v1/accounts/{id}` | OAuth Bearer |
 | `/es/banking/v1/health` | Direct mTLS through a trusted ingress |
+
+Additional seeds demonstrate custom API-key headers, OAuth scopes for other
+products, public overrides, disabled policies, and combined authentication plus
+rate limiting. See [[Seed Example Catalog]].
 
 ## Verification
 
