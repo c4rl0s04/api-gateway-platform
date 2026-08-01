@@ -58,6 +58,7 @@ With the local platform running:
 
 ```bash
 npm run test:integration:revisions
+npm run test:integration:seed-examples
 npm run test:integration:mtls
 npm run test:platform
 ```
@@ -65,6 +66,10 @@ npm run test:platform
 `test:integration:revisions` uses live PostgreSQL to verify concurrent revision
 numbering, atomic failures, deployment history, rollback, promotion, and base
 path conflicts.
+
+`test:integration:seed-examples` verifies the seeded revision histories and
+representative live API-key, OAuth, public-operation, policy override, custom
+header, promotion, rollback, undeployed revision, and idempotency examples.
 
 `test:platform` checks all 30 environment origins, Management API revision
 import and deployment, gateway restart and rollback, API key and OAuth flows,
@@ -96,3 +101,4 @@ Do not reset the database to fix isolated gateway unit tests.
 - [[gateway-core]]
 - [[shared]]
 - [[How to Document the Project]]
+- [[Seed Example Catalog]]
