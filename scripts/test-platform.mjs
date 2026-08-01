@@ -197,31 +197,41 @@ try {
   });
   await ensureTestClient(keycloakAdmin.access_token);
 
-  const platformIdentity = await tokenRequest('api-gateway', {
-    grant_type: 'password',
-    client_id: 'platform-e2e',
-    username: 'platform-admin',
-    password: users.PLATFORM_ADMIN_PASSWORD,
-  });
-  const accessToken = platformIdentity.access_token;
-  const principal = await management(accessToken, 'me');
+  let platformAccessToken;
+  let platformAccessTokenExpiresAt = 0;
+  const currentPlatformAccessToken = async (forceRefresh = false) => {
+    if (forceRefresh || Date.now() >= platformAccessTokenExpiresAt - 5_000) {
+      const identity = await tokenRequest('api-gateway', {
+        grant_type: 'password',
+        client_id: 'platform-e2e',
+        username: 'platform-admin',
+        password: users.PLATFORM_ADMIN_PASSWORD,
+      });
+      platformAccessToken = identity.access_token;
+      platformAccessTokenExpiresAt = Date.now() + identity.expires_in * 1_000;
+    }
+    return platformAccessToken;
+  };
+  const platformManagement = async (route, options) =>
+    management(await currentPlatformAccessToken(), route, options);
+
+  const principal = await platformManagement('me');
   if (!principal.memberships.some(membership => membership.role === 'platformAdmin')) {
     throw new Error('OIDC identity is not mapped to platformAdmin');
   }
-  const environments = await management(accessToken, 'environments');
+  const environments = await platformManagement('environments');
   if (
     environments.length !== 30
     || new Set(environments.map(environment => environment.publicOrigin)).size !== 30
   ) {
     throw new Error('Management API did not expose 30 unique environment origins');
   }
-  const proxies = await management(accessToken, 'proxies');
+  const proxies = await platformManagement('proxies');
   const oauthProxy = proxies.find(proxy => proxy.id === 'proxy-platform-oauth');
   if (!oauthProxy) {
     throw new Error('Management API did not expose the managed OAuth proxy');
   }
-  const oauthDeployments = await management(
-    accessToken,
+  const oauthDeployments = await platformManagement(
     `proxies/${oauthProxy.id}/deployments`,
   );
   if (oauthDeployments.length !== 30) {
@@ -230,8 +240,7 @@ try {
 
   const revisionSuffix = Date.now();
   const revisionBasePath = `/management-revision-e2e-${revisionSuffix}`;
-  const managedProxy = await management(
-    accessToken,
+  const managedProxy = await platformManagement(
     'organizations/org-bank-dev/proxies',
     {
       method: 'POST',
@@ -258,13 +267,12 @@ try {
       defaults: { policies: [] },
       operations: { [operationId]: { targetPath: '/health' } },
     })], { type: 'application/json' }), 'gateway.json');
-    return management(accessToken, `proxies/${managedProxy.id}/revisions`, {
+    return platformManagement(`proxies/${managedProxy.id}/revisions`, {
       method: 'POST',
       body: form,
     });
   };
-  const deployRevision = revisionNumber => management(
-    accessToken,
+  const deployRevision = revisionNumber => platformManagement(
     `proxies/${managedProxy.id}/revisions/${revisionNumber}/deployments`,
     {
       method: 'POST',
@@ -306,8 +314,7 @@ try {
     '--output', '/dev/null', '--write-out', '%{http_code}',
     `${qualEsGatewayOrigin}${revisionBasePath}/revision-one`,
   ]);
-  const deploymentHistory = await management(
-    accessToken,
+  const deploymentHistory = await platformManagement(
     `proxies/${managedProxy.id}/deployments`,
   );
   if (
@@ -318,13 +325,11 @@ try {
     throw new Error('Proxy revision rollback history is inconsistent');
   }
 
-  const appsBefore = await management(
-    accessToken,
+  const appsBefore = await platformManagement(
     'organizations/org-bank-dev/apps',
   );
   const appName = `Platform application E2E ${Date.now()}`;
-  const registration = await management(
-    accessToken,
+  const registration = await platformManagement(
     'organizations/org-bank-dev/apps',
     {
       method: 'POST',
@@ -341,8 +346,7 @@ try {
     throw new Error('Application registration did not generate credential material');
   }
 
-  const appsAfter = await management(
-    accessToken,
+  const appsAfter = await platformManagement(
     'organizations/org-bank-dev/apps',
   );
   const persisted = appsAfter.find(app => app.id === registration.application.id);
@@ -359,8 +363,7 @@ try {
 
   let rejectedInvalidProduct = false;
   try {
-    await management(
-      accessToken,
+    await platformManagement(
       'organizations/org-bank-dev/apps',
       {
         method: 'POST',
@@ -373,8 +376,7 @@ try {
   } catch (error) {
     rejectedInvalidProduct = error.message.includes('400');
   }
-  const appsAfterRejection = await management(
-    accessToken,
+  const appsAfterRejection = await platformManagement(
     'organizations/org-bank-dev/apps',
   );
   if (
@@ -456,8 +458,7 @@ try {
     throw new Error('An unknown gateway environment host was not rejected');
   }
 
-  const authority = await management(
-    accessToken,
+  const authority = await platformManagement(
     'organizations/org-bank-dev/certificate-authorities/managed',
     {
       method: 'POST',
@@ -467,8 +468,7 @@ try {
       }),
     },
   );
-  await management(
-    accessToken,
+  await platformManagement(
     `certificate-authorities/${authority.id}/active`,
     { method: 'POST' },
   );
@@ -478,8 +478,7 @@ try {
     credentialId: `e2e-${Date.now()}`,
     algorithm: 'ec',
   });
-  const certificate = await management(
-    accessToken,
+  const certificate = await platformManagement(
     'credentials/cred-bank-001/certificates/issue',
     {
       method: 'POST',
@@ -490,8 +489,7 @@ try {
       }),
     },
   );
-  const downloaded = await management(
-    accessToken,
+  const downloaded = await platformManagement(
     `certificates/${certificate.id}/download`,
   );
   const certificateFile = path.join(workDirectory, 'client.crt');
@@ -503,7 +501,7 @@ try {
     throw new Error(`Newly issued client certificate was not accepted: ${JSON.stringify(accepted)}`);
   }
 
-  await management(accessToken, `certificates/${certificate.id}/revoke`, {
+  await platformManagement(`certificates/${certificate.id}/revoke`, {
     method: 'POST',
     body: JSON.stringify({ reason: 'keyCompromise' }),
   });
@@ -520,8 +518,7 @@ try {
     throw new Error('Envoy did not reject the revoked certificate after SDS reload');
   }
 
-  const replacement = await management(
-    accessToken,
+  const replacement = await platformManagement(
     `certificate-authorities/${authority.id}/rotate`,
     { method: 'POST' },
   );
@@ -532,9 +529,8 @@ try {
     'restart',
     'management-api',
   ], { cwd: root });
-  await waitForManagement(accessToken);
-  const authorities = await management(
-    accessToken,
+  await waitForManagement(await currentPlatformAccessToken(true));
+  const authorities = await platformManagement(
     'organizations/org-bank-dev/certificate-authorities',
   );
   if (!authorities.some(item => item.id === replacement.id && item.status === 'active')) {
