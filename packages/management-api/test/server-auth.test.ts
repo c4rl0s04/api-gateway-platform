@@ -127,6 +127,16 @@ describe('management API authentication boundary', () => {
     });
     assert.equal(created.statusCode, 201);
     assert.deepEqual(mutations, ['create']);
+
+    const invalid = await platformServer.inject({
+      method: 'POST',
+      url: '/v1/organizations/org-a/certificate-authorities/managed',
+      headers: { authorization: 'Bearer token' },
+      payload: { name: '' },
+    });
+    assert.equal(invalid.statusCode, 400);
+    assert.equal(invalid.json().error, 'invalid_request');
+    assert.equal(invalid.json().message, 'Request validation failed');
     await platformServer.close();
   });
 });

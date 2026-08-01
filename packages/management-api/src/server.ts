@@ -15,6 +15,7 @@ import { registerGatewayCatalogRoutes } from './routes/proxies.routes.js';
 import type { GatewayCatalogOperations } from './services/gateway-catalog.js';
 import { registerProxyRevisionRoutes } from './routes/proxy-revisions.routes.js';
 import type { ProxyRevisionOperations } from './services/proxy-revisions.js';
+import { serializeManagementError } from './errors.js';
 
 export interface ManagementServerOptions {
   config: ManagementEnv;
@@ -30,6 +31,13 @@ export interface ManagementServerOptions {
 
 export function buildServer(options: ManagementServerOptions): FastifyInstance {
   const server = Fastify({ logger: options.logger ?? true });
+  server.setErrorHandler((error, request, reply) => {
+    const serialized = serializeManagementError(error);
+    if (serialized.statusCode === 500) {
+      request.log.error({ err: error }, 'Management API request failed');
+    }
+    return reply.code(serialized.statusCode).send(serialized.body);
+  });
   void server.register(multipart, {
     limits: { files: 2, fileSize: 5 * 1024 * 1024 },
   });
