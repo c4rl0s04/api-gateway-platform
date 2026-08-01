@@ -29,6 +29,8 @@ This package is the persistence boundary for the monorepo.
 - Exports a shared `PrismaClient`.
 - Builds the generated client before compiling TypeScript.
 - Provides reproducible base and policy seeds.
+- Keeps revision examples declarative in `seed-proxy-scenarios.ts` and compiles
+  them through the same validator used by Management API.
 - Compiles OpenAPI 3.0/3.1 and gateway YAML into validated operations and
   policies through `compileProxyBundle()`.
 - Creates monotonically numbered revisions through `importProxyRevision()`.
@@ -69,10 +71,13 @@ never returns the persisted secret hash.
 
 The base seed creates 30 stage/region environments with unique local HTTPS
 origins, organizations, and logical proxies. The policy seed compiles immutable
-revision 1 bundles, deploys business revisions to qual and `platform-oauth` to
-all environments, and adds
-products, apps, hashed credentials, explicit grants, a public development JWK,
-a local CA, two development client certificates, and OIDC memberships.
+revision bundles, applies keyed deployment timelines, and deploys
+`platform-oauth` to all environments. A clean seed contains 16 revisions and 48
+deployment records, including promotion, rollback, retired history, and one
+undeployed revision. It also adds 8 products, 9 apps, 9 hashed credentials,
+explicit grants, a public development JWK, a local CA, two development client
+certificates, and OIDC memberships. See [[Seed Example Catalog]] for exact
+examples.
 
 ## Configuration
 
@@ -82,7 +87,8 @@ PostgreSQL.
 ## Tests
 
 Unit tests cover bundle validation, policy inheritance, scrypt hashing, secret
-comparison, and fingerprint normalization. PostgreSQL integration tests cover
+comparison, fingerprint normalization, and compilation of every seeded
+revision. PostgreSQL integration tests cover
 concurrent numbering, atomic invalid imports, promotion, one-active invariants,
 base-path conflicts, deployment history, and rollback.
 
@@ -103,3 +109,4 @@ base-path conflicts, deployment history, and rollback.
 - [[Reset Local Database]]
 - [[pki]]
 - [[Proxy Revisions and Deployments]]
+- [[Seed Example Catalog]]
