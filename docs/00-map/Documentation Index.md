@@ -102,6 +102,7 @@ aliases: []
 | [[06-reference/policies/README|Policy Reference Index]] | current | partial | 2026-07-27 |
 | [[06-reference/Policy Types|Policy Types]] | current | partial | 2026-07-27 |
 | [[06-reference/Ports|Ports]] | current | implemented | 2026-07-27 |
+| [[06-reference/Seed Example Catalog|Seed Example Catalog]] | current | implemented | 2026-07-31 |
 
 ## Policies
 
