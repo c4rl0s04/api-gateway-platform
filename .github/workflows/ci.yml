@@ -41,6 +41,7 @@ jobs:
         run: |
           npm run db:migrate:deploy -w packages/database
           npm run db:seed -w packages/database
+          npm run db:seed:policies -w packages/database
         env:
           DATABASE_URL: postgresql://postgres:password@localhost:5432/apigw?schema=public
       - run: npm run test
