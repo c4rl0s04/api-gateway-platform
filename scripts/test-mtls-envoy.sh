@@ -6,10 +6,13 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SECRETS_DIR="$ROOT_DIR/.local-secrets"
 SDS_FILE="$ROOT_DIR/infra/envoy/sds/client-validation.yaml"
 CRL_FILE="$SECRETS_DIR/pki/crl-bundle.pem"
+TRUST_FILE="$SECRETS_DIR/pki/trust-bundle.pem"
 CA_CERTIFICATE="$SECRETS_DIR/pki/authorities/local-development/ca.crt"
 FIRST_CLIENT="$SECRETS_DIR/clients/cred-bank-001"
 SECOND_CLIENT="$SECRETS_DIR/clients/cred-bank-002"
 WORK_DIR="$(mktemp -d)"
+cp "$CRL_FILE" "$WORK_DIR/original-crl-bundle.pem"
+cp "$TRUST_FILE" "$WORK_DIR/original-trust-bundle.pem"
 
 trigger_sds_reload() {
   cp "$SDS_FILE" "$SDS_FILE.next"
@@ -17,11 +20,10 @@ trigger_sds_reload() {
 }
 
 restore_crl() {
-  : > "$WORK_DIR/index.txt"
-  printf '1000\n' > "$WORK_DIR/crlnumber"
-  openssl ca -gencrl -config "$WORK_DIR/openssl.cnf" \
-    -out "$CRL_FILE.next" -batch >/dev/null 2>&1
+  cp "$WORK_DIR/original-crl-bundle.pem" "$CRL_FILE.next"
   mv "$CRL_FILE.next" "$CRL_FILE"
+  cp "$WORK_DIR/original-trust-bundle.pem" "$TRUST_FILE.next"
+  mv "$TRUST_FILE.next" "$TRUST_FILE"
   trigger_sds_reload
   rm -rf "$WORK_DIR"
 }
@@ -52,6 +54,16 @@ const store = new EncryptedFileKeyStore(path.join(root, 'pki/keystore'), master)
 process.stdout.write(await store.get('authorities/local-development'));
 EOF
 chmod 600 "$WORK_DIR/ca.key"
+
+# Isolate this test to the local CA. The running platform may trust additional
+# managed authorities whose CRLs must remain paired with the full trust bundle.
+cp "$CA_CERTIFICATE" "$TRUST_FILE.next"
+mv "$TRUST_FILE.next" "$TRUST_FILE"
+openssl ca -gencrl -config "$WORK_DIR/openssl.cnf" \
+  -out "$CRL_FILE.next" -batch >/dev/null 2>&1
+mv "$CRL_FILE.next" "$CRL_FILE"
+trigger_sds_reload
+sleep 2
 
 request() {
   local certificate="$1"
