@@ -19,6 +19,8 @@ import { registerOrganizationRoutes } from './routes/organizations.routes.js';
 import type { OrganizationOperations } from './services/organizations.js';
 import { registerProductRoutes } from './routes/products.routes.js';
 import type { ProductOperations } from './services/products.js';
+import { registerAuditRoutes } from './routes/audit.routes.js';
+import type { AuditOperations } from './services/audit.js';
 
 export interface ManagementServerOptions {
   config: ManagementEnv;
@@ -27,6 +29,7 @@ export interface ManagementServerOptions {
   memberships?: MembershipStore;
   organizations?: OrganizationOperations;
   products?: ProductOperations;
+  audit?: AuditOperations;
   applications?: ApplicationOperations;
   certificateAuthorities?: CertificateAuthorityOperations;
   certificates?: CertificateOperations;
@@ -81,6 +84,9 @@ export function buildServer(options: ManagementServerOptions): FastifyInstance {
   }
   if (options.products) {
     registerProductRoutes(server, options.products);
+  }
+  if (options.audit) {
+    registerAuditRoutes(server, options.audit);
   }
   if (options.applications) {
     registerApplicationRoutes(server, options.applications);

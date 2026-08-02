@@ -7,6 +7,7 @@ import { GatewayCatalogService } from './services/gateway-catalog.js';
 import { ProxyRevisionService } from './services/proxy-revisions.js';
 import { OrganizationService } from './services/organizations.js';
 import { ProductService } from './services/products.js';
+import { AuditService } from './services/audit.js';
 
 void (async () => {
   const config = loadEnv();
@@ -20,6 +21,7 @@ void (async () => {
     config,
     organizations: new OrganizationService(),
     products: new ProductService(),
+    audit: new AuditService(),
     applications: new ApplicationService(),
     certificateAuthorities,
     certificates,
