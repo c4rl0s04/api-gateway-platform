@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { execFile } from 'node:child_process';
+import { generateKeyPairSync } from 'node:crypto';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -102,7 +103,7 @@ async function management(token, route, options = {}) {
   return request(`${adminPanelBaseUrl}/api/management/${route}`, {
     ...options,
     headers: {
-      cookie: `management_access_token=${token}`,
+      authorization: `Bearer ${token}`,
       ...(options.body && !multipartBody ? { 'content-type': 'application/json' } : {}),
       ...options.headers,
     },
@@ -156,6 +157,30 @@ async function gatewayCurl(arguments_) {
     path.join(secrets, 'pki/authorities/local-development/ca.crt'),
     ...arguments_,
   ]);
+}
+
+async function oauthClientCredentials(consumerKey, consumerSecret, scope) {
+  const result = await gatewayCurl([
+    '--user',
+    `${consumerKey}:${consumerSecret}`,
+    '--header',
+    'content-type: application/x-www-form-urlencoded',
+    '--data',
+    `grant_type=client_credentials&scope=${encodeURIComponent(scope)}`,
+    '--write-out',
+    '\n%{http_code}',
+    `${qualEsGatewayOrigin}/oauth/token`,
+  ]);
+  const lines = result.stdout.trimEnd().split('\n');
+  const status = lines.pop();
+  const bodyText = lines.join('\n');
+  let body;
+  try {
+    body = JSON.parse(bodyText);
+  } catch {
+    body = bodyText;
+  }
+  return { status, body };
 }
 
 async function restartGateway() {
@@ -456,6 +481,287 @@ try {
   ]);
   if (unknownEnvironment.stdout !== '421') {
     throw new Error('An unknown gateway environment host was not rejected');
+  }
+
+  const organization = await platformManagement('organizations', {
+    method: 'POST',
+    body: JSON.stringify({ name: `Management E2E organization ${revisionSuffix}` }),
+  });
+  const renamedOrganization = await platformManagement(
+    `organizations/${organization.id}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ name: `Renamed management E2E ${revisionSuffix}` }),
+    },
+  );
+  if (renamedOrganization.name !== `Renamed management E2E ${revisionSuffix}`) {
+    throw new Error('Organization mutation did not persist');
+  }
+
+  const updatedProxy = await platformManagement(`proxies/${managedProxy.id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ name: `Managed auth proxy ${revisionSuffix}` }),
+  });
+  if (updatedProxy.name !== `Managed auth proxy ${revisionSuffix}`) {
+    throw new Error('Logical proxy mutation did not persist');
+  }
+
+  const authenticatedRevisionForm = new FormData();
+  authenticatedRevisionForm.append('openapi', new Blob([JSON.stringify({
+    openapi: '3.1.0',
+    info: { title: 'Management authentication E2E', version: '1.0.0' },
+    paths: {
+      '/api-key': {
+        get: {
+          operationId: 'getWithApiKey',
+          responses: { '200': { description: 'OK' } },
+        },
+      },
+      '/oauth': {
+        get: {
+          operationId: 'getWithOAuth',
+          responses: { '200': { description: 'OK' } },
+        },
+      },
+    },
+  })], { type: 'application/json' }), 'openapi.json');
+  authenticatedRevisionForm.append('gateway', new Blob([JSON.stringify({
+    apiVersion: 'gateway.platform/v1',
+    basePath: revisionBasePath,
+    defaults: { policies: [] },
+    operations: {
+      getWithApiKey: {
+        targetPath: '/health',
+        policies: [{
+          type: 'api-key-auth',
+          config: { header: 'x-api-key', failureMode: 'closed' },
+        }],
+      },
+      getWithOAuth: {
+        targetPath: '/health',
+        policies: [{
+          type: 'oauth-access-token',
+          config: {
+            audience: 'api-gateway',
+            requiredScopes: ['banking:read'],
+            failureMode: 'closed',
+          },
+        }],
+      },
+    },
+  })], { type: 'application/json' }), 'gateway.json');
+  const authenticatedRevision = await platformManagement(
+    `proxies/${managedProxy.id}/revisions`,
+    { method: 'POST', body: authenticatedRevisionForm },
+  );
+  const authenticatedDeployment = await deployRevision(
+    authenticatedRevision.revisionNumber,
+  );
+  await restartGateway();
+
+  const managedProduct = await platformManagement(
+    'organizations/org-bank-dev/products',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        name: `Management product ${revisionSuffix}`,
+        scopes: ['banking:read', 'banking:write'],
+        proxyIds: [managedProxy.id],
+        environmentIds: ['env-qual-es'],
+      }),
+    },
+  );
+  const managedProductDetail = await platformManagement(`products/${managedProduct.id}`);
+  if (!managedProductDetail.proxies.some(proxy => proxy.id === managedProxy.id)) {
+    throw new Error('Product was not associated with the managed proxy');
+  }
+
+  const managedRegistration = await platformManagement(
+    'organizations/org-bank-dev/apps',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        name: `Management flow app ${revisionSuffix}`,
+        products: [{
+          productId: managedProduct.id,
+          scopes: ['banking:read', 'banking:write'],
+        }],
+      }),
+    },
+  );
+  const managedApiKey = await gatewayCurl([
+    '--header',
+    `x-api-key: ${managedRegistration.credential.consumerKey}`,
+    '--output',
+    '/dev/null',
+    '--write-out',
+    '%{http_code}',
+    `${qualEsGatewayOrigin}${revisionBasePath}/api-key`,
+  ]);
+  if (managedApiKey.stdout !== '200') {
+    throw new Error('Dynamically created product and app did not authorize API key access');
+  }
+  const managedToken = await oauthClientCredentials(
+    managedRegistration.credential.consumerKey,
+    managedRegistration.consumerSecret,
+    'banking:read',
+  );
+  if (managedToken.status !== '200' || !managedToken.body.access_token) {
+    throw new Error('Dynamically created app did not obtain an OAuth token');
+  }
+  const managedBearer = await gatewayCurl([
+    '--header',
+    `authorization: Bearer ${managedToken.body.access_token}`,
+    '--output',
+    '/dev/null',
+    '--write-out',
+    '%{http_code}',
+    `${qualEsGatewayOrigin}${revisionBasePath}/oauth`,
+  ]);
+  if (managedBearer.stdout !== '200') {
+    throw new Error('Dynamically issued OAuth token was not authorized');
+  }
+
+  const additionalCredential = await platformManagement(
+    `apps/${managedRegistration.application.id}/credentials`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        products: [{
+          productId: managedProduct.id,
+          scopes: ['banking:read', 'banking:write'],
+        }],
+      }),
+    },
+  );
+  const beforeRotation = additionalCredential.consumerSecret;
+  const rotation = await platformManagement(
+    `credentials/${additionalCredential.credential.id}/rotate-secret`,
+    { method: 'POST' },
+  );
+  const rejectedOldSecret = await oauthClientCredentials(
+    additionalCredential.credential.consumerKey,
+    beforeRotation,
+    'banking:read',
+  );
+  const acceptedRotatedSecret = await oauthClientCredentials(
+    additionalCredential.credential.consumerKey,
+    rotation.consumerSecret,
+    'banking:read',
+  );
+  if (rejectedOldSecret.status !== '401' || acceptedRotatedSecret.status !== '200') {
+    throw new Error('Consumer secret rotation did not invalidate only the old secret');
+  }
+
+  await platformManagement(
+    `credentials/${additionalCredential.credential.id}/product-grants`,
+    { method: 'PUT', body: JSON.stringify({ products: [] }) },
+  );
+  const deniedWithoutGrant = await gatewayCurl([
+    '--header',
+    `x-api-key: ${additionalCredential.credential.consumerKey}`,
+    '--output',
+    '/dev/null',
+    '--write-out',
+    '%{http_code}',
+    `${qualEsGatewayOrigin}${revisionBasePath}/api-key`,
+  ]);
+  if (deniedWithoutGrant.stdout !== '403') {
+    throw new Error('Removing credential grants did not revoke product access');
+  }
+  await platformManagement(
+    `credentials/${additionalCredential.credential.id}/product-grants`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({
+        products: [{
+          productId: managedProduct.id,
+          scopes: ['banking:read', 'banking:write'],
+        }],
+      }),
+    },
+  );
+  await platformManagement(`products/${managedProduct.id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ scopes: ['banking:read'] }),
+  });
+  const credentialDetail = await platformManagement(
+    `credentials/${additionalCredential.credential.id}`,
+  );
+  const managedGrant = credentialDetail.productGrants.find(
+    grant => grant.product.id === managedProduct.id,
+  );
+  if (!managedGrant || managedGrant.scopes.join(' ') !== 'banking:read') {
+    throw new Error('Product scope reduction did not trim credential grants');
+  }
+
+  const publicJwk = generateKeyPairSync('rsa', { modulusLength: 2048 })
+    .publicKey.export({ format: 'jwk' });
+  const registeredKey = await platformManagement(
+    `credentials/${additionalCredential.credential.id}/public-keys`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ kid: `management-e2e-${revisionSuffix}`, jwk: publicJwk }),
+    },
+  );
+  const listedKeys = await platformManagement(
+    `credentials/${additionalCredential.credential.id}/public-keys`,
+  );
+  if (!listedKeys.some(key => key.id === registeredKey.id && key.jwk.kty === 'RSA')) {
+    throw new Error('Registered public JWK was not returned by the read endpoint');
+  }
+  const revokedKey = await platformManagement(
+    `public-keys/${registeredKey.id}/revoke`,
+    { method: 'POST' },
+  );
+  if (revokedKey.status !== 'revoked') {
+    throw new Error('Public JWK revocation did not persist');
+  }
+
+  await platformManagement(`apps/${managedRegistration.application.id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ name: `Renamed management app ${revisionSuffix}` }),
+  });
+  await platformManagement(`credentials/${additionalCredential.credential.id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status: 'revoked' }),
+  });
+  const deniedRevokedCredential = await gatewayCurl([
+    '--header',
+    `x-api-key: ${additionalCredential.credential.consumerKey}`,
+    '--output',
+    '/dev/null',
+    '--write-out',
+    '%{http_code}',
+    `${qualEsGatewayOrigin}${revisionBasePath}/api-key`,
+  ]);
+  if (deniedRevokedCredential.stdout !== '401') {
+    throw new Error('Revoked credential remained usable as an API key');
+  }
+  const auditEvents = await platformManagement(
+    `audit-events?organizationId=org-bank-dev&resourceId=${additionalCredential.credential.id}&limit=50`,
+  );
+  const auditedActions = new Set(auditEvents.items.map(event => event.action));
+  for (const action of [
+    'credential.create',
+    'credential.rotateSecret',
+    'credential.replaceProductGrants',
+    'credential.update',
+  ]) {
+    if (!auditedActions.has(action)) {
+      throw new Error(`Management mutation was not audited: ${action}`);
+    }
+  }
+
+  const retiredDeployment = await platformManagement(
+    `proxy-deployments/${authenticatedDeployment.deployment.id}/retire`,
+    { method: 'POST' },
+  );
+  if (
+    retiredDeployment.deployment.status !== 'retired'
+    || !retiredDeployment.runtimeRefreshRequired
+  ) {
+    throw new Error('Active deployment retirement did not preserve the runtime contract');
   }
 
   const authority = await platformManagement(
