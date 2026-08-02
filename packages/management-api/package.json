@@ -6,6 +6,7 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "test": "tsx --test test/*.test.ts",
+    "test:integration:management": "RUN_DATABASE_INTEGRATION=1 tsx --test test/control-plane.integration.test.ts",
     "lint": "echo \"TODO: lint\""
   },
   "dependencies": {
