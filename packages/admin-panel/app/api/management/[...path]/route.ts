@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
+import { selectManagementAccessToken } from '@/lib/management-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -7,7 +8,10 @@ async function proxy(
   request: NextRequest,
   context: { params: { path: string[] } },
 ) {
-  const token = cookies().get('management_access_token')?.value;
+  const token = selectManagementAccessToken(
+    request.headers.get('authorization'),
+    cookies().get('management_access_token')?.value,
+  );
   if (!token) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
