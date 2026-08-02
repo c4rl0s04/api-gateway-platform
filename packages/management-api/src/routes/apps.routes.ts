@@ -19,13 +19,18 @@ const updateApplicationSchema = z.object({
 }).strict().refine(value => Object.keys(value).length > 0, {
   message: 'At least one application field is required',
 });
-const credentialProductsSchema = z.array(z.object({
+const credentialProductSchema = z.object({
   productId: z.string().trim().min(1).max(120),
   scopes: z.array(z.string().trim().min(1).max(120)).max(100).optional(),
-}).strict()).min(1).max(100).refine(
+}).strict();
+const replacementProductsSchema = z.array(credentialProductSchema).max(100).refine(
   products => new Set(products.map(product => product.productId)).size
     === products.length,
   { message: 'Product IDs must be unique' },
+);
+const credentialProductsSchema = replacementProductsSchema.refine(
+  products => products.length > 0,
+  { message: 'At least one product is required' },
 );
 const createCredentialSchema = z.object({
   expiresAt: z.string().datetime({ offset: true }).transform(value => new Date(value))
@@ -174,6 +179,21 @@ export function registerApplicationRoutes(
       try {
         return await applications.rotateCredential(
           request.params.credentialId,
+          request.adminPrincipal,
+        );
+      } catch (error) {
+        return sendApplicationError(reply, error);
+      }
+    },
+  );
+  server.put<{ Params: { credentialId: string }; Body: unknown }>(
+    '/v1/credentials/:credentialId/product-grants',
+    async (request, reply) => {
+      try {
+        return await applications.replaceCredentialGrants(
+          request.params.credentialId,
+          z.object({ products: replacementProductsSchema }).strict()
+            .parse(request.body),
           request.adminPrincipal,
         );
       } catch (error) {

@@ -72,6 +72,7 @@ describe('application management API', () => {
       getCredential: async () => ({}),
       updateCredential: async () => ({}),
       rotateCredential: async () => ({}),
+      replaceCredentialGrants: async () => ({}),
     };
     const server = authenticatedServer(applications);
     const response = await server.inject({
@@ -140,6 +141,7 @@ describe('application management API', () => {
       getCredential: async () => ({}),
       updateCredential: async () => ({}),
       rotateCredential: async () => ({}),
+      replaceCredentialGrants: async () => ({}),
     };
     const server = authenticatedServer(applications);
     const response = await server.inject({
@@ -176,6 +178,7 @@ describe('application management API', () => {
       getCredential: async () => ({}),
       updateCredential: async () => ({}),
       rotateCredential: async () => ({}),
+      replaceCredentialGrants: async () => ({}),
     };
     const server = authenticatedServer(applications);
     const response = await server.inject({
@@ -216,6 +219,7 @@ describe('application management API', () => {
       getCredential: async () => ({}),
       updateCredential: async () => ({}),
       rotateCredential: async () => ({}),
+      replaceCredentialGrants: async () => ({}),
     };
     const server = authenticatedServer(applications);
     const response = await server.inject({
@@ -268,6 +272,7 @@ describe('application management API', () => {
         return { id: credentialId, ...input };
       },
       rotateCredential: async () => ({}),
+      replaceCredentialGrants: async () => ({}),
     };
     const server = authenticatedServer(applications);
     const detail = await server.inject({
@@ -312,6 +317,7 @@ describe('application management API', () => {
         calls.push(credentialId);
         return { consumerSecret: 'cs_rotated_once' };
       },
+      replaceCredentialGrants: async () => ({}),
     };
     const server = authenticatedServer(applications);
     const response = await server.inject({
@@ -322,6 +328,57 @@ describe('application management API', () => {
     assert.equal(response.statusCode, 200);
     assert.equal(response.json().consumerSecret, 'cs_rotated_once');
     assert.deepEqual(calls, ['credential-1']);
+    await server.close();
+  });
+
+  it('replaces the complete credential product grant set', async () => {
+    const calls: unknown[] = [];
+    const applications: ApplicationOperations = {
+      list: async () => [],
+      get: async () => ({}),
+      register: async () => ({}),
+      update: async () => ({}),
+      createCredential: async () => ({}),
+      getCredential: async () => ({}),
+      updateCredential: async () => ({}),
+      rotateCredential: async () => ({}),
+      replaceCredentialGrants: async (credentialId, input) => {
+        calls.push({ credentialId, input });
+        return [{ productId: input.products[0]?.productId, status: 'approved' }];
+      },
+    };
+    const server = authenticatedServer(applications);
+    const response = await server.inject({
+      method: 'PUT',
+      url: '/v1/credentials/credential-1/product-grants',
+      headers: { authorization: 'Bearer token' },
+      payload: {
+        products: [{ productId: 'product-banking', scopes: ['banking:read'] }],
+      },
+    });
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(calls, [{
+      credentialId: 'credential-1',
+      input: {
+        products: [{
+          productId: 'product-banking',
+          scopes: ['banking:read'],
+        }],
+      },
+    }]);
+    const duplicate = await server.inject({
+      method: 'PUT',
+      url: '/v1/credentials/credential-1/product-grants',
+      headers: { authorization: 'Bearer token' },
+      payload: {
+        products: [
+          { productId: 'product-banking' },
+          { productId: 'product-banking' },
+        ],
+      },
+    });
+    assert.equal(duplicate.statusCode, 400);
+    assert.equal(calls.length, 1);
     await server.close();
   });
 });

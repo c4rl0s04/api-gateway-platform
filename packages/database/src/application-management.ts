@@ -352,3 +352,144 @@ export async function rotateManagedConsumerSecret(
   });
   return { consumerSecret };
 }
+
+export interface ReplaceManagedCredentialGrantsInput {
+  credentialId: string;
+  products: Array<{ productId: string; scopes?: string[] }>;
+  actor: ApplicationMutationActor;
+}
+
+export async function replaceManagedCredentialGrants(
+  input: ReplaceManagedCredentialGrantsInput,
+) {
+  const productIds = input.products.map(product => product.productId);
+  if (new Set(productIds).size !== productIds.length) {
+    throw new ApplicationManagementError(
+      'product_not_found',
+      'Product grants must use unique product IDs',
+    );
+  }
+  return prisma.$transaction(async transaction => {
+    const credential = await transaction.appCredential.findUnique({
+      where: { id: input.credentialId },
+      select: {
+        id: true,
+        appId: true,
+        status: true,
+        app: { select: { organizationId: true, status: true } },
+        productGrants: { select: { productId: true, status: true } },
+      },
+    });
+    if (!credential) {
+      throw new ApplicationManagementError(
+        'credential_not_found',
+        'Application credential does not exist',
+      );
+    }
+    if (
+      credential.status === AuthorizationStatus.revoked
+      || credential.app.status === AuthorizationStatus.revoked
+    ) {
+      throw new ApplicationManagementError(
+        'invalid_status_transition',
+        'Cannot change grants for a revoked credential or application',
+      );
+    }
+    const products = await transaction.apiProduct.findMany({
+      where: { id: { in: productIds } },
+      select: {
+        id: true,
+        active: true,
+        scopes: true,
+        organizationId: true,
+      },
+    });
+    if (products.length !== productIds.length) {
+      throw new ApplicationManagementError(
+        'product_not_found',
+        'One or more API products do not exist',
+      );
+    }
+    const productsById = new Map(products.map(product => [product.id, product]));
+    for (const requested of input.products) {
+      const product = productsById.get(requested.productId)!;
+      if (!product.active) {
+        throw new ApplicationManagementError(
+          'product_not_active',
+          `API product ${product.id} is not active`,
+        );
+      }
+      if (product.organizationId !== credential.app.organizationId) {
+        throw new ApplicationManagementError(
+          'organization_mismatch',
+          `API product ${product.id} belongs to another organization`,
+        );
+      }
+      const scopes = [...new Set(requested.scopes ?? product.scopes)];
+      const unsupported = scopes.filter(scope => !product.scopes.includes(scope));
+      if (unsupported.length > 0) {
+        throw new ApplicationManagementError(
+          'invalid_scope',
+          `API product ${product.id} does not declare scopes: ${unsupported.join(', ')}`,
+        );
+      }
+      await transaction.credentialProductGrant.upsert({
+        where: {
+          credentialId_productId: {
+            credentialId: input.credentialId,
+            productId: product.id,
+          },
+        },
+        create: {
+          credentialId: input.credentialId,
+          productId: product.id,
+          status: AuthorizationStatus.approved,
+          scopes,
+        },
+        update: { status: AuthorizationStatus.approved, scopes },
+      });
+    }
+    const revokedProductIds = credential.productGrants
+      .filter(grant => !productIds.includes(grant.productId)
+        && grant.status !== AuthorizationStatus.revoked)
+      .map(grant => grant.productId);
+    if (revokedProductIds.length > 0) {
+      await transaction.credentialProductGrant.updateMany({
+        where: {
+          credentialId: input.credentialId,
+          productId: { in: revokedProductIds },
+        },
+        data: { status: AuthorizationStatus.revoked },
+      });
+    }
+    await transaction.auditEvent.create({
+      data: {
+        actorIssuer: input.actor.issuer,
+        actorSubject: input.actor.subject,
+        actorRole: input.actor.role,
+        organizationId: credential.app.organizationId,
+        action: 'credential.replaceProductGrants',
+        resourceType: 'AppCredential',
+        resourceId: input.credentialId,
+        metadata: {
+          appId: credential.appId,
+          approvedProductIds: productIds,
+          revokedProductIds,
+        },
+      },
+    });
+    return transaction.credentialProductGrant.findMany({
+      where: { credentialId: input.credentialId },
+      orderBy: { createdAt: 'asc' },
+      select: {
+        id: true,
+        productId: true,
+        status: true,
+        scopes: true,
+        createdAt: true,
+        updatedAt: true,
+        product: { select: { name: true, active: true, scopes: true } },
+      },
+    });
+  });
+}
