@@ -71,6 +71,7 @@ describe('proxy revision management routes', () => {
       getRevision: async () => ({ revisionNumber: 1 }),
       getRevisionSource: async (_proxyId, _revision, source) => `${source}: source`,
       deployRevision: async () => ({}),
+      retireDeployment: async () => ({}),
     };
     const server = serverWith(revisions);
     const created = await server.inject({
@@ -102,6 +103,7 @@ describe('proxy revision management routes', () => {
       getRevision: async (proxyId, revisionNumber) => ({ proxyId, revisionNumber }),
       getRevisionSource: async (_proxyId, _revision, source) => `${source}: source`,
       deployRevision: async () => ({}),
+      retireDeployment: async () => ({}),
     };
     const server = serverWith(revisions);
     const headers = { authorization: 'Bearer token' };
@@ -130,6 +132,7 @@ describe('proxy revision management routes', () => {
       getRevision: async () => ({}),
       getRevisionSource: async () => '',
       deployRevision: async () => ({}),
+      retireDeployment: async () => ({}),
     };
     const server = serverWith(revisions);
     const response = await server.inject({
@@ -156,6 +159,7 @@ describe('proxy revision management routes', () => {
         calls.push({ proxyId, revisionNumber, input });
         return { id: 'deployment-2', status: 'active' };
       },
+      retireDeployment: async () => ({}),
     };
     const server = serverWith(revisions);
     const response = await server.inject({
@@ -193,6 +197,7 @@ describe('proxy revision management routes', () => {
       getRevision: async () => ({}),
       getRevisionSource: async () => '',
       deployRevision: async () => ({}),
+      retireDeployment: async () => ({}),
     };
     const server = serverWith(revisions);
     const response = await server.inject({
@@ -213,6 +218,34 @@ describe('proxy revision management routes', () => {
       payload: { systemManaged: false },
     });
     assert.equal(immutable.statusCode, 400);
+    await server.close();
+  });
+
+  it('retires a deployment and reports that runtime restart is required', async () => {
+    const calls: string[] = [];
+    const revisions: ProxyRevisionOperations = {
+      createProxy: async () => ({}),
+      updateProxy: async () => ({}),
+      importRevision: async () => ({}),
+      listRevisions: async () => [],
+      getRevision: async () => ({}),
+      getRevisionSource: async () => '',
+      deployRevision: async () => ({}),
+      retireDeployment: async deploymentId => {
+        calls.push(deploymentId);
+        return { id: deploymentId, status: 'retired' };
+      },
+    };
+    const server = serverWith(revisions);
+    const response = await server.inject({
+      method: 'POST',
+      url: '/v1/proxy-deployments/deployment-1/retire',
+      headers: { authorization: 'Bearer token' },
+    });
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.json().runtimeRefreshRequired, true);
+    assert.equal(response.json().deployment.status, 'retired');
+    assert.deepEqual(calls, ['deployment-1']);
     await server.close();
   });
 });

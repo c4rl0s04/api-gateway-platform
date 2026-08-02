@@ -192,4 +192,19 @@ export function registerProxyRevisionRoutes(
       return sendDomainError(reply, error);
     }
   });
+
+  server.post<{ Params: { deploymentId: string } }>(
+    '/v1/proxy-deployments/:deploymentId/retire',
+    async (request, reply) => {
+      try {
+        const deployment = await revisions.retireDeployment(
+          request.params.deploymentId,
+          request.adminPrincipal,
+        );
+        return reply.send({ deployment, runtimeRefreshRequired: true });
+      } catch (error) {
+        return sendDomainError(reply, error);
+      }
+    },
+  );
 }

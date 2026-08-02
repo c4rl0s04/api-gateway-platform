@@ -35,11 +35,13 @@ export {
   deployProxyRevision,
   listProxyDeployments,
   ProxyDeploymentError,
+  retireProxyDeployment,
 } from './proxy-deployments.js';
 export type {
   DeployProxyRevisionInput,
   DeploymentMutationActor,
   ProxyDeploymentErrorCode,
+  RetireProxyDeploymentInput,
 } from './proxy-deployments.js';
 export type {
   CreateApiProxyInput,

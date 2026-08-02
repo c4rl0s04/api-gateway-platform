@@ -19,7 +19,8 @@ export type ProxyDeploymentErrorCode =
   | 'system_proxy_immutable'
   | 'upstream_required'
   | 'promotion_required'
-  | 'deployment_conflict';
+  | 'deployment_conflict'
+  | 'active_deployment_not_found';
 
 export class ProxyDeploymentError extends Error {
   constructor(
@@ -36,6 +37,12 @@ export interface DeployProxyRevisionInput {
   revisionNumber: number;
   environmentId: string;
   upstreamBaseUrl?: string | null;
+  actor: DeploymentMutationActor;
+  allowSystemManaged?: boolean;
+}
+
+export interface RetireProxyDeploymentInput {
+  deploymentId: string;
   actor: DeploymentMutationActor;
   allowSystemManaged?: boolean;
 }
@@ -195,6 +202,78 @@ export async function deployProxyRevision(input: DeployProxyRevisionInput) {
           rollback: previous
             ? input.revisionNumber < previous.revision.revisionNumber
             : false,
+        },
+      },
+    });
+    return deployment;
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+}
+
+export async function retireProxyDeployment(
+  input: RetireProxyDeploymentInput,
+) {
+  return prisma.$transaction(async transaction => {
+    const current = await transaction.proxyDeployment.findUnique({
+      where: { id: input.deploymentId },
+      select: {
+        id: true,
+        proxyId: true,
+        environmentId: true,
+        status: true,
+        proxy: {
+          select: { organizationId: true, systemManaged: true },
+        },
+      },
+    });
+    if (!current || current.status !== DeploymentStatus.active) {
+      throw new ProxyDeploymentError(
+        'active_deployment_not_found',
+        'Active proxy deployment does not exist',
+      );
+    }
+    if (current.proxy.systemManaged && !input.allowSystemManaged) {
+      throw new ProxyDeploymentError(
+        'system_proxy_immutable',
+        'System-managed proxy deployments cannot be retired through the public API',
+      );
+    }
+    await transaction.$executeRaw`
+      SELECT pg_advisory_xact_lock(hashtext(${'proxy-deployment:' + current.proxyId + ':' + current.environmentId}))
+    `;
+    const active = await transaction.proxyDeployment.findFirst({
+      where: { id: input.deploymentId, status: DeploymentStatus.active },
+      select: { id: true },
+    });
+    if (!active) {
+      throw new ProxyDeploymentError(
+        'active_deployment_not_found',
+        'Active proxy deployment does not exist',
+      );
+    }
+    const deployment = await transaction.proxyDeployment.update({
+      where: { id: input.deploymentId },
+      data: { status: DeploymentStatus.retired },
+      include: {
+        revision: {
+          select: { revisionNumber: true, basePath: true, contentHash: true },
+        },
+        environment: {
+          select: { id: true, stage: true, region: true, publicOrigin: true },
+        },
+      },
+    });
+    await transaction.auditEvent.create({
+      data: {
+        actorIssuer: input.actor.issuer,
+        actorSubject: input.actor.subject,
+        actorRole: input.actor.role,
+        organizationId: current.proxy.organizationId,
+        action: 'proxyDeployment.retire',
+        resourceType: 'ProxyDeployment',
+        resourceId: input.deploymentId,
+        metadata: {
+          proxyId: current.proxyId,
+          environmentId: current.environmentId,
         },
       },
     });

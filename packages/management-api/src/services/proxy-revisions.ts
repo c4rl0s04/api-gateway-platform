@@ -7,6 +7,7 @@ import {
   importProxyRevision,
   listProxyRevisions,
   prisma,
+  retireProxyDeployment,
   updateApiProxy,
 } from '@api-gateway/database';
 import {
@@ -69,6 +70,10 @@ export interface ProxyRevisionOperations {
     input: DeployRevisionInput,
     actor: AdminPrincipal,
   ): Promise<unknown>;
+  retireDeployment(
+    deploymentId: string,
+    actor: AdminPrincipal,
+  ): Promise<unknown>;
 }
 
 function forbidden(message: string): Error {
@@ -96,6 +101,15 @@ async function proxyOrganization(proxyId: string): Promise<string> {
   });
   if (!proxy) throw notFound('Proxy does not exist');
   return proxy.organizationId;
+}
+
+async function deploymentOrganization(deploymentId: string): Promise<string> {
+  const deployment = await prisma.proxyDeployment.findUnique({
+    where: { id: deploymentId },
+    select: { proxy: { select: { organizationId: true } } },
+  });
+  if (!deployment) throw notFound('Proxy deployment does not exist');
+  return deployment.proxy.organizationId;
 }
 
 export class ProxyRevisionService implements ProxyRevisionOperations {
@@ -211,6 +225,21 @@ export class ProxyRevisionService implements ProxyRevisionOperations {
       proxyId,
       revisionNumber,
       ...input,
+      actor: {
+        issuer: actor.issuer,
+        subject: actor.subject,
+        role: actorRole(actor, organizationId),
+      },
+    });
+  }
+
+  async retireDeployment(deploymentId: string, actor: AdminPrincipal) {
+    const organizationId = await deploymentOrganization(deploymentId);
+    if (!canManageOrganization(actor, organizationId)) {
+      throw forbidden('Organization administration access denied');
+    }
+    return retireProxyDeployment({
+      deploymentId,
       actor: {
         issuer: actor.issuer,
         subject: actor.subject,
