@@ -17,6 +17,8 @@ import type { ProxyRevisionOperations } from './services/proxy-revisions.js';
 import { serializeManagementError } from './errors.js';
 import { registerOrganizationRoutes } from './routes/organizations.routes.js';
 import type { OrganizationOperations } from './services/organizations.js';
+import { registerProductRoutes } from './routes/products.routes.js';
+import type { ProductOperations } from './services/products.js';
 
 export interface ManagementServerOptions {
   config: ManagementEnv;
@@ -24,6 +26,7 @@ export interface ManagementServerOptions {
   verifier?: OidcVerifier;
   memberships?: MembershipStore;
   organizations?: OrganizationOperations;
+  products?: ProductOperations;
   applications?: ApplicationOperations;
   certificateAuthorities?: CertificateAuthorityOperations;
   certificates?: CertificateOperations;
@@ -75,6 +78,9 @@ export function buildServer(options: ManagementServerOptions): FastifyInstance {
   }));
   if (options.organizations) {
     registerOrganizationRoutes(server, options.organizations);
+  }
+  if (options.products) {
+    registerProductRoutes(server, options.products);
   }
   if (options.applications) {
     registerApplicationRoutes(server, options.applications);
