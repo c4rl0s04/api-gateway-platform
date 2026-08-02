@@ -4,6 +4,7 @@ import {
   createManagedCredential,
   prisma,
   registerDeveloperApplication,
+  rotateManagedConsumerSecret,
   updateDeveloperApplication,
   updateManagedCredential,
 } from '@api-gateway/database';
@@ -59,6 +60,10 @@ export interface ApplicationOperations {
   updateCredential(
     credentialId: string,
     input: UpdateCredentialInput,
+    actor: AdminPrincipal,
+  ): Promise<unknown>;
+  rotateCredential(
+    credentialId: string,
     actor: AdminPrincipal,
   ): Promise<unknown>;
 }
@@ -323,6 +328,31 @@ export class ApplicationService implements ApplicationOperations {
     return updateManagedCredential({
       credentialId,
       ...input,
+      actor: {
+        issuer: actor.issuer,
+        subject: actor.subject,
+        role: actorRole(actor, organizationId),
+      },
+    });
+  }
+
+  async rotateCredential(credentialId: string, actor: AdminPrincipal) {
+    const credential = await prisma.appCredential.findUnique({
+      where: { id: credentialId },
+      select: { app: { select: { organizationId: true } } },
+    });
+    if (!credential) {
+      throw new ApplicationManagementError(
+        'credential_not_found',
+        'Application credential does not exist',
+      );
+    }
+    const organizationId = credential.app.organizationId;
+    if (!canManageOrganization(actor, organizationId)) {
+      throw forbidden('Organization administration access denied');
+    }
+    return rotateManagedConsumerSecret({
+      credentialId,
       actor: {
         issuer: actor.issuer,
         subject: actor.subject,

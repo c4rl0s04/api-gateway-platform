@@ -71,6 +71,7 @@ describe('application management API', () => {
       createCredential: async () => ({}),
       getCredential: async () => ({}),
       updateCredential: async () => ({}),
+      rotateCredential: async () => ({}),
     };
     const server = authenticatedServer(applications);
     const response = await server.inject({
@@ -138,6 +139,7 @@ describe('application management API', () => {
       createCredential: async () => ({}),
       getCredential: async () => ({}),
       updateCredential: async () => ({}),
+      rotateCredential: async () => ({}),
     };
     const server = authenticatedServer(applications);
     const response = await server.inject({
@@ -173,6 +175,7 @@ describe('application management API', () => {
       createCredential: async () => ({}),
       getCredential: async () => ({}),
       updateCredential: async () => ({}),
+      rotateCredential: async () => ({}),
     };
     const server = authenticatedServer(applications);
     const response = await server.inject({
@@ -212,6 +215,7 @@ describe('application management API', () => {
       },
       getCredential: async () => ({}),
       updateCredential: async () => ({}),
+      rotateCredential: async () => ({}),
     };
     const server = authenticatedServer(applications);
     const response = await server.inject({
@@ -263,6 +267,7 @@ describe('application management API', () => {
         calls.push({ credentialId, input });
         return { id: credentialId, ...input };
       },
+      rotateCredential: async () => ({}),
     };
     const server = authenticatedServer(applications);
     const detail = await server.inject({
@@ -290,6 +295,33 @@ describe('application management API', () => {
       payload: { consumerKey: 'replacement' },
     });
     assert.equal(consumerKeyChange.statusCode, 400);
+    await server.close();
+  });
+
+  it('rotates a consumer secret through a one-time response', async () => {
+    const calls: string[] = [];
+    const applications: ApplicationOperations = {
+      list: async () => [],
+      get: async () => ({}),
+      register: async () => ({}),
+      update: async () => ({}),
+      createCredential: async () => ({}),
+      getCredential: async () => ({}),
+      updateCredential: async () => ({}),
+      rotateCredential: async credentialId => {
+        calls.push(credentialId);
+        return { consumerSecret: 'cs_rotated_once' };
+      },
+    };
+    const server = authenticatedServer(applications);
+    const response = await server.inject({
+      method: 'POST',
+      url: '/v1/credentials/credential-1/rotate-secret',
+      headers: { authorization: 'Bearer token' },
+    });
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.json().consumerSecret, 'cs_rotated_once');
+    assert.deepEqual(calls, ['credential-1']);
     await server.close();
   });
 });

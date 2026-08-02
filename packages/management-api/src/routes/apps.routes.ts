@@ -168,4 +168,17 @@ export function registerApplicationRoutes(
       }
     },
   );
+  server.post<{ Params: { credentialId: string } }>(
+    '/v1/credentials/:credentialId/rotate-secret',
+    async (request, reply) => {
+      try {
+        return await applications.rotateCredential(
+          request.params.credentialId,
+          request.adminPrincipal,
+        );
+      } catch (error) {
+        return sendApplicationError(reply, error);
+      }
+    },
+  );
 }

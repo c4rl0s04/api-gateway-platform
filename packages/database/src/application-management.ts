@@ -297,3 +297,58 @@ export async function updateManagedCredential(
     return credential;
   });
 }
+
+export interface RotateManagedConsumerSecretInput {
+  credentialId: string;
+  actor: ApplicationMutationActor;
+}
+
+export async function rotateManagedConsumerSecret(
+  input: RotateManagedConsumerSecretInput,
+) {
+  const consumerSecret = generateConsumerSecret();
+  const consumerSecretHash = await hashConsumerSecret(consumerSecret);
+  await prisma.$transaction(async transaction => {
+    const credential = await transaction.appCredential.findUnique({
+      where: { id: input.credentialId },
+      select: {
+        id: true,
+        appId: true,
+        status: true,
+        app: { select: { organizationId: true, status: true } },
+      },
+    });
+    if (!credential) {
+      throw new ApplicationManagementError(
+        'credential_not_found',
+        'Application credential does not exist',
+      );
+    }
+    if (
+      credential.status === AuthorizationStatus.revoked
+      || credential.app.status === AuthorizationStatus.revoked
+    ) {
+      throw new ApplicationManagementError(
+        'invalid_status_transition',
+        'Cannot rotate a secret for a revoked credential or application',
+      );
+    }
+    await transaction.appCredential.update({
+      where: { id: input.credentialId },
+      data: { consumerSecretHash },
+    });
+    await transaction.auditEvent.create({
+      data: {
+        actorIssuer: input.actor.issuer,
+        actorSubject: input.actor.subject,
+        actorRole: input.actor.role,
+        organizationId: credential.app.organizationId,
+        action: 'credential.rotateSecret',
+        resourceType: 'AppCredential',
+        resourceId: input.credentialId,
+        metadata: { appId: credential.appId },
+      },
+    });
+  });
+  return { consumerSecret };
+}

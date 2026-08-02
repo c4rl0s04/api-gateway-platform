@@ -69,6 +69,7 @@ export {
 export {
   ApplicationManagementError,
   createManagedCredential,
+  rotateManagedConsumerSecret,
   updateDeveloperApplication,
   updateManagedCredential,
 } from './application-management.js';
@@ -76,6 +77,7 @@ export type {
   ApplicationManagementErrorCode,
   ApplicationMutationActor,
   CreateManagedCredentialInput,
+  RotateManagedConsumerSecretInput,
   UpdateDeveloperApplicationInput,
   UpdateManagedCredentialInput,
 } from './application-management.js';
