@@ -32,6 +32,13 @@ const createCredentialSchema = z.object({
     .nullable().optional(),
   products: credentialProductsSchema,
 }).strict();
+const updateCredentialSchema = z.object({
+  expiresAt: z.string().datetime({ offset: true }).transform(value => new Date(value))
+    .nullable().optional(),
+  status: z.enum(['pending', 'approved', 'revoked']).optional(),
+}).strict().refine(value => Object.keys(value).length > 0, {
+  message: 'At least one credential field is required',
+});
 
 function sendRegistrationError(
   reply: FastifyReply,
@@ -134,6 +141,28 @@ export function registerApplicationRoutes(
           request.adminPrincipal,
         );
         return reply.code(201).send(result);
+      } catch (error) {
+        return sendApplicationError(reply, error);
+      }
+    },
+  );
+
+  server.get<{ Params: { credentialId: string } }>(
+    '/v1/credentials/:credentialId',
+    request => applications.getCredential(
+      request.params.credentialId,
+      request.adminPrincipal,
+    ),
+  );
+  server.patch<{ Params: { credentialId: string }; Body: unknown }>(
+    '/v1/credentials/:credentialId',
+    async (request, reply) => {
+      try {
+        return await applications.updateCredential(
+          request.params.credentialId,
+          updateCredentialSchema.parse(request.body),
+          request.adminPrincipal,
+        );
       } catch (error) {
         return sendApplicationError(reply, error);
       }

@@ -69,6 +69,8 @@ describe('application management API', () => {
       },
       update: async () => ({}),
       createCredential: async () => ({}),
+      getCredential: async () => ({}),
+      updateCredential: async () => ({}),
     };
     const server = authenticatedServer(applications);
     const response = await server.inject({
@@ -134,6 +136,8 @@ describe('application management API', () => {
       },
       update: async () => ({}),
       createCredential: async () => ({}),
+      getCredential: async () => ({}),
+      updateCredential: async () => ({}),
     };
     const server = authenticatedServer(applications);
     const response = await server.inject({
@@ -167,6 +171,8 @@ describe('application management API', () => {
         return { id: appId, ...input };
       },
       createCredential: async () => ({}),
+      getCredential: async () => ({}),
+      updateCredential: async () => ({}),
     };
     const server = authenticatedServer(applications);
     const response = await server.inject({
@@ -204,6 +210,8 @@ describe('application management API', () => {
           consumerSecret: 'cs_once',
         };
       },
+      getCredential: async () => ({}),
+      updateCredential: async () => ({}),
     };
     const server = authenticatedServer(applications);
     const response = await server.inject({
@@ -236,6 +244,52 @@ describe('application management API', () => {
     });
     assert.equal(missingProducts.statusCode, 400);
     assert.equal(calls.length, 1);
+    await server.close();
+  });
+
+  it('reads and updates credential lifecycle fields without exposing secret data', async () => {
+    const calls: unknown[] = [];
+    const applications: ApplicationOperations = {
+      list: async () => [],
+      get: async () => ({}),
+      register: async () => ({}),
+      update: async () => ({}),
+      createCredential: async () => ({}),
+      getCredential: async credentialId => ({
+        id: credentialId,
+        consumerKey: 'ck_public',
+      }),
+      updateCredential: async (credentialId, input) => {
+        calls.push({ credentialId, input });
+        return { id: credentialId, ...input };
+      },
+    };
+    const server = authenticatedServer(applications);
+    const detail = await server.inject({
+      method: 'GET',
+      url: '/v1/credentials/credential-1',
+      headers: { authorization: 'Bearer token' },
+    });
+    assert.equal(detail.statusCode, 200);
+    assert.equal(detail.json().consumerKey, 'ck_public');
+    const updated = await server.inject({
+      method: 'PATCH',
+      url: '/v1/credentials/credential-1',
+      headers: { authorization: 'Bearer token' },
+      payload: { expiresAt: null, status: 'revoked' },
+    });
+    assert.equal(updated.statusCode, 200);
+    assert.deepEqual(calls, [{
+      credentialId: 'credential-1',
+      input: { expiresAt: null, status: 'revoked' },
+    }]);
+    const consumerKeyChange = await server.inject({
+      method: 'PATCH',
+      url: '/v1/credentials/credential-1',
+      headers: { authorization: 'Bearer token' },
+      payload: { consumerKey: 'replacement' },
+    });
+    assert.equal(consumerKeyChange.statusCode, 400);
     await server.close();
   });
 });

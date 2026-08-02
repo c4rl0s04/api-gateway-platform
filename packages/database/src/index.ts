@@ -70,12 +70,14 @@ export {
   ApplicationManagementError,
   createManagedCredential,
   updateDeveloperApplication,
+  updateManagedCredential,
 } from './application-management.js';
 export type {
   ApplicationManagementErrorCode,
   ApplicationMutationActor,
   CreateManagedCredentialInput,
   UpdateDeveloperApplicationInput,
+  UpdateManagedCredentialInput,
 } from './application-management.js';
 export type {
   CreateAppCredentialInput,

@@ -5,6 +5,7 @@ import {
   prisma,
   registerDeveloperApplication,
   updateDeveloperApplication,
+  updateManagedCredential,
 } from '@api-gateway/database';
 import {
   canManageOrganization,
@@ -31,6 +32,11 @@ export interface CreateCredentialInput {
   products: Array<{ productId: string; scopes?: string[] }>;
 }
 
+export interface UpdateCredentialInput {
+  expiresAt?: Date | null;
+  status?: 'pending' | 'approved' | 'revoked';
+}
+
 export interface ApplicationOperations {
   list(organizationId: string, actor: AdminPrincipal): Promise<unknown>;
   get(appId: string, actor: AdminPrincipal): Promise<unknown>;
@@ -47,6 +53,12 @@ export interface ApplicationOperations {
   createCredential(
     appId: string,
     input: CreateCredentialInput,
+    actor: AdminPrincipal,
+  ): Promise<unknown>;
+  getCredential(credentialId: string, actor: AdminPrincipal): Promise<unknown>;
+  updateCredential(
+    credentialId: string,
+    input: UpdateCredentialInput,
     actor: AdminPrincipal,
   ): Promise<unknown>;
 }
@@ -228,6 +240,93 @@ export class ApplicationService implements ApplicationOperations {
         issuer: actor.issuer,
         subject: actor.subject,
         role: actorRole(actor, app.organizationId),
+      },
+    });
+  }
+
+  async getCredential(credentialId: string, actor: AdminPrincipal) {
+    const credential = await prisma.appCredential.findUnique({
+      where: { id: credentialId },
+      select: {
+        id: true,
+        appId: true,
+        consumerKey: true,
+        status: true,
+        issuedAt: true,
+        expiresAt: true,
+        createdAt: true,
+        updatedAt: true,
+        app: { select: { id: true, name: true, organizationId: true } },
+        productGrants: {
+          orderBy: { createdAt: 'asc' },
+          select: {
+            id: true,
+            status: true,
+            scopes: true,
+            product: { select: { id: true, name: true, active: true } },
+          },
+        },
+        publicKeys: {
+          orderBy: { createdAt: 'asc' },
+          select: {
+            id: true,
+            kid: true,
+            algorithm: true,
+            status: true,
+            validFrom: true,
+            expiresAt: true,
+          },
+        },
+        certificates: {
+          orderBy: { createdAt: 'asc' },
+          select: {
+            id: true,
+            fingerprintSha256: true,
+            status: true,
+            validFrom: true,
+            expiresAt: true,
+          },
+        },
+      },
+    });
+    if (!credential) {
+      throw new ApplicationManagementError(
+        'credential_not_found',
+        'Application credential does not exist',
+      );
+    }
+    if (!canReadOrganization(actor, credential.app.organizationId)) {
+      throw forbidden('Organization access denied');
+    }
+    return credential;
+  }
+
+  async updateCredential(
+    credentialId: string,
+    input: UpdateCredentialInput,
+    actor: AdminPrincipal,
+  ) {
+    const credential = await prisma.appCredential.findUnique({
+      where: { id: credentialId },
+      select: { app: { select: { organizationId: true } } },
+    });
+    if (!credential) {
+      throw new ApplicationManagementError(
+        'credential_not_found',
+        'Application credential does not exist',
+      );
+    }
+    const organizationId = credential.app.organizationId;
+    if (!canManageOrganization(actor, organizationId)) {
+      throw forbidden('Organization administration access denied');
+    }
+    return updateManagedCredential({
+      credentialId,
+      ...input,
+      actor: {
+        issuer: actor.issuer,
+        subject: actor.subject,
+        role: actorRole(actor, organizationId),
       },
     });
   }

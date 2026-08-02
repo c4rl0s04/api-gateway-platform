@@ -231,3 +231,69 @@ export async function createManagedCredential(
   });
   return { credential, consumerSecret };
 }
+
+export interface UpdateManagedCredentialInput {
+  credentialId: string;
+  expiresAt?: Date | null;
+  status?: AuthorizationStatus;
+  actor: ApplicationMutationActor;
+}
+
+export async function updateManagedCredential(
+  input: UpdateManagedCredentialInput,
+) {
+  return prisma.$transaction(async transaction => {
+    const current = await transaction.appCredential.findUnique({
+      where: { id: input.credentialId },
+      select: {
+        id: true,
+        status: true,
+        expiresAt: true,
+        appId: true,
+        app: { select: { organizationId: true } },
+      },
+    });
+    if (!current) {
+      throw new ApplicationManagementError(
+        'credential_not_found',
+        'Application credential does not exist',
+      );
+    }
+    if (input.status) validateStatusTransition(current.status, input.status);
+    const credential = await transaction.appCredential.update({
+      where: { id: input.credentialId },
+      data: { expiresAt: input.expiresAt, status: input.status },
+      select: {
+        id: true,
+        appId: true,
+        consumerKey: true,
+        status: true,
+        issuedAt: true,
+        expiresAt: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+    await transaction.auditEvent.create({
+      data: {
+        actorIssuer: input.actor.issuer,
+        actorSubject: input.actor.subject,
+        actorRole: input.actor.role,
+        organizationId: current.app.organizationId,
+        action: 'credential.update',
+        resourceType: 'AppCredential',
+        resourceId: input.credentialId,
+        metadata: {
+          appId: current.appId,
+          changedFields: [
+            ...(input.expiresAt !== undefined ? ['expiresAt'] : []),
+            ...(input.status !== undefined ? ['status'] : []),
+          ],
+          previousStatus: current.status,
+          previousExpiresAt: current.expiresAt?.toISOString() ?? null,
+        },
+      },
+    });
+    return credential;
+  });
+}
