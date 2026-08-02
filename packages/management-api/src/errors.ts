@@ -8,6 +8,8 @@ export type ManagementErrorCode =
   | 'internal_error'
   | 'organization_not_found'
   | 'product_not_found'
+  | 'proxy_not_found'
+  | 'environment_not_found'
   | 'app_not_found'
   | 'credential_not_found'
   | 'invalid_scope'
