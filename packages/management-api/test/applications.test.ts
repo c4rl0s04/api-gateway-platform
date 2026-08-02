@@ -73,6 +73,9 @@ describe('application management API', () => {
       updateCredential: async () => ({}),
       rotateCredential: async () => ({}),
       replaceCredentialGrants: async () => ({}),
+      listPublicKeys: async () => [],
+      registerPublicKey: async () => ({}),
+      revokePublicKey: async () => ({}),
     };
     const server = authenticatedServer(applications);
     const response = await server.inject({
@@ -142,6 +145,9 @@ describe('application management API', () => {
       updateCredential: async () => ({}),
       rotateCredential: async () => ({}),
       replaceCredentialGrants: async () => ({}),
+      listPublicKeys: async () => [],
+      registerPublicKey: async () => ({}),
+      revokePublicKey: async () => ({}),
     };
     const server = authenticatedServer(applications);
     const response = await server.inject({
@@ -179,6 +185,9 @@ describe('application management API', () => {
       updateCredential: async () => ({}),
       rotateCredential: async () => ({}),
       replaceCredentialGrants: async () => ({}),
+      listPublicKeys: async () => [],
+      registerPublicKey: async () => ({}),
+      revokePublicKey: async () => ({}),
     };
     const server = authenticatedServer(applications);
     const response = await server.inject({
@@ -220,6 +229,9 @@ describe('application management API', () => {
       updateCredential: async () => ({}),
       rotateCredential: async () => ({}),
       replaceCredentialGrants: async () => ({}),
+      listPublicKeys: async () => [],
+      registerPublicKey: async () => ({}),
+      revokePublicKey: async () => ({}),
     };
     const server = authenticatedServer(applications);
     const response = await server.inject({
@@ -273,6 +285,9 @@ describe('application management API', () => {
       },
       rotateCredential: async () => ({}),
       replaceCredentialGrants: async () => ({}),
+      listPublicKeys: async () => [],
+      registerPublicKey: async () => ({}),
+      revokePublicKey: async () => ({}),
     };
     const server = authenticatedServer(applications);
     const detail = await server.inject({
@@ -318,6 +333,9 @@ describe('application management API', () => {
         return { consumerSecret: 'cs_rotated_once' };
       },
       replaceCredentialGrants: async () => ({}),
+      listPublicKeys: async () => [],
+      registerPublicKey: async () => ({}),
+      revokePublicKey: async () => ({}),
     };
     const server = authenticatedServer(applications);
     const response = await server.inject({
@@ -346,6 +364,9 @@ describe('application management API', () => {
         calls.push({ credentialId, input });
         return [{ productId: input.products[0]?.productId, status: 'approved' }];
       },
+      listPublicKeys: async () => [],
+      registerPublicKey: async () => ({}),
+      revokePublicKey: async () => ({}),
     };
     const server = authenticatedServer(applications);
     const response = await server.inject({
@@ -379,6 +400,58 @@ describe('application management API', () => {
     });
     assert.equal(duplicate.statusCode, 400);
     assert.equal(calls.length, 1);
+    await server.close();
+  });
+
+  it('lists, registers, and revokes RSA public keys', async () => {
+    const calls: string[] = [];
+    const applications: ApplicationOperations = {
+      list: async () => [],
+      get: async () => ({}),
+      register: async () => ({}),
+      update: async () => ({}),
+      createCredential: async () => ({}),
+      getCredential: async () => ({}),
+      updateCredential: async () => ({}),
+      rotateCredential: async () => ({}),
+      replaceCredentialGrants: async () => ({}),
+      listPublicKeys: async credentialId => [{ id: `key-${credentialId}` }],
+      registerPublicKey: async (credentialId, input) => {
+        calls.push(`register:${credentialId}:${input.kid}`);
+        return { id: 'key-1', credentialId, ...input };
+      },
+      revokePublicKey: async publicKeyId => {
+        calls.push(`revoke:${publicKeyId}`);
+        return { id: publicKeyId, status: 'revoked' };
+      },
+    };
+    const server = authenticatedServer(applications);
+    const listed = await server.inject({
+      method: 'GET',
+      url: '/v1/credentials/credential-1/public-keys',
+      headers: { authorization: 'Bearer token' },
+    });
+    assert.equal(listed.statusCode, 200);
+    const registered = await server.inject({
+      method: 'POST',
+      url: '/v1/credentials/credential-1/public-keys',
+      headers: { authorization: 'Bearer token' },
+      payload: {
+        kid: 'client-key-2026',
+        jwk: { kty: 'RSA', n: 'public-modulus', e: 'AQAB' },
+      },
+    });
+    assert.equal(registered.statusCode, 201);
+    const revoked = await server.inject({
+      method: 'POST',
+      url: '/v1/public-keys/key-1/revoke',
+      headers: { authorization: 'Bearer token' },
+    });
+    assert.equal(revoked.statusCode, 200);
+    assert.deepEqual(calls, [
+      'register:credential-1:client-key-2026',
+      'revoke:key-1',
+    ]);
     await server.close();
   });
 });

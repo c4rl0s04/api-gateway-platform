@@ -1,11 +1,14 @@
 import {
   AdminRole,
   ApplicationManagementError,
+  Prisma,
   createManagedCredential,
   prisma,
   registerDeveloperApplication,
   rotateManagedConsumerSecret,
   replaceManagedCredentialGrants,
+  registerManagedPublicKey,
+  revokeManagedPublicKey,
   updateDeveloperApplication,
   updateManagedCredential,
 } from '@api-gateway/database';
@@ -39,6 +42,13 @@ export interface UpdateCredentialInput {
   status?: 'pending' | 'approved' | 'revoked';
 }
 
+export interface RegisterPublicKeyInput {
+  kid: string;
+  jwk: Prisma.InputJsonObject;
+  validFrom?: Date;
+  expiresAt?: Date | null;
+}
+
 export interface ApplicationOperations {
   list(organizationId: string, actor: AdminPrincipal): Promise<unknown>;
   get(appId: string, actor: AdminPrincipal): Promise<unknown>;
@@ -70,6 +80,19 @@ export interface ApplicationOperations {
   replaceCredentialGrants(
     credentialId: string,
     input: { products: Array<{ productId: string; scopes?: string[] }> },
+    actor: AdminPrincipal,
+  ): Promise<unknown>;
+  listPublicKeys(
+    credentialId: string,
+    actor: AdminPrincipal,
+  ): Promise<unknown>;
+  registerPublicKey(
+    credentialId: string,
+    input: RegisterPublicKeyInput,
+    actor: AdminPrincipal,
+  ): Promise<unknown>;
+  revokePublicKey(
+    publicKeyId: string,
     actor: AdminPrincipal,
   ): Promise<unknown>;
 }
@@ -389,6 +412,95 @@ export class ApplicationService implements ApplicationOperations {
     return replaceManagedCredentialGrants({
       credentialId,
       products: input.products,
+      actor: {
+        issuer: actor.issuer,
+        subject: actor.subject,
+        role: actorRole(actor, organizationId),
+      },
+    });
+  }
+
+  async listPublicKeys(credentialId: string, actor: AdminPrincipal) {
+    const credential = await prisma.appCredential.findUnique({
+      where: { id: credentialId },
+      select: { app: { select: { organizationId: true } } },
+    });
+    if (!credential) {
+      throw new ApplicationManagementError(
+        'credential_not_found',
+        'Application credential does not exist',
+      );
+    }
+    if (!canReadOrganization(actor, credential.app.organizationId)) {
+      throw forbidden('Organization access denied');
+    }
+    return prisma.appPublicKey.findMany({
+      where: { credentialId },
+      orderBy: { createdAt: 'asc' },
+      select: {
+        id: true,
+        credentialId: true,
+        kid: true,
+        algorithm: true,
+        jwk: true,
+        status: true,
+        validFrom: true,
+        expiresAt: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  }
+
+  async registerPublicKey(
+    credentialId: string,
+    input: RegisterPublicKeyInput,
+    actor: AdminPrincipal,
+  ) {
+    const credential = await prisma.appCredential.findUnique({
+      where: { id: credentialId },
+      select: { app: { select: { organizationId: true } } },
+    });
+    if (!credential) {
+      throw new ApplicationManagementError(
+        'credential_not_found',
+        'Application credential does not exist',
+      );
+    }
+    const organizationId = credential.app.organizationId;
+    if (!canManageOrganization(actor, organizationId)) {
+      throw forbidden('Organization administration access denied');
+    }
+    return registerManagedPublicKey({
+      credentialId,
+      ...input,
+      actor: {
+        issuer: actor.issuer,
+        subject: actor.subject,
+        role: actorRole(actor, organizationId),
+      },
+    });
+  }
+
+  async revokePublicKey(publicKeyId: string, actor: AdminPrincipal) {
+    const publicKey = await prisma.appPublicKey.findUnique({
+      where: { id: publicKeyId },
+      select: {
+        credential: { select: { app: { select: { organizationId: true } } } },
+      },
+    });
+    if (!publicKey) {
+      throw new ApplicationManagementError(
+        'public_key_not_found',
+        'Application public key does not exist',
+      );
+    }
+    const organizationId = publicKey.credential.app.organizationId;
+    if (!canManageOrganization(actor, organizationId)) {
+      throw forbidden('Organization administration access denied');
+    }
+    return revokeManagedPublicKey({
+      publicKeyId,
       actor: {
         issuer: actor.issuer,
         subject: actor.subject,

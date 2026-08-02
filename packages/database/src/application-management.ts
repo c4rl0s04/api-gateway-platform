@@ -1,9 +1,15 @@
-import { AdminRole, AuthorizationStatus } from './generated/index.js';
+import {
+  AdminRole,
+  AuthorizationStatus,
+  Prisma,
+  PublicKeyAlgorithm,
+} from './generated/index.js';
 import { prisma } from './client.js';
 import {
   generateConsumerKey,
   generateConsumerSecret,
   hashConsumerSecret,
+  validateRsaJwk,
 } from './credentials.js';
 
 export type ApplicationManagementErrorCode =
@@ -14,7 +20,8 @@ export type ApplicationManagementErrorCode =
   | 'organization_mismatch'
   | 'invalid_scope'
   | 'invalid_status_transition'
-  | 'public_key_not_found';
+  | 'public_key_not_found'
+  | 'public_key_conflict';
 
 export class ApplicationManagementError extends Error {
   constructor(
@@ -491,5 +498,158 @@ export async function replaceManagedCredentialGrants(
         product: { select: { name: true, active: true, scopes: true } },
       },
     });
+  });
+}
+
+export interface RegisterManagedPublicKeyInput {
+  credentialId: string;
+  kid: string;
+  jwk: Prisma.InputJsonObject;
+  validFrom?: Date;
+  expiresAt?: Date | null;
+  actor: ApplicationMutationActor;
+}
+
+export async function registerManagedPublicKey(
+  input: RegisterManagedPublicKeyInput,
+) {
+  validateRsaJwk(input.jwk);
+  try {
+    return await prisma.$transaction(async transaction => {
+      const credential = await transaction.appCredential.findUnique({
+        where: { id: input.credentialId },
+        select: {
+          id: true,
+          appId: true,
+          status: true,
+          app: { select: { organizationId: true, status: true } },
+        },
+      });
+      if (!credential) {
+        throw new ApplicationManagementError(
+          'credential_not_found',
+          'Application credential does not exist',
+        );
+      }
+      if (
+        credential.status === AuthorizationStatus.revoked
+        || credential.app.status === AuthorizationStatus.revoked
+      ) {
+        throw new ApplicationManagementError(
+          'invalid_status_transition',
+          'Cannot register a key for a revoked credential or application',
+        );
+      }
+      const publicKey = await transaction.appPublicKey.create({
+        data: {
+          credentialId: input.credentialId,
+          kid: input.kid.trim(),
+          jwk: input.jwk,
+          algorithm: PublicKeyAlgorithm.RS256,
+          validFrom: input.validFrom,
+          expiresAt: input.expiresAt,
+          status: AuthorizationStatus.approved,
+        },
+        select: {
+          id: true,
+          credentialId: true,
+          kid: true,
+          algorithm: true,
+          jwk: true,
+          status: true,
+          validFrom: true,
+          expiresAt: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+      await transaction.auditEvent.create({
+        data: {
+          actorIssuer: input.actor.issuer,
+          actorSubject: input.actor.subject,
+          actorRole: input.actor.role,
+          organizationId: credential.app.organizationId,
+          action: 'publicKey.register',
+          resourceType: 'AppPublicKey',
+          resourceId: publicKey.id,
+          metadata: {
+            appId: credential.appId,
+            credentialId: input.credentialId,
+            kid: publicKey.kid,
+          },
+        },
+      });
+      return publicKey;
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError
+      && error.code === 'P2002') {
+      throw new ApplicationManagementError(
+        'public_key_conflict',
+        'The credential already contains this public key ID',
+      );
+    }
+    throw error;
+  }
+}
+
+export interface RevokeManagedPublicKeyInput {
+  publicKeyId: string;
+  actor: ApplicationMutationActor;
+}
+
+export async function revokeManagedPublicKey(
+  input: RevokeManagedPublicKeyInput,
+) {
+  return prisma.$transaction(async transaction => {
+    const current = await transaction.appPublicKey.findUnique({
+      where: { id: input.publicKeyId },
+      select: {
+        id: true,
+        kid: true,
+        status: true,
+        credentialId: true,
+        credential: {
+          select: {
+            appId: true,
+            app: { select: { organizationId: true } },
+          },
+        },
+      },
+    });
+    if (!current) {
+      throw new ApplicationManagementError(
+        'public_key_not_found',
+        'Application public key does not exist',
+      );
+    }
+    const publicKey = await transaction.appPublicKey.update({
+      where: { id: input.publicKeyId },
+      data: { status: AuthorizationStatus.revoked },
+      select: {
+        id: true,
+        kid: true,
+        status: true,
+        credentialId: true,
+      },
+    });
+    await transaction.auditEvent.create({
+      data: {
+        actorIssuer: input.actor.issuer,
+        actorSubject: input.actor.subject,
+        actorRole: input.actor.role,
+        organizationId: current.credential.app.organizationId,
+        action: 'publicKey.revoke',
+        resourceType: 'AppPublicKey',
+        resourceId: input.publicKeyId,
+        metadata: {
+          appId: current.credential.appId,
+          credentialId: current.credentialId,
+          kid: current.kid,
+          alreadyRevoked: current.status === AuthorizationStatus.revoked,
+        },
+      },
+    });
+    return publicKey;
   });
 }

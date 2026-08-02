@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
+import { generateKeyPairSync } from 'node:crypto';
 import { describe, it } from 'node:test';
 import {
   hashConsumerSecret,
   normalizeCertificateFingerprint,
+  validateRsaJwk,
   verifyConsumerSecret,
 } from '../src/credentials.js';
 
@@ -25,5 +27,21 @@ describe('credential material', () => {
       'ab'.repeat(32),
     );
     assert.throws(() => normalizeCertificateFingerprint('not-a-fingerprint'));
+  });
+
+  it('accepts RSA public JWKs with at least 2048 bits', () => {
+    const accepted = generateKeyPairSync('rsa', { modulusLength: 2048 })
+      .publicKey.export({ format: 'jwk' });
+    const rejected = generateKeyPairSync('rsa', { modulusLength: 1024 })
+      .publicKey.export({ format: 'jwk' });
+    assert.doesNotThrow(() => validateRsaJwk(accepted));
+    assert.throws(
+      () => validateRsaJwk(rejected),
+      /at least 2048 bits/,
+    );
+    assert.throws(
+      () => validateRsaJwk({ kty: 'EC' }),
+      /Only RSA public JWKs/,
+    );
   });
 });

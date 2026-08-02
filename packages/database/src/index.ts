@@ -71,6 +71,8 @@ export {
   createManagedCredential,
   rotateManagedConsumerSecret,
   replaceManagedCredentialGrants,
+  registerManagedPublicKey,
+  revokeManagedPublicKey,
   updateDeveloperApplication,
   updateManagedCredential,
 } from './application-management.js';
@@ -80,6 +82,8 @@ export type {
   CreateManagedCredentialInput,
   RotateManagedConsumerSecretInput,
   ReplaceManagedCredentialGrantsInput,
+  RegisterManagedPublicKeyInput,
+  RevokeManagedPublicKeyInput,
   UpdateDeveloperApplicationInput,
   UpdateManagedCredentialInput,
 } from './application-management.js';

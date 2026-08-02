@@ -44,6 +44,14 @@ const updateCredentialSchema = z.object({
 }).strict().refine(value => Object.keys(value).length > 0, {
   message: 'At least one credential field is required',
 });
+const publicKeySchema = z.object({
+  kid: z.string().trim().min(1).max(120),
+  jwk: z.record(z.unknown()),
+  validFrom: z.string().datetime({ offset: true }).transform(value => new Date(value))
+    .optional(),
+  expiresAt: z.string().datetime({ offset: true }).transform(value => new Date(value))
+    .nullable().optional(),
+}).strict();
 
 function sendRegistrationError(
   reply: FastifyReply,
@@ -67,7 +75,9 @@ function sendApplicationError(reply: FastifyReply, error: unknown) {
   if (!(error instanceof ApplicationManagementError)) throw error;
   const statusCode = error.code.endsWith('_not_found')
     ? 404
-    : error.code === 'invalid_status_transition' ? 409 : 400;
+    : ['invalid_status_transition', 'public_key_conflict'].includes(error.code)
+      ? 409
+      : 400;
   return reply.code(statusCode).send({ error: error.code, message: error.message });
 }
 
@@ -194,6 +204,43 @@ export function registerApplicationRoutes(
           request.params.credentialId,
           z.object({ products: replacementProductsSchema }).strict()
             .parse(request.body),
+          request.adminPrincipal,
+        );
+      } catch (error) {
+        return sendApplicationError(reply, error);
+      }
+    },
+  );
+  server.get<{ Params: { credentialId: string } }>(
+    '/v1/credentials/:credentialId/public-keys',
+    request => applications.listPublicKeys(
+      request.params.credentialId,
+      request.adminPrincipal,
+    ),
+  );
+  server.post<{ Params: { credentialId: string }; Body: unknown }>(
+    '/v1/credentials/:credentialId/public-keys',
+    async (request, reply) => {
+      try {
+        const publicKey = await applications.registerPublicKey(
+          request.params.credentialId,
+          publicKeySchema.parse(request.body) as Parameters<
+            ApplicationOperations['registerPublicKey']
+          >[1],
+          request.adminPrincipal,
+        );
+        return reply.code(201).send(publicKey);
+      } catch (error) {
+        return sendApplicationError(reply, error);
+      }
+    },
+  );
+  server.post<{ Params: { publicKeyId: string } }>(
+    '/v1/public-keys/:publicKeyId/revoke',
+    async (request, reply) => {
+      try {
+        return await applications.revokePublicKey(
+          request.params.publicKeyId,
           request.adminPrincipal,
         );
       } catch (error) {

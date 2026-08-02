@@ -467,7 +467,7 @@ export async function replaceCredentialProductGrants(
   });
 }
 
-function validateRsaJwk(jwk: Prisma.InputJsonObject): void {
+export function validateRsaJwk(jwk: Prisma.InputJsonObject): void {
   if (jwk['kty'] !== 'RSA') {
     throw new Error('Only RSA public JWKs are supported');
   }
