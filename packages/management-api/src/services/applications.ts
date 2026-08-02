@@ -1,6 +1,7 @@
 import {
   AdminRole,
   ApplicationManagementError,
+  createManagedCredential,
   prisma,
   registerDeveloperApplication,
   updateDeveloperApplication,
@@ -25,6 +26,11 @@ export interface UpdateApplicationInput {
   status?: 'pending' | 'approved' | 'revoked';
 }
 
+export interface CreateCredentialInput {
+  expiresAt?: Date | null;
+  products: Array<{ productId: string; scopes?: string[] }>;
+}
+
 export interface ApplicationOperations {
   list(organizationId: string, actor: AdminPrincipal): Promise<unknown>;
   get(appId: string, actor: AdminPrincipal): Promise<unknown>;
@@ -36,6 +42,11 @@ export interface ApplicationOperations {
   update(
     appId: string,
     input: UpdateApplicationInput,
+    actor: AdminPrincipal,
+  ): Promise<unknown>;
+  createCredential(
+    appId: string,
+    input: CreateCredentialInput,
     actor: AdminPrincipal,
   ): Promise<unknown>;
 }
@@ -182,6 +193,35 @@ export class ApplicationService implements ApplicationOperations {
       throw forbidden('Organization administration access denied');
     }
     return updateDeveloperApplication({
+      appId,
+      ...input,
+      actor: {
+        issuer: actor.issuer,
+        subject: actor.subject,
+        role: actorRole(actor, app.organizationId),
+      },
+    });
+  }
+
+  async createCredential(
+    appId: string,
+    input: CreateCredentialInput,
+    actor: AdminPrincipal,
+  ) {
+    const app = await prisma.developerApp.findUnique({
+      where: { id: appId },
+      select: { organizationId: true },
+    });
+    if (!app) {
+      throw new ApplicationManagementError(
+        'app_not_found',
+        'Developer application does not exist',
+      );
+    }
+    if (!canManageOrganization(actor, app.organizationId)) {
+      throw forbidden('Organization administration access denied');
+    }
+    return createManagedCredential({
       appId,
       ...input,
       actor: {

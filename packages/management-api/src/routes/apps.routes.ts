@@ -19,6 +19,19 @@ const updateApplicationSchema = z.object({
 }).strict().refine(value => Object.keys(value).length > 0, {
   message: 'At least one application field is required',
 });
+const credentialProductsSchema = z.array(z.object({
+  productId: z.string().trim().min(1).max(120),
+  scopes: z.array(z.string().trim().min(1).max(120)).max(100).optional(),
+}).strict()).min(1).max(100).refine(
+  products => new Set(products.map(product => product.productId)).size
+    === products.length,
+  { message: 'Product IDs must be unique' },
+);
+const createCredentialSchema = z.object({
+  expiresAt: z.string().datetime({ offset: true }).transform(value => new Date(value))
+    .nullable().optional(),
+  products: credentialProductsSchema,
+}).strict();
 
 function sendRegistrationError(
   reply: FastifyReply,
@@ -105,6 +118,22 @@ export function registerApplicationRoutes(
           updateApplicationSchema.parse(request.body),
           request.adminPrincipal,
         );
+      } catch (error) {
+        return sendApplicationError(reply, error);
+      }
+    },
+  );
+
+  server.post<{ Params: { appId: string }; Body: unknown }>(
+    '/v1/apps/:appId/credentials',
+    async (request, reply) => {
+      try {
+        const result = await applications.createCredential(
+          request.params.appId,
+          createCredentialSchema.parse(request.body),
+          request.adminPrincipal,
+        );
+        return reply.code(201).send(result);
       } catch (error) {
         return sendApplicationError(reply, error);
       }

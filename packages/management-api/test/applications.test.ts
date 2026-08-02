@@ -68,6 +68,7 @@ describe('application management API', () => {
         };
       },
       update: async () => ({}),
+      createCredential: async () => ({}),
     };
     const server = authenticatedServer(applications);
     const response = await server.inject({
@@ -132,6 +133,7 @@ describe('application management API', () => {
         );
       },
       update: async () => ({}),
+      createCredential: async () => ({}),
     };
     const server = authenticatedServer(applications);
     const response = await server.inject({
@@ -164,6 +166,7 @@ describe('application management API', () => {
         calls.push({ appId, input });
         return { id: appId, ...input };
       },
+      createCredential: async () => ({}),
     };
     const server = authenticatedServer(applications);
     const response = await server.inject({
@@ -184,6 +187,55 @@ describe('application management API', () => {
       payload: { consumerKey: 'not-editable' },
     });
     assert.equal(invalid.statusCode, 400);
+    await server.close();
+  });
+
+  it('creates an additional credential with explicit products', async () => {
+    const calls: unknown[] = [];
+    const applications: ApplicationOperations = {
+      list: async () => [],
+      get: async () => ({ id: 'app-1' }),
+      register: async () => ({}),
+      update: async () => ({}),
+      createCredential: async (appId, input) => {
+        calls.push({ appId, input });
+        return {
+          credential: { id: 'credential-2', consumerKey: 'ck_generated' },
+          consumerSecret: 'cs_once',
+        };
+      },
+    };
+    const server = authenticatedServer(applications);
+    const response = await server.inject({
+      method: 'POST',
+      url: '/v1/apps/app-1/credentials',
+      headers: { authorization: 'Bearer token' },
+      payload: {
+        products: [{
+          productId: 'product-banking',
+          scopes: ['banking:read'],
+        }],
+      },
+    });
+    assert.equal(response.statusCode, 201);
+    assert.equal(response.json().consumerSecret, 'cs_once');
+    assert.deepEqual(calls, [{
+      appId: 'app-1',
+      input: {
+        products: [{
+          productId: 'product-banking',
+          scopes: ['banking:read'],
+        }],
+      },
+    }]);
+    const missingProducts = await server.inject({
+      method: 'POST',
+      url: '/v1/apps/app-1/credentials',
+      headers: { authorization: 'Bearer token' },
+      payload: {},
+    });
+    assert.equal(missingProducts.statusCode, 400);
+    assert.equal(calls.length, 1);
     await server.close();
   });
 });

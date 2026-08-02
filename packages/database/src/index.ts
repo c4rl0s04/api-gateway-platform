@@ -68,11 +68,13 @@ export {
 } from './credentials.js';
 export {
   ApplicationManagementError,
+  createManagedCredential,
   updateDeveloperApplication,
 } from './application-management.js';
 export type {
   ApplicationManagementErrorCode,
   ApplicationMutationActor,
+  CreateManagedCredentialInput,
   UpdateDeveloperApplicationInput,
 } from './application-management.js';
 export type {

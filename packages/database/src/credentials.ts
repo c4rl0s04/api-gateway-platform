@@ -88,11 +88,11 @@ export async function verifyConsumerSecret(
   return expected.length === actual.length && timingSafeEqual(expected, actual);
 }
 
-function generateConsumerKey(): string {
+export function generateConsumerKey(): string {
   return `ck_${randomBytes(24).toString('base64url')}`;
 }
 
-function generateConsumerSecret(): string {
+export function generateConsumerSecret(): string {
   return `cs_${randomBytes(32).toString('base64url')}`;
 }
 
