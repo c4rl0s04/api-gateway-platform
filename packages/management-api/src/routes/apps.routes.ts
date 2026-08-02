@@ -1,4 +1,5 @@
 import {
+  ApplicationManagementError,
   RegisterDeveloperApplicationError,
 } from '@api-gateway/database';
 import type { FastifyInstance, FastifyReply } from 'fastify';
@@ -12,6 +13,12 @@ const registerApplicationSchema = z.object({
     scopes: z.array(z.string().trim().min(1).max(120)).max(100).optional(),
   })).min(1).max(100),
 }).strict();
+const updateApplicationSchema = z.object({
+  name: z.string().trim().min(1).max(120).optional(),
+  status: z.enum(['pending', 'approved', 'revoked']).optional(),
+}).strict().refine(value => Object.keys(value).length > 0, {
+  message: 'At least one application field is required',
+});
 
 function sendRegistrationError(
   reply: FastifyReply,
@@ -29,6 +36,14 @@ function sendRegistrationError(
     error: error.code,
     message: error.message,
   });
+}
+
+function sendApplicationError(reply: FastifyReply, error: unknown) {
+  if (!(error instanceof ApplicationManagementError)) throw error;
+  const statusCode = error.code.endsWith('_not_found')
+    ? 404
+    : error.code === 'invalid_status_transition' ? 409 : 400;
+  return reply.code(statusCode).send({ error: error.code, message: error.message });
 }
 
 export function registerApplicationRoutes(
@@ -77,6 +92,21 @@ export function registerApplicationRoutes(
           return sendRegistrationError(reply, error);
         }
         throw error;
+      }
+    },
+  );
+
+  server.patch<{ Params: { appId: string }; Body: unknown }>(
+    '/v1/apps/:appId',
+    async (request, reply) => {
+      try {
+        return await applications.update(
+          request.params.appId,
+          updateApplicationSchema.parse(request.body),
+          request.adminPrincipal,
+        );
+      } catch (error) {
+        return sendApplicationError(reply, error);
       }
     },
   );

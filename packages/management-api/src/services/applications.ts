@@ -1,7 +1,9 @@
 import {
   AdminRole,
+  ApplicationManagementError,
   prisma,
   registerDeveloperApplication,
+  updateDeveloperApplication,
 } from '@api-gateway/database';
 import {
   canManageOrganization,
@@ -18,12 +20,22 @@ export interface RegisterApplicationInput {
   }>;
 }
 
+export interface UpdateApplicationInput {
+  name?: string;
+  status?: 'pending' | 'approved' | 'revoked';
+}
+
 export interface ApplicationOperations {
   list(organizationId: string, actor: AdminPrincipal): Promise<unknown>;
   get(appId: string, actor: AdminPrincipal): Promise<unknown>;
   register(
     organizationId: string,
     input: RegisterApplicationInput,
+    actor: AdminPrincipal,
+  ): Promise<unknown>;
+  update(
+    appId: string,
+    input: UpdateApplicationInput,
     actor: AdminPrincipal,
   ): Promise<unknown>;
 }
@@ -147,6 +159,35 @@ export class ApplicationService implements ApplicationOperations {
         issuer: actor.issuer,
         subject: actor.subject,
         role: actorRole(actor, organizationId),
+      },
+    });
+  }
+
+  async update(
+    appId: string,
+    input: UpdateApplicationInput,
+    actor: AdminPrincipal,
+  ) {
+    const app = await prisma.developerApp.findUnique({
+      where: { id: appId },
+      select: { organizationId: true },
+    });
+    if (!app) {
+      throw new ApplicationManagementError(
+        'app_not_found',
+        'Developer application does not exist',
+      );
+    }
+    if (!canManageOrganization(actor, app.organizationId)) {
+      throw forbidden('Organization administration access denied');
+    }
+    return updateDeveloperApplication({
+      appId,
+      ...input,
+      actor: {
+        issuer: actor.issuer,
+        subject: actor.subject,
+        role: actorRole(actor, app.organizationId),
       },
     });
   }

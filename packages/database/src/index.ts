@@ -66,6 +66,15 @@ export {
   verifyConsumerSecret,
   RegisterDeveloperApplicationError,
 } from './credentials.js';
+export {
+  ApplicationManagementError,
+  updateDeveloperApplication,
+} from './application-management.js';
+export type {
+  ApplicationManagementErrorCode,
+  ApplicationMutationActor,
+  UpdateDeveloperApplicationInput,
+} from './application-management.js';
 export type {
   CreateAppCredentialInput,
   RegisterAppCertificateInput,

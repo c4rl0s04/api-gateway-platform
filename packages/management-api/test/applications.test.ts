@@ -67,6 +67,7 @@ describe('application management API', () => {
           consumerSecret: 'cs_returned_once',
         };
       },
+      update: async () => ({}),
     };
     const server = authenticatedServer(applications);
     const response = await server.inject({
@@ -130,6 +131,7 @@ describe('application management API', () => {
           'Scope is not declared by the product',
         );
       },
+      update: async () => ({}),
     };
     const server = authenticatedServer(applications);
     const response = await server.inject({
@@ -149,6 +151,39 @@ describe('application management API', () => {
       error: 'invalid_scope',
       message: 'Scope is not declared by the product',
     });
+    await server.close();
+  });
+
+  it('updates application name and status through a strict contract', async () => {
+    const calls: unknown[] = [];
+    const applications: ApplicationOperations = {
+      list: async () => [],
+      get: async () => ({ id: 'app-1' }),
+      register: async () => ({}),
+      update: async (appId, input) => {
+        calls.push({ appId, input });
+        return { id: appId, ...input };
+      },
+    };
+    const server = authenticatedServer(applications);
+    const response = await server.inject({
+      method: 'PATCH',
+      url: '/v1/apps/app-1',
+      headers: { authorization: 'Bearer token' },
+      payload: { name: 'Renamed app', status: 'revoked' },
+    });
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(calls, [{
+      appId: 'app-1',
+      input: { name: 'Renamed app', status: 'revoked' },
+    }]);
+    const invalid = await server.inject({
+      method: 'PATCH',
+      url: '/v1/apps/app-1',
+      headers: { authorization: 'Bearer token' },
+      payload: { consumerKey: 'not-editable' },
+    });
+    assert.equal(invalid.statusCode, 400);
     await server.close();
   });
 });
