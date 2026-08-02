@@ -95,4 +95,74 @@ describe('product management domain', () => {
     assert.deepEqual(calls, ['list:org-a', 'get:product-a']);
     await server.close();
   });
+
+  it('creates and updates products with explicit relationship replacement', async () => {
+    const calls: Array<{ operation: string; input: unknown }> = [];
+    const operations: ProductOperations = {
+      list: async () => [],
+      get: async productId => ({ id: productId }),
+      create: async (_organizationId, input) => {
+        calls.push({ operation: 'create', input });
+        return { id: 'product-a', ...input };
+      },
+      update: async (_productId, input) => {
+        calls.push({ operation: 'update', input });
+        return { id: 'product-a', ...input };
+      },
+    };
+    const server = authenticatedServer(operations);
+    const created = await server.inject({
+      method: 'POST',
+      url: '/v1/organizations/org-a/products',
+      headers: { authorization: 'Bearer token' },
+      payload: {
+        name: 'Banking APIs',
+        scopes: ['banking:read'],
+        proxyIds: ['proxy-banking'],
+      },
+    });
+    assert.equal(created.statusCode, 201);
+    const updated = await server.inject({
+      method: 'PATCH',
+      url: '/v1/products/product-a',
+      headers: { authorization: 'Bearer token' },
+      payload: {
+        scopes: ['banking:read', 'banking:write'],
+        environmentIds: ['env-qual-es'],
+      },
+    });
+    assert.equal(updated.statusCode, 200);
+    assert.deepEqual(calls, [
+      {
+        operation: 'create',
+        input: {
+          name: 'Banking APIs',
+          scopes: ['banking:read'],
+          proxyIds: ['proxy-banking'],
+          environmentIds: [],
+          active: true,
+        },
+      },
+      {
+        operation: 'update',
+        input: {
+          scopes: ['banking:read', 'banking:write'],
+          environmentIds: ['env-qual-es'],
+        },
+      },
+    ]);
+
+    const duplicate = await server.inject({
+      method: 'POST',
+      url: '/v1/organizations/org-a/products',
+      headers: { authorization: 'Bearer token' },
+      payload: {
+        name: 'Invalid',
+        proxyIds: ['proxy-banking', 'proxy-banking'],
+      },
+    });
+    assert.equal(duplicate.statusCode, 400);
+    assert.equal(calls.length, 2);
+    await server.close();
+  });
 });
