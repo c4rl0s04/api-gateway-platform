@@ -11,6 +11,12 @@ const MAX_BUNDLE_FILE_SIZE = 5 * 1024 * 1024;
 const createProxySchema = z.object({
   name: z.string().trim().min(1).max(120),
 }).strict();
+const updateProxySchema = z.object({
+  name: z.string().trim().min(1).max(120).optional(),
+  active: z.boolean().optional(),
+}).strict().refine(value => Object.keys(value).length > 0, {
+  message: 'At least one proxy field is required',
+});
 const deploymentRevisionParamsSchema = z.object({
   proxyId: z.string().trim().min(1),
   revisionNumber: z.coerce.number().int().positive(),
@@ -95,6 +101,15 @@ export function registerProxyRevisionRoutes(
       return sendDomainError(reply, error);
     }
   });
+
+  server.patch<{
+    Params: { proxyId: string };
+    Body: unknown;
+  }>('/v1/proxies/:proxyId', request => revisions.updateProxy(
+    request.params.proxyId,
+    updateProxySchema.parse(request.body),
+    request.adminPrincipal,
+  ));
 
   server.post<{ Params: { proxyId: string } }>(
     '/v1/proxies/:proxyId/revisions',

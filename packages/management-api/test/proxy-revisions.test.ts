@@ -62,6 +62,7 @@ describe('proxy revision management routes', () => {
         calls.push(`create:${organizationId}:${input.name}`);
         return { id: 'proxy-1' };
       },
+      updateProxy: async () => ({}),
       importRevision: async (proxyId, input) => {
         calls.push(`import:${proxyId}:${input.openapiSource}:${input.gatewayConfigSource}`);
         return { revisionNumber: 1 };
@@ -95,6 +96,7 @@ describe('proxy revision management routes', () => {
   it('exposes revision metadata and original sources', async () => {
     const revisions: ProxyRevisionOperations = {
       createProxy: async () => ({}),
+      updateProxy: async () => ({}),
       importRevision: async () => ({}),
       listRevisions: async proxyId => [{ proxyId, revisionNumber: 1 }],
       getRevision: async (proxyId, revisionNumber) => ({ proxyId, revisionNumber }),
@@ -119,6 +121,7 @@ describe('proxy revision management routes', () => {
     let called = false;
     const revisions: ProxyRevisionOperations = {
       createProxy: async () => ({}),
+      updateProxy: async () => ({}),
       importRevision: async () => {
         called = true;
         return {};
@@ -144,6 +147,7 @@ describe('proxy revision management routes', () => {
     const calls: unknown[] = [];
     const revisions: ProxyRevisionOperations = {
       createProxy: async () => ({}),
+      updateProxy: async () => ({}),
       importRevision: async () => ({}),
       listRevisions: async () => [],
       getRevision: async () => ({}),
@@ -173,6 +177,42 @@ describe('proxy revision management routes', () => {
         upstreamBaseUrl: 'https://backend.test',
       },
     }]);
+    await server.close();
+  });
+
+  it('updates only mutable logical proxy fields', async () => {
+    const calls: unknown[] = [];
+    const revisions: ProxyRevisionOperations = {
+      createProxy: async () => ({}),
+      updateProxy: async (proxyId, input) => {
+        calls.push({ proxyId, input });
+        return { id: proxyId, ...input };
+      },
+      importRevision: async () => ({}),
+      listRevisions: async () => [],
+      getRevision: async () => ({}),
+      getRevisionSource: async () => '',
+      deployRevision: async () => ({}),
+    };
+    const server = serverWith(revisions);
+    const response = await server.inject({
+      method: 'PATCH',
+      url: '/v1/proxies/proxy-1',
+      headers: { authorization: 'Bearer token' },
+      payload: { name: 'Accounts API', active: false },
+    });
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(calls, [{
+      proxyId: 'proxy-1',
+      input: { name: 'Accounts API', active: false },
+    }]);
+    const immutable = await server.inject({
+      method: 'PATCH',
+      url: '/v1/proxies/proxy-1',
+      headers: { authorization: 'Bearer token' },
+      payload: { systemManaged: false },
+    });
+    assert.equal(immutable.statusCode, 400);
     await server.close();
   });
 });

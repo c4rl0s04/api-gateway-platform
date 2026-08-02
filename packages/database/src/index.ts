@@ -28,6 +28,7 @@ export {
   getProxyRevisionSource,
   importProxyRevision,
   listProxyRevisions,
+  updateApiProxy,
   ProxyRevisionError,
 } from './proxy-revisions.js';
 export {
@@ -45,6 +46,7 @@ export type {
   ImportProxyRevisionInput,
   ProxyMutationActor,
   ProxyRevisionErrorCode,
+  UpdateApiProxyInput,
 } from './proxy-revisions.js';
 export {
   createAppCredential,

@@ -36,6 +36,13 @@ export interface CreateApiProxyInput {
   systemManaged?: boolean;
 }
 
+export interface UpdateApiProxyInput {
+  proxyId: string;
+  name?: string;
+  active?: boolean;
+  actor: ProxyMutationActor;
+}
+
 export interface ImportProxyRevisionInput {
   proxyId: string;
   openapiSource: string;
@@ -118,6 +125,67 @@ export async function createApiProxy(input: CreateApiProxyInput) {
         resourceType: 'ApiProxy',
         resourceId: proxy.id,
         metadata: { name, systemManaged: proxy.systemManaged },
+      },
+    });
+    return proxy;
+  });
+}
+
+export async function updateApiProxy(input: UpdateApiProxyInput) {
+  const name = input.name?.trim();
+  if (name !== undefined && (!name || name.length > 120)) {
+    throw new Error('Proxy name must contain between 1 and 120 characters');
+  }
+  return prisma.$transaction(async transaction => {
+    const current = await transaction.apiProxy.findUnique({
+      where: { id: input.proxyId },
+      select: {
+        id: true,
+        name: true,
+        active: true,
+        systemManaged: true,
+        organizationId: true,
+      },
+    });
+    if (!current) {
+      throw new ProxyRevisionError('proxy_not_found', 'Proxy does not exist');
+    }
+    if (current.systemManaged) {
+      throw new ProxyRevisionError(
+        'system_proxy_immutable',
+        'System-managed proxies cannot be modified',
+      );
+    }
+    const proxy = await transaction.apiProxy.update({
+      where: { id: input.proxyId },
+      data: { name, active: input.active },
+      select: {
+        id: true,
+        name: true,
+        active: true,
+        systemManaged: true,
+        organizationId: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+    await transaction.auditEvent.create({
+      data: {
+        actorIssuer: input.actor.issuer,
+        actorSubject: input.actor.subject,
+        actorRole: input.actor.role,
+        organizationId: current.organizationId,
+        action: 'proxy.update',
+        resourceType: 'ApiProxy',
+        resourceId: input.proxyId,
+        metadata: {
+          changedFields: [
+            ...(name !== undefined ? ['name'] : []),
+            ...(input.active !== undefined ? ['active'] : []),
+          ],
+          previousName: current.name,
+          previousActive: current.active,
+        },
       },
     });
     return proxy;

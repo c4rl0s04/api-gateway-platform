@@ -7,6 +7,7 @@ import {
   importProxyRevision,
   listProxyRevisions,
   prisma,
+  updateApiProxy,
 } from '@api-gateway/database';
 import {
   canManageOrganization,
@@ -24,6 +25,11 @@ export interface ImportRevisionInput {
   gatewayConfigSource: string;
 }
 
+export interface UpdateProxyInput {
+  name?: string;
+  active?: boolean;
+}
+
 export interface DeployRevisionInput {
   environmentId: string;
   upstreamBaseUrl?: string | null;
@@ -33,6 +39,11 @@ export interface ProxyRevisionOperations {
   createProxy(
     organizationId: string,
     input: CreateProxyInput,
+    actor: AdminPrincipal,
+  ): Promise<unknown>;
+  updateProxy(
+    proxyId: string,
+    input: UpdateProxyInput,
     actor: AdminPrincipal,
   ): Promise<unknown>;
   importRevision(
@@ -99,6 +110,26 @@ export class ProxyRevisionService implements ProxyRevisionOperations {
     return createApiProxy({
       organizationId,
       name: input.name,
+      actor: {
+        issuer: actor.issuer,
+        subject: actor.subject,
+        role: actorRole(actor, organizationId),
+      },
+    });
+  }
+
+  async updateProxy(
+    proxyId: string,
+    input: UpdateProxyInput,
+    actor: AdminPrincipal,
+  ) {
+    const organizationId = await proxyOrganization(proxyId);
+    if (!canManageOrganization(actor, organizationId)) {
+      throw forbidden('Organization administration access denied');
+    }
+    return updateApiProxy({
+      proxyId,
+      ...input,
       actor: {
         issuer: actor.issuer,
         subject: actor.subject,
