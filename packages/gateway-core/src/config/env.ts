@@ -1,3 +1,4 @@
+import { hostname } from 'node:os';
 import { z } from 'zod';
 
 const environmentAllowlistSchema = z.preprocess(
@@ -35,6 +36,8 @@ export const envSchema = z.object({
     'trace',
     'silent',
   ]).default('info'),
+  GATEWAY_INSTANCE_ID: z.string().trim().min(1).default(hostname()),
+  GATEWAY_CONFIG_RECONCILE_SECONDS: z.coerce.number().int().min(1).max(60).default(10),
   GATEWAY_ENVIRONMENT_ALLOWLIST: environmentAllowlistSchema,
   OAUTH_SIGNING_PRIVATE_KEY_BASE64: z.string().trim().min(1).optional(),
   OAUTH_SIGNING_KEY_ID: z.string().trim().min(1).optional(),

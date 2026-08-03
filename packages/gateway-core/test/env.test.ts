@@ -14,6 +14,8 @@ describe('gateway environment', () => {
     assert.equal(env.HOST, '0.0.0.0');
     assert.equal(env.REDIS_URL, 'redis://localhost:6379');
     assert.equal(env.LOG_LEVEL, 'info');
+    assert.ok(env.GATEWAY_INSTANCE_ID.length > 0);
+    assert.equal(env.GATEWAY_CONFIG_RECONCILE_SECONDS, 10);
   });
 
   it('rejects missing or malformed required configuration', () => {
@@ -33,6 +35,14 @@ describe('gateway environment', () => {
         REDIS_URL: 'https://redis.example.com',
       }),
       /redis:\/\/ or rediss:\/\//,
+    );
+    assert.throws(
+      () => loadEnv({
+        NODE_ENV: 'test',
+        DATABASE_URL: 'postgresql://user:pass@localhost:5432/gateway',
+        GATEWAY_CONFIG_RECONCILE_SECONDS: '61',
+      }),
+      /less than or equal to 60/,
     );
   });
 
