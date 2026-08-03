@@ -16,6 +16,7 @@ import {
   isPlatformAdmin,
   type AdminPrincipal,
 } from '../auth/authorization.js';
+import type { GatewayConfigNotifier } from '../runtime-sync/publisher.js';
 
 export interface CreateProxyInput {
   name: string;
@@ -113,6 +114,13 @@ async function deploymentOrganization(deploymentId: string): Promise<string> {
 }
 
 export class ProxyRevisionService implements ProxyRevisionOperations {
+  constructor(private readonly notifier?: GatewayConfigNotifier) {}
+
+  private notify(result: unknown): void {
+    const version = (result as { configVersion?: unknown })?.configVersion;
+    if (typeof version === 'number') this.notifier?.notify(version);
+  }
+
   async createProxy(
     organizationId: string,
     input: CreateProxyInput,
@@ -141,7 +149,7 @@ export class ProxyRevisionService implements ProxyRevisionOperations {
     if (!canManageOrganization(actor, organizationId)) {
       throw forbidden('Organization administration access denied');
     }
-    return updateApiProxy({
+    const result = await updateApiProxy({
       proxyId,
       ...input,
       actor: {
@@ -150,6 +158,8 @@ export class ProxyRevisionService implements ProxyRevisionOperations {
         role: actorRole(actor, organizationId),
       },
     });
+    this.notify(result);
+    return result;
   }
 
   async importRevision(
@@ -221,7 +231,7 @@ export class ProxyRevisionService implements ProxyRevisionOperations {
     if (!canManageOrganization(actor, organizationId)) {
       throw forbidden('Organization administration access denied');
     }
-    return deployProxyRevision({
+    const result = await deployProxyRevision({
       proxyId,
       revisionNumber,
       ...input,
@@ -231,6 +241,8 @@ export class ProxyRevisionService implements ProxyRevisionOperations {
         role: actorRole(actor, organizationId),
       },
     });
+    this.notify(result);
+    return result;
   }
 
   async retireDeployment(deploymentId: string, actor: AdminPrincipal) {
@@ -238,7 +250,7 @@ export class ProxyRevisionService implements ProxyRevisionOperations {
     if (!canManageOrganization(actor, organizationId)) {
       throw forbidden('Organization administration access denied');
     }
-    return retireProxyDeployment({
+    const result = await retireProxyDeployment({
       deploymentId,
       actor: {
         issuer: actor.issuer,
@@ -246,5 +258,7 @@ export class ProxyRevisionService implements ProxyRevisionOperations {
         role: actorRole(actor, organizationId),
       },
     });
+    this.notify(result);
+    return result;
   }
 }

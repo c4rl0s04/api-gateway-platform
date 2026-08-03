@@ -4,6 +4,10 @@ export const envSchema = z.object({
   HOST: z.string().trim().min(1).default('0.0.0.0'),
   PORT: z.coerce.number().int().min(1).max(65_535).default(3002),
   DATABASE_URL: z.string().url(),
+  REDIS_URL: z.string().url().refine(
+    value => value.startsWith('redis://') || value.startsWith('rediss://'),
+    'REDIS_URL must use the redis:// or rediss:// protocol',
+  ).default('redis://localhost:6379'),
   OIDC_ISSUER: z.string().url(),
   OIDC_AUDIENCE: z.string().trim().min(1).default('management-api'),
   OIDC_JWKS_URI: z.string().url().optional(),

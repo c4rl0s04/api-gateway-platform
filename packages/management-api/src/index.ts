@@ -8,6 +8,7 @@ import { ProxyRevisionService } from './services/proxy-revisions.js';
 import { OrganizationService } from './services/organizations.js';
 import { ProductService } from './services/products.js';
 import { AuditService } from './services/audit.js';
+import { createGatewayConfigPublisher } from './runtime-sync/publisher.js';
 
 void (async () => {
   const config = loadEnv();
@@ -17,6 +18,8 @@ void (async () => {
     new EncryptedFileKeyStore(config.PKI_KEYSTORE_DIR, masterKey),
     certificateAuthorities,
   );
+  const publisher = createGatewayConfigPublisher(config.REDIS_URL, console);
+  publisher.start();
   const server = buildServer({
     config,
     organizations: new OrganizationService(),
@@ -26,8 +29,9 @@ void (async () => {
     certificateAuthorities,
     certificates,
     gatewayCatalog: new GatewayCatalogService(),
-    proxyRevisions: new ProxyRevisionService(),
+    proxyRevisions: new ProxyRevisionService(publisher),
   });
+  server.addHook('onClose', () => publisher.close());
   try {
     await server.listen({ port: config.PORT, host: config.HOST });
   } catch (error) {

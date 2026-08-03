@@ -7,6 +7,7 @@ const config: ManagementEnv = {
   HOST: '127.0.0.1',
   PORT: 3002,
   DATABASE_URL: 'postgresql://test:test@localhost:5432/test',
+  REDIS_URL: 'redis://localhost:6379',
   OIDC_ISSUER: 'https://identity.test/realms/platform',
   OIDC_AUDIENCE: 'management-api',
   PKI_KEYSTORE_DIR: '/tmp/test-pki-keys',
