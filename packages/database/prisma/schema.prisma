@@ -397,3 +397,19 @@ model AuditEvent {
   @@index([organizationId, createdAt])
   @@index([resourceType, resourceId, createdAt])
 }
+
+/// Durable outbox entry for changes that affect the gateway routing registry.
+/// PostgreSQL remains authoritative; Redis only announces committed versions.
+model GatewayConfigChange {
+  version         Int       @id @default(autoincrement())
+  changeType      String
+  resourceType    String
+  resourceId      String
+  environmentId  String?
+  createdAt       DateTime  @default(now())
+  publishedAt     DateTime?
+  publishAttempts Int       @default(0)
+  lastError       String?
+
+  @@index([publishedAt, version])
+}
