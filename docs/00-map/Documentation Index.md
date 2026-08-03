@@ -79,6 +79,7 @@ aliases: []
 | [[04-guides/How to Run Tests|How to Run Tests]] | current | implemented | 2026-07-31 |
 | [[04-guides/How to Start the Project|How to Start the Project]] | current | implemented | 2026-07-29 |
 | [[04-guides/How to Use Prisma Studio|How to Use Prisma Studio]] | current | implemented | 2026-07-31 |
+| [[04-guides/How to Use the Management API with Postman|How to Use the Management API with Postman]] | current | implemented | 2026-07-31 |
 
 ## Decisions
 

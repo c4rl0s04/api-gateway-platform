@@ -262,8 +262,7 @@ curl --request PATCH \
   --data '{"scopes":["banking:read"]}'
 ```
 
-The Postman workflow guide is added alongside this reference in the next
-documentation change.
+See [[How to Use the Management API with Postman]] for the complete workflow.
 
 ## Source Files
 
@@ -282,5 +281,6 @@ documentation change.
 
 - [[Management API]]
 - [[API Routes]]
+- [[How to Use the Management API with Postman]]
 - [[How to Import and Deploy a Proxy Revision]]
 - [[How to Configure Application Authentication]]
