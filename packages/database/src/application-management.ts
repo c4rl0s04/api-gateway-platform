@@ -13,6 +13,7 @@ import {
 } from './credentials.js';
 
 export type ApplicationManagementErrorCode =
+  | 'invalid_request'
   | 'app_not_found'
   | 'credential_not_found'
   | 'product_not_found'
@@ -20,6 +21,8 @@ export type ApplicationManagementErrorCode =
   | 'organization_mismatch'
   | 'invalid_scope'
   | 'invalid_status_transition'
+  | 'consumer_key_conflict'
+  | 'credential_clone_not_allowed'
   | 'public_key_not_found'
   | 'public_key_conflict';
 
@@ -241,6 +244,7 @@ export async function createManagedCredential(
 
 export interface UpdateManagedCredentialInput {
   credentialId: string;
+  consumerKey?: string;
   expiresAt?: Date | null;
   status?: AuthorizationStatus;
   actor: ApplicationMutationActor;
@@ -249,11 +253,16 @@ export interface UpdateManagedCredentialInput {
 export async function updateManagedCredential(
   input: UpdateManagedCredentialInput,
 ) {
-  return prisma.$transaction(async transaction => {
+  const consumerKey = input.consumerKey === undefined
+    ? undefined
+    : normalizeManagedConsumerKey(input.consumerKey);
+  try {
+    return await prisma.$transaction(async transaction => {
     const current = await transaction.appCredential.findUnique({
       where: { id: input.credentialId },
       select: {
         id: true,
+        consumerKey: true,
         status: true,
         expiresAt: true,
         appId: true,
@@ -269,7 +278,11 @@ export async function updateManagedCredential(
     if (input.status) validateStatusTransition(current.status, input.status);
     const credential = await transaction.appCredential.update({
       where: { id: input.credentialId },
-      data: { expiresAt: input.expiresAt, status: input.status },
+      data: {
+        consumerKey,
+        expiresAt: input.expiresAt,
+        status: input.status,
+      },
       select: {
         id: true,
         appId: true,
@@ -281,28 +294,181 @@ export async function updateManagedCredential(
         updatedAt: true,
       },
     });
+    if (input.expiresAt !== undefined || input.status !== undefined) {
+      await transaction.auditEvent.create({
+        data: {
+          actorIssuer: input.actor.issuer,
+          actorSubject: input.actor.subject,
+          actorRole: input.actor.role,
+          organizationId: current.app.organizationId,
+          action: 'credential.update',
+          resourceType: 'AppCredential',
+          resourceId: input.credentialId,
+          metadata: {
+            appId: current.appId,
+            changedFields: [
+              ...(input.expiresAt !== undefined ? ['expiresAt'] : []),
+              ...(input.status !== undefined ? ['status'] : []),
+            ],
+            previousStatus: current.status,
+            previousExpiresAt: current.expiresAt?.toISOString() ?? null,
+          },
+        },
+      });
+    }
+    if (consumerKey !== undefined && consumerKey !== current.consumerKey) {
+      await transaction.auditEvent.create({
+        data: {
+          actorIssuer: input.actor.issuer,
+          actorSubject: input.actor.subject,
+          actorRole: input.actor.role,
+          organizationId: current.app.organizationId,
+          action: 'credential.updateConsumerKey',
+          resourceType: 'AppCredential',
+          resourceId: input.credentialId,
+          metadata: {
+            appId: current.appId,
+            previousConsumerKey: current.consumerKey,
+            consumerKey,
+          },
+        },
+      });
+    }
+    return credential;
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError
+      && error.code === 'P2002') {
+      throw new ApplicationManagementError(
+        'consumer_key_conflict',
+        'The consumer key is already assigned to another credential',
+      );
+    }
+    throw error;
+  }
+}
+
+function normalizeManagedConsumerKey(value: string): string {
+  const normalized = value.trim();
+  if (
+    normalized.length === 0
+    || normalized.length > 120
+    || /[\s:\u0000-\u001f\u007f]/u.test(normalized)
+  ) {
+    throw new ApplicationManagementError(
+      'invalid_request',
+      'Consumer keys must contain 1-120 non-whitespace characters and cannot contain colons',
+    );
+  }
+  return normalized;
+}
+
+export interface CloneManagedCredentialInput {
+  appId: string;
+  sourceCredentialId: string;
+  actor: ApplicationMutationActor;
+}
+
+export async function cloneManagedCredential(
+  input: CloneManagedCredentialInput,
+) {
+  const consumerKey = generateConsumerKey();
+  const consumerSecret = generateConsumerSecret();
+  const consumerSecretHash = await hashConsumerSecret(consumerSecret);
+  const credential = await prisma.$transaction(async transaction => {
+    const app = await transaction.developerApp.findUnique({
+      where: { id: input.appId },
+      select: { id: true, organizationId: true, status: true },
+    });
+    if (!app) {
+      throw new ApplicationManagementError(
+        'app_not_found',
+        'Developer application does not exist',
+      );
+    }
+    const source = await transaction.appCredential.findUnique({
+      where: { id: input.sourceCredentialId },
+      select: {
+        id: true,
+        appId: true,
+        status: true,
+        expiresAt: true,
+        productGrants: {
+          where: { status: AuthorizationStatus.approved },
+          select: { productId: true, scopes: true },
+        },
+      },
+    });
+    if (!source) {
+      throw new ApplicationManagementError(
+        'credential_not_found',
+        'Source application credential does not exist',
+      );
+    }
+    if (
+      source.appId !== input.appId
+      || source.status === AuthorizationStatus.revoked
+      || app.status === AuthorizationStatus.revoked
+      || source.productGrants.length === 0
+    ) {
+      throw new ApplicationManagementError(
+        'credential_clone_not_allowed',
+        'Only a non-revoked credential from the same app with approved grants can be cloned',
+      );
+    }
+    const created = await transaction.appCredential.create({
+      data: {
+        appId: input.appId,
+        consumerKey,
+        consumerSecretHash,
+        expiresAt: source.expiresAt,
+        status: AuthorizationStatus.approved,
+        productGrants: {
+          create: source.productGrants.map(grant => ({
+            productId: grant.productId,
+            status: AuthorizationStatus.approved,
+            scopes: grant.scopes,
+          })),
+        },
+      },
+      select: {
+        id: true,
+        appId: true,
+        consumerKey: true,
+        status: true,
+        issuedAt: true,
+        expiresAt: true,
+        createdAt: true,
+        productGrants: {
+          orderBy: { productId: 'asc' },
+          select: {
+            id: true,
+            productId: true,
+            status: true,
+            scopes: true,
+          },
+        },
+      },
+    });
     await transaction.auditEvent.create({
       data: {
         actorIssuer: input.actor.issuer,
         actorSubject: input.actor.subject,
         actorRole: input.actor.role,
-        organizationId: current.app.organizationId,
-        action: 'credential.update',
+        organizationId: app.organizationId,
+        action: 'credential.clone',
         resourceType: 'AppCredential',
-        resourceId: input.credentialId,
+        resourceId: created.id,
         metadata: {
-          appId: current.appId,
-          changedFields: [
-            ...(input.expiresAt !== undefined ? ['expiresAt'] : []),
-            ...(input.status !== undefined ? ['status'] : []),
-          ],
-          previousStatus: current.status,
-          previousExpiresAt: current.expiresAt?.toISOString() ?? null,
+          appId: input.appId,
+          sourceCredentialId: source.id,
+          productIds: source.productGrants.map(grant => grant.productId),
         },
       },
     });
-    return credential;
+    return created;
   });
+  return { credential, consumerSecret };
 }
 
 export interface RotateManagedConsumerSecretInput {

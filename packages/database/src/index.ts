@@ -68,6 +68,7 @@ export {
 } from './credentials.js';
 export {
   ApplicationManagementError,
+  cloneManagedCredential,
   createManagedCredential,
   rotateManagedConsumerSecret,
   replaceManagedCredentialGrants,
@@ -90,6 +91,7 @@ export type {
 export type {
   ApplicationManagementErrorCode,
   ApplicationMutationActor,
+  CloneManagedCredentialInput,
   CreateManagedCredentialInput,
   RotateManagedConsumerSecretInput,
   ReplaceManagedCredentialGrantsInput,
