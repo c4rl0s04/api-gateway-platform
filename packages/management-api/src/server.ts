@@ -21,6 +21,8 @@ import { registerProductRoutes } from './routes/products.routes.js';
 import type { ProductOperations } from './services/products.js';
 import { registerAuditRoutes } from './routes/audit.routes.js';
 import type { AuditOperations } from './services/audit.js';
+import { registerRuntimeSyncRoutes } from './routes/runtime-sync.routes.js';
+import type { RuntimeSyncOperations } from './services/runtime-sync.js';
 
 export interface ManagementServerOptions {
   config: ManagementEnv;
@@ -35,6 +37,7 @@ export interface ManagementServerOptions {
   certificates?: CertificateOperations;
   gatewayCatalog?: GatewayCatalogOperations;
   proxyRevisions?: ProxyRevisionOperations;
+  runtimeSync?: RuntimeSyncOperations;
 }
 
 export function buildServer(options: ManagementServerOptions): FastifyInstance {
@@ -105,6 +108,9 @@ export function buildServer(options: ManagementServerOptions): FastifyInstance {
   }
   if (options.proxyRevisions) {
     registerProxyRevisionRoutes(server, options.proxyRevisions);
+  }
+  if (options.runtimeSync) {
+    registerRuntimeSyncRoutes(server, options.runtimeSync);
   }
   return server;
 }

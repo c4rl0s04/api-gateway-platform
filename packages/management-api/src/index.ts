@@ -9,6 +9,7 @@ import { OrganizationService } from './services/organizations.js';
 import { ProductService } from './services/products.js';
 import { AuditService } from './services/audit.js';
 import { createGatewayConfigPublisher } from './runtime-sync/publisher.js';
+import { createRuntimeSyncService } from './services/runtime-sync.js';
 
 void (async () => {
   const config = loadEnv();
@@ -19,6 +20,7 @@ void (async () => {
     certificateAuthorities,
   );
   const publisher = createGatewayConfigPublisher(config.REDIS_URL, console);
+  const runtimeSync = createRuntimeSyncService(config.REDIS_URL);
   publisher.start();
   const server = buildServer({
     config,
@@ -30,8 +32,11 @@ void (async () => {
     certificates,
     gatewayCatalog: new GatewayCatalogService(),
     proxyRevisions: new ProxyRevisionService(publisher),
+    runtimeSync,
   });
-  server.addHook('onClose', () => publisher.close());
+  server.addHook('onClose', async () => {
+    await Promise.all([publisher.close(), runtimeSync.close()]);
+  });
   try {
     await server.listen({ port: config.PORT, host: config.HOST });
   } catch (error) {
