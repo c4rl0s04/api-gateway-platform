@@ -9,8 +9,8 @@ import type {
  * First key: environment ID.
  * Second key: proxy basePath (e.g. "/api/users").
  */
-const registry = new Map<string, Map<string, ProxyConfig>>();
-const environmentsByAuthority = new Map<string, EnvironmentConfig>();
+let registry = new Map<string, Map<string, ProxyConfig>>();
+let environmentsByAuthority = new Map<string, EnvironmentConfig>();
 let registryInitialized = false;
 
 function normalizeAuthority(authority: string): string | null {
@@ -37,31 +37,35 @@ function normalizeAuthority(authority: string): string | null {
  * Only proxies with active=true are registered.
  */
 export function loadProxies(proxies: ProxyConfig[]): void {
-  registry.clear();
-  environmentsByAuthority.clear();
+  const candidateRegistry = new Map<string, Map<string, ProxyConfig>>();
+  const candidateEnvironmentsByAuthority = new Map<string, EnvironmentConfig>();
+
   for (const proxy of proxies) {
     if (proxy.active) {
       // Automatically sort endpoints:
       // 1. Static routes first (do not contain ':')
       // 2. Dynamic routes after
       // 3. On tie, the longest (most specific) go first
-      proxy.endpoints.sort((a: EndpointConfig, b: EndpointConfig) => {
-        const aDynamic = a.path.includes(':') || a.path.includes('{');
-        const bDynamic = b.path.includes(':') || b.path.includes('{');
-        
-        if (aDynamic && !bDynamic) return 1; // b goes before a
-        if (!aDynamic && bDynamic) return -1; // a goes before b
-        
-        return b.path.length - a.path.length; // longest first
-      });
+      const sortedProxy = {
+        ...proxy,
+        endpoints: [...proxy.endpoints].sort((a: EndpointConfig, b: EndpointConfig) => {
+          const aDynamic = a.path.includes(':') || a.path.includes('{');
+          const bDynamic = b.path.includes(':') || b.path.includes('{');
 
-      let environmentRegistry = registry.get(proxy.environment.id);
+          if (aDynamic && !bDynamic) return 1; // b goes before a
+          if (!aDynamic && bDynamic) return -1; // a goes before b
+
+          return b.path.length - a.path.length; // longest first
+        }),
+      };
+
+      let environmentRegistry = candidateRegistry.get(proxy.environment.id);
       if (!environmentRegistry) {
         environmentRegistry = new Map<string, ProxyConfig>();
-        registry.set(proxy.environment.id, environmentRegistry);
+        candidateRegistry.set(proxy.environment.id, environmentRegistry);
       }
       const authority = new URL(proxy.environment.publicOrigin).host.toLowerCase();
-      const existingEnvironment = environmentsByAuthority.get(authority);
+      const existingEnvironment = candidateEnvironmentsByAuthority.get(authority);
       if (
         existingEnvironment
         && existingEnvironment.id !== proxy.environment.id
@@ -70,16 +74,19 @@ export function loadProxies(proxies: ProxyConfig[]): void {
           `Public authority "${authority}" is assigned to multiple environments`,
         );
       }
-      environmentsByAuthority.set(authority, proxy.environment);
+      candidateEnvironmentsByAuthority.set(authority, proxy.environment);
       if (environmentRegistry.has(proxy.basePath)) {
         throw new Error(
           `Environment "${proxy.environment.id}" has multiple active deployments `
           + `for basePath "${proxy.basePath}"`,
         );
       }
-      environmentRegistry.set(proxy.basePath, proxy);
+      environmentRegistry.set(proxy.basePath, sortedProxy);
     }
   }
+
+  registry = candidateRegistry;
+  environmentsByAuthority = candidateEnvironmentsByAuthority;
   registryInitialized = true;
 }
 

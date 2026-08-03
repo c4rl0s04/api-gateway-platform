@@ -92,9 +92,11 @@ describe('proxy resolver', () => {
       '/users/me',
     ]);
     loadProxies([configured]);
+    const loaded = resolveProxy('env-qual-es', '/api/users/me');
+    assert.ok(loaded);
 
-    const staticMatch = resolveEndpoint(configured, '/users/me', 'GET');
-    const dynamicMatch = resolveEndpoint(configured, '/users/123', 'GET');
+    const staticMatch = resolveEndpoint(loaded, '/users/me', 'GET');
+    const dynamicMatch = resolveEndpoint(loaded, '/users/123', 'GET');
 
     assert.ok(staticMatch && !('allowedMethods' in staticMatch));
     assert.ok(dynamicMatch && !('allowedMethods' in dynamicMatch));
@@ -102,8 +104,22 @@ describe('proxy resolver', () => {
     assert.deepEqual(dynamicMatch.params, { id: '123' });
     assert.equal(resolveEndpoint(configured, '/unknown', 'GET'), null);
     assert.deepEqual(
-      resolveEndpoint(configured, '/users/123', 'POST'),
+      resolveEndpoint(loaded, '/users/123', 'POST'),
       { allowedMethods: ['GET'] },
     );
+  });
+
+  it('keeps the last valid registry when a replacement is invalid', () => {
+    const current = proxy('current', '/api', ['/users']);
+    loadProxies([current]);
+
+    const conflicting = proxy('conflicting', '/api', ['/accounts']);
+    assert.throws(
+      () => loadProxies([current, conflicting]),
+      /multiple active deployments/,
+    );
+
+    assert.equal(getRegistrySize(), 1);
+    assert.equal(resolveProxy('env-qual-es', '/api/users')?.id, 'current');
   });
 });
