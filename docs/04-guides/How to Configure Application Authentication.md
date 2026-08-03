@@ -3,7 +3,7 @@ title: "How to Configure Application Authentication"
 type: guide
 doc_status: current
 implementation_status: implemented
-last_verified: "2026-07-29"
+last_verified: "2026-07-31"
 tags:
   - type/guide
   - area/security
@@ -13,6 +13,7 @@ sources:
   - packages/shared/src/policies/config.ts
   - packages/management-api/src/routes/certificates.ts
   - packages/management-api/src/routes/apps.routes.ts
+  - packages/database/src/application-management.ts
 aliases: []
 ---
 
@@ -24,7 +25,7 @@ aliases: []
 ## Goal
 
 Provision API key, Client Credentials, JWT Bearer, or direct mTLS access using
-domain operations, seeds, and the implemented PKI control plane.
+the Management API and the implemented PKI control plane.
 
 ## Prerequisites
 
@@ -41,22 +42,27 @@ domain operations, seeds, and the implemented PKI control plane.
 2. Persist the returned `consumerSecret` in the client secret store. It appears
    only in this response; later reads return the consumer key but no secret or
    hash. Omitting grant scopes assigns all scopes declared by the product.
-3. Use `rotateConsumerSecret` for rotation. The old secret stops working after
-   the update.
-4. Call `setCredentialProductGrant` with approved status and scopes that are a
-   subset of the product scopes.
-5. For JWT Bearer, call `registerAppPublicKey` with an RSA public JWK and unique
-   `kid`. Never store the client private key in this repository.
+3. Call `POST /v1/apps/:appId/credentials` for additional, independently
+   permissioned credentials. For rotation, call
+   `POST /v1/credentials/:credentialId/rotate-secret`; the old secret stops
+   working immediately.
+4. Call `PUT /v1/credentials/:credentialId/product-grants` with the complete
+   desired product and scope set. Omitted grants become revoked without being
+   deleted.
+5. For JWT Bearer, call
+   `POST /v1/credentials/:credentialId/public-keys` with an RSA public JWK and
+   unique `kid`. Never send the client private key to the platform.
 6. For mTLS, generate a client-owned key and CSR, then issue or register its
    certificate through the Admin Panel or Management API.
 7. Configure one business-endpoint policy: `api-key-auth`,
    `oauth-access-token`, or `mtls-auth`.
 8. For OAuth, obtain a token from `/oauth/token` and use it as a Bearer token.
 
-Application registration is available through the Management API. Additional
-credentials, secret rotation, grant changes, and public-JWK registration still
-use domain services and seeds. CA and certificate lifecycle is available in the
-Admin Panel and Management API.
+Application registration, additional credentials, secret rotation, grant
+changes, and public-JWK registration are available through the Management API.
+CA and certificate lifecycle is available in the Admin Panel and Management
+API. See [[Management API Endpoint Reference]] and
+[[How to Use the Management API with Postman]] for exact calls.
 
 The development seed provides concrete examples in `env-qual-es`:
 

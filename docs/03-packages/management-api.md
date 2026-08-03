@@ -2,7 +2,7 @@
 title: management-api
 type: package
 doc_status: current
-implementation_status: partial
+implementation_status: implemented
 last_verified: 2026-07-31
 tags:
   - type/package
@@ -17,13 +17,15 @@ aliases: []
 # management-api
 
 > [!summary] At a glance
-> `management-api` is the OIDC-protected control plane for proxy revision imports and deployments, application registration, catalog reads, and organization-scoped PKI.
+> `management-api` is the OIDC-protected control plane for organizations, products, proxy revisions and deployments, application credentials and grants, audit, and organization-scoped PKI.
 
 ## Responsibility
 
-The implemented responsibility includes logical proxy creation, atomic
+The implemented responsibility includes organization and product lifecycle,
+logical proxy creation and metadata, atomic
 OpenAPI/gateway bundle import, immutable revision reads and source downloads,
-revision deployment and rollback, application registration, and PKI lifecycle.
+revision deployment, retirement and rollback, application/credential/grant/JWK
+management, filtered audit reads, and PKI lifecycle.
 
 ## Boundaries
 
@@ -34,6 +36,10 @@ revision deployment and rollback, application registration, and PKI lifecycle.
 - Publishes public CA/CRL bundles and triggers Envoy SDS reload.
 - Creates application, initial credential, approved product grants, and audit
   event through one database-domain transaction.
+- Generates additional credentials, rotates one-time secrets, replaces grants,
+  validates RSA JWKs, and enforces closed lifecycle transitions through domain
+  services.
+- Updates products atomically, including removal of retired scopes from grants.
 - Exposes all environments while filtering proxy reads to the actor's visible
   organizations; platform admins can read the complete catalog.
 - Accepts exactly two multipart bundle files with 5 MiB limits.
@@ -43,14 +49,15 @@ revision deployment and rollback, application registration, and PKI lifecycle.
 
 ## Public Contracts
 
-The versioned surface is under `/v1`; see [[API Routes]]. `GET /live` and
-`GET /ready` are unversioned operational endpoints.
+The versioned surface is under `/v1`; see [[Management API Endpoint Reference]].
+`GET /live` and `GET /ready` are unversioned operational endpoints.
 
 ## Runtime Flow
 
 The service listens on its configured internal address. The Admin Panel BFF
-forwards an OIDC Bearer token, authentication middleware resolves memberships,
-and route services execute database, keystore, audit, and SDS operations.
+forwards either the browser-session token or an explicit API-client Bearer
+token. Authentication middleware resolves memberships, then route services
+execute database, keystore, audit, and SDS operations.
 
 ## Configuration
 
@@ -61,14 +68,16 @@ internal.
 
 Tests cover cryptographic token verification, missing identities, membership
 resolution, role boundaries, multipart revision contracts, deployment
-activation responses, catalog routes, application contracts, and CA mutation
-authorization. `test:platform` verifies import, restart, replacement, and
-rollback through the real BFF and Management API.
+activation responses, catalog and mutation routes, application contracts,
+credential rotation, desired-state grants, RSA keys, audit filters, and CA
+authorization. `test:integration:management` verifies domain persistence;
+`test:platform` verifies the full workflow through the real BFF and gateway.
 
 ## Limitations
 
-- Product, post-registration credential/grant, and direct revision editing
-  routes are absent.
+- Membership and environment catalog writes are absent.
+- Consumer-key customization, secret reads, physical deletion, and direct
+  revision editing are intentionally absent.
 - No scheduled external CRL refresh.
 - No routing-registry hot reload.
 
@@ -77,4 +86,6 @@ rollback through the real BFF and Management API.
 - [[Management API]]
 - [[Control Plane Flow]]
 - [[API Routes]]
+- [[Management API Endpoint Reference]]
+- [[How to Use the Management API with Postman]]
 - [[Proxy Revisions and Deployments]]

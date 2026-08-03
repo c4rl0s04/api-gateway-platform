@@ -36,12 +36,12 @@ aliases: []
 | API key authentication | Implemented | Resolves consumer key and validates status, expiry, approved grants, proxy, and environment |
 | OAuth token issuance | Implemented | Client Credentials and JWT Bearer Grant issue environment-bound RS256 tokens |
 | OAuth access-token verification | Implemented | Stateless signature, claims, proxy, environment, and scope validation |
-| Proxy Management API | Implemented | OIDC-protected logical proxy creation, multipart revision import, source download, deployment, history, and rollback |
+| Proxy Management API | Implemented | OIDC-protected logical proxy metadata, multipart revision import, source download, deployment, retirement, history, and rollback |
 | Direct mTLS authentication | Implemented | Envoy chain/CRL validation, connection-derived fingerprints, trusted CIDR, and grants |
 | Multi-client PKI | Implemented | Managed/external organization CAs, encrypted keystore, issuance, CRLs, rotation, and SDS |
 | Rate limiting | Implemented | Fixed-window Redis counter with atomic Lua execution |
-| Application registration | Implemented | OIDC-protected atomic app, generated credential, approved grants, and one-time secret response |
-| Management API | Partial | Proxy revisions/deployments, application registration, and CA/certificate lifecycle are implemented; products and general organization administration remain incomplete |
+| Application security management | Implemented | App lifecycle, generated credentials, one-time secret rotation, desired-state grants, RSA public keys, and certificate lifecycle |
+| Management API | Implemented | Organization/product/proxy/app security lifecycle, audit queries, and PKI are implemented; memberships, environment writes, deletes, and hot reload remain out of scope |
 | Admin panel | Partial | OIDC login and PKI workflows are implemented; proxy/product mutation is not |
 | Configuration hot reload | Planned | Redis is used for rate limiting, not configuration invalidation |
 | Metrics and dashboards | Planned | Prometheus and Grafana containers exist; gateway metrics are not exposed |
@@ -49,9 +49,8 @@ aliases: []
 ## Operational Endpoints
 
 - Gateway: `GET /live` and `GET /ready`.
-- Management API: internal `GET /live`, `GET /ready`, proxy revision and
-  deployment operations, application registration, and versioned `/v1` PKI
-  routes.
+- Management API: internal `GET /live`, `GET /ready`, and the complete
+  versioned control-plane surface listed in [[Management API Endpoint Reference]].
 - All other gateway paths are evaluated by the proxy catch-all route.
 - The system-managed OAuth proxy exposes `POST /oauth/token` and
   `GET /oauth/.well-known/jwks.json`.

@@ -29,7 +29,8 @@ aliases: []
 | Work on policies | [[Policy Types]] | [[Policy Reference Index]], [[Debug Policy Failure]] |
 | Configure client authentication | [[Authentication and Authorization]] | [[How to Configure Application Authentication]], [[Debug OAuth and mTLS]] |
 | Work on certificates or trust | [[Multi-Client PKI]] | [[pki]], [[ADR-006 Envoy and Managed Client PKI]] |
-| Work on the control plane | [[Control Plane Flow]] | [[Management API]], [[management-api]] |
+| Work on the control plane | [[Control Plane Flow]] | [[Management API]], [[Management API Endpoint Reference]], [[management-api]] |
+| Call the control plane manually | [[How to Use the Management API with Postman]] | [[Management API Endpoint Reference]] |
 | Run the project | [[How to Start the Project]] | [[Ports]], [[Environment Variables]] |
 | Diagnose a failure | [[Debug Gateway 404]] | [[Debug Policy Failure]], [[Reset Local Database]] |
 
@@ -63,6 +64,7 @@ Solid arrows represent current runtime interactions.
 
 ## Current Gaps
 
-Product management, proxy configuration hot reload, production key management,
-and Prometheus metrics are not implemented. The Admin Panel does not yet expose
-the proxy revision API. See [[Current Status]] for the verified feature matrix.
+Membership administration, environment catalog writes, proxy configuration hot
+reload, production key management, and Prometheus metrics are not implemented.
+The Admin Panel does not yet expose the complete Management API. See
+[[Current Status]] for the verified feature matrix.

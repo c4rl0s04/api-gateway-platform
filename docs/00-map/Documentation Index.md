@@ -63,7 +63,7 @@ aliases: []
 | [[03-packages/admin-panel|admin-panel]] | current | partial | 2026-07-27 |
 | [[03-packages/database|database]] | current | implemented | 2026-07-31 |
 | [[03-packages/gateway-core|gateway-core]] | current | implemented | 2026-07-31 |
-| [[03-packages/management-api|management-api]] | current | partial | 2026-07-31 |
+| [[03-packages/management-api|management-api]] | current | implemented | 2026-07-31 |
 | [[03-packages/pki|pki]] | current | implemented | 2026-07-27 |
 | [[03-packages/shared|shared]] | current | implemented | 2026-07-31 |
 
@@ -72,7 +72,7 @@ aliases: []
 | Note | Documentation | Implementation | Verified |
 | --- | --- | --- | --- |
 | [[04-guides/How to Add a New Proxy|How to Add a New Proxy]] | current | implemented | 2026-07-31 |
-| [[04-guides/How to Configure Application Authentication|How to Configure Application Authentication]] | current | implemented | 2026-07-29 |
+| [[04-guides/How to Configure Application Authentication|How to Configure Application Authentication]] | current | implemented | 2026-07-31 |
 | [[04-guides/How to Document the Project|How to Document the Project]] | current | not-applicable | 2026-07-27 |
 | [[04-guides/How to Import and Deploy a Proxy Revision|How to Import and Deploy a Proxy Revision]] | current | implemented | 2026-07-31 |
 | [[04-guides/How to Operate the PKI|How to Operate the PKI]] | current | implemented | 2026-07-27 |

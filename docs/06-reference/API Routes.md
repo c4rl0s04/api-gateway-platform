@@ -11,6 +11,9 @@ sources:
   - packages/gateway-core/src/server.ts
   - packages/management-api/src/server.ts
   - packages/management-api/src/routes/apps.routes.ts
+  - packages/management-api/src/routes/audit.routes.ts
+  - packages/management-api/src/routes/organizations.routes.ts
+  - packages/management-api/src/routes/products.routes.ts
   - packages/management-api/src/routes/proxies.routes.ts
   - packages/management-api/src/routes/proxy-revisions.routes.ts
 aliases: []
@@ -57,10 +60,15 @@ The gateway intentionally does not expose a root `/health` route.
 | `GET` | `/v1/me` | `200` | Verified identity and active memberships |
 | `GET` | `/v1/organizations` | `200` | Organizations visible to the actor |
 | `GET` | `/v1/organizations/:organizationId` | `200` | Organization detail |
+| `POST` | `/v1/organizations` | `201` | Create organization; platform admin only |
+| `PATCH` | `/v1/organizations/:organizationId` | `200` | Rename organization; platform admin only |
 | `GET` | `/v1/environments` | `200` | All closed environments and deployment/product counts |
+| `GET/POST` | `/v1/organizations/:organizationId/products` | `200/201` | List or create products |
+| `GET/PATCH` | `/v1/products/:productId` | `200` | Read or update product configuration |
 | `POST` | `/v1/organizations/:organizationId/proxies` | `201` | Create a logical proxy identity |
 | `GET` | `/v1/proxies` | `200` | Proxies visible to the actor |
 | `GET` | `/v1/proxies/:proxyId` | `200` | Proxy, latest revision, active deployments, products, and counts |
+| `PATCH` | `/v1/proxies/:proxyId` | `200` | Update logical proxy name or active state |
 | `POST` | `/v1/proxies/:proxyId/revisions` | `201` | Import an immutable OpenAPI and Gateway YAML bundle |
 | `GET` | `/v1/proxies/:proxyId/revisions` | `200` | Revision summaries visible to the actor |
 | `GET` | `/v1/proxies/:proxyId/revisions/:revisionNumber` | `200` | Revision operations and effective policies |
@@ -68,9 +76,18 @@ The gateway intentionally does not expose a root `/health` route.
 | `GET` | `/v1/proxies/:proxyId/revisions/:revisionNumber/gateway-config` | `200` | Download the original Gateway YAML |
 | `POST` | `/v1/proxies/:proxyId/revisions/:revisionNumber/deployments` | `201` | Activate or roll back a revision in an environment |
 | `GET` | `/v1/proxies/:proxyId/deployments` | `200` | Active and retired deployment history |
+| `POST` | `/v1/proxy-deployments/:deploymentId/retire` | `200` | Retire an active deployment |
 | `GET` | `/v1/organizations/:organizationId/apps` | `200` | Apps, credentials, grants, and certificates |
 | `POST` | `/v1/organizations/:organizationId/apps` | `201` | Atomically create app, generated credential, and approved product grants |
 | `GET` | `/v1/apps/:appId` | `200` | App, credentials, grants, public keys, and certificates |
+| `PATCH` | `/v1/apps/:appId` | `200` | Update app name or lifecycle status |
+| `POST` | `/v1/apps/:appId/credentials` | `201` | Generate an additional credential with explicit grants |
+| `GET/PATCH` | `/v1/credentials/:credentialId` | `200` | Read or update public credential lifecycle data |
+| `POST` | `/v1/credentials/:credentialId/rotate-secret` | `200` | Rotate and return a new consumer secret once |
+| `PUT` | `/v1/credentials/:credentialId/product-grants` | `200` | Replace the desired approved-grant set |
+| `GET/POST` | `/v1/credentials/:credentialId/public-keys` | `200/201` | List or register RSA public JWKs |
+| `POST` | `/v1/public-keys/:publicKeyId/revoke` | `200` | Revoke an application public key |
+| `GET` | `/v1/audit-events` | `200` | Filter and paginate visible audit events |
 | `GET` | `/v1/organizations/:organizationId/certificate-authorities` | `200` | Organization authorities |
 | `POST` | `/v1/organizations/:organizationId/certificate-authorities/managed` | `201` | Create managed CA; platform admin only |
 | `POST` | `/v1/organizations/:organizationId/certificate-authorities/external` | `201` | Import external CA; platform admin only |
@@ -91,6 +108,9 @@ Every `/v1` route requires an accepted OIDC Bearer token and at least one active
 database membership. CA mutations require `platformAdmin`; certificate and
 proxy mutations require `platformAdmin` or the matching `organizationAdmin`.
 A `viewer` has read-only access.
+
+For exact request bodies, role boundaries, response fields, filters, and stable
+errors, use [[Management API Endpoint Reference]].
 
 Application registration accepts:
 
@@ -134,7 +154,9 @@ curl --cacert .local-secrets/pki/authorities/local-development/ca.crt \
   https://qual-es.gateway.localhost:8443/ready
 ```
 
-Management API is intentionally not callable from the host.
+Management API is not published directly to the host. Browsers use an HttpOnly
+session cookie through the BFF; Postman and other API clients send an explicit
+Bearer token to `http://localhost:8080/api/management/*`.
 
 ## Source Files
 
@@ -146,5 +168,7 @@ Management API is intentionally not callable from the host.
 
 - [[Runtime Request Flow]]
 - [[Management API]]
+- [[Management API Endpoint Reference]]
+- [[How to Use the Management API with Postman]]
 - [[How to Import and Deploy a Proxy Revision]]
 - [[Debug Gateway 404]]
