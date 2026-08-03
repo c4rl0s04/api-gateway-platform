@@ -99,6 +99,7 @@ aliases: []
 | [[06-reference/API Routes|API Routes]] | current | implemented | 2026-07-31 |
 | [[06-reference/Database Schema|Database Schema]] | current | implemented | 2026-07-31 |
 | [[06-reference/Environment Variables|Environment Variables]] | current | implemented | 2026-07-29 |
+| [[06-reference/Management API Endpoint Reference|Management API Endpoint Reference]] | current | implemented | 2026-07-31 |
 | [[06-reference/policies/README|Policy Reference Index]] | current | partial | 2026-07-27 |
 | [[06-reference/Policy Types|Policy Types]] | current | partial | 2026-07-27 |
 | [[06-reference/Ports|Ports]] | current | implemented | 2026-07-27 |
