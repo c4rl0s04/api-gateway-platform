@@ -76,6 +76,17 @@ export {
   updateDeveloperApplication,
   updateManagedCredential,
 } from './application-management.js';
+export {
+  countPendingGatewayConfigChanges,
+  getLatestGatewayConfigVersion,
+  listPendingGatewayConfigChanges,
+  markGatewayConfigChangePublished,
+  markGatewayConfigChangePublishFailed,
+  recordGatewayConfigChange,
+} from './gateway-config-changes.js';
+export type {
+  RecordGatewayConfigChangeInput,
+} from './gateway-config-changes.js';
 export type {
   ApplicationManagementErrorCode,
   ApplicationMutationActor,
