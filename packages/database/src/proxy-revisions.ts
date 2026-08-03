@@ -6,6 +6,7 @@ import {
 } from './generated/index.js';
 import { prisma } from './client.js';
 import { compileProxyBundle } from './proxy-bundle.js';
+import { recordGatewayConfigChange } from './gateway-config-changes.js';
 
 export interface ProxyMutationActor {
   issuer: string;
@@ -188,7 +189,16 @@ export async function updateApiProxy(input: UpdateApiProxyInput) {
         },
       },
     });
-    return proxy;
+    const activeChanged = input.active !== undefined
+      && input.active !== current.active;
+    const configChange = activeChanged
+      ? await recordGatewayConfigChange(transaction, {
+          changeType: proxy.active ? 'proxy.activate' : 'proxy.deactivate',
+          resourceType: 'ApiProxy',
+          resourceId: proxy.id,
+        })
+      : null;
+    return { ...proxy, configVersion: configChange?.version ?? null };
   });
 }
 

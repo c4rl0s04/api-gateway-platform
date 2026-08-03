@@ -5,6 +5,7 @@ import {
   Prisma,
 } from './generated/index.js';
 import { prisma } from './client.js';
+import { recordGatewayConfigChange } from './gateway-config-changes.js';
 
 export interface DeploymentMutationActor {
   issuer: string;
@@ -185,6 +186,9 @@ export async function deployProxyRevision(input: DeployProxyRevisionInput) {
         },
       },
     });
+    const rollback = previous
+      ? input.revisionNumber < previous.revision.revisionNumber
+      : false;
     await transaction.auditEvent.create({
       data: {
         actorIssuer: input.actor.issuer,
@@ -199,13 +203,21 @@ export async function deployProxyRevision(input: DeployProxyRevisionInput) {
           revisionNumber: input.revisionNumber,
           environmentId: input.environmentId,
           replacedDeploymentId: previous?.id ?? null,
-          rollback: previous
-            ? input.revisionNumber < previous.revision.revisionNumber
-            : false,
+          rollback,
         },
       },
     });
-    return deployment;
+    const configChange = await recordGatewayConfigChange(transaction, {
+      changeType: rollback
+        ? 'proxyDeployment.rollback'
+        : previous
+          ? 'proxyDeployment.replace'
+          : 'proxyDeployment.create',
+      resourceType: 'ProxyDeployment',
+      resourceId: deployment.id,
+      environmentId: input.environmentId,
+    });
+    return { ...deployment, configVersion: configChange.version };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
@@ -277,7 +289,13 @@ export async function retireProxyDeployment(
         },
       },
     });
-    return deployment;
+    const configChange = await recordGatewayConfigChange(transaction, {
+      changeType: 'proxyDeployment.retire',
+      resourceType: 'ProxyDeployment',
+      resourceId: deployment.id,
+      environmentId: current.environmentId,
+    });
+    return { ...deployment, configVersion: configChange.version };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
