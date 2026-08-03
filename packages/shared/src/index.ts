@@ -29,6 +29,16 @@ export {
   policyFailureModeSchema,
   rateLimitPolicyConfigSchema,
 } from './policies/config';
+export {
+  GATEWAY_CONFIG_CHANGE_CHANNEL,
+  GATEWAY_RUNTIME_STATUS_PREFIX,
+  gatewayConfigChangeMessageSchema,
+  gatewayRuntimeStatusSchema,
+} from './runtime-sync/config';
+export type {
+  GatewayConfigChangeMessage,
+  GatewayRuntimeStatus,
+} from './runtime-sync/config';
 export type {
   ApiKeyAuthPolicyConfig,
   BasePolicyConfig,
