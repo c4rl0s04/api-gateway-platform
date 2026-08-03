@@ -211,7 +211,7 @@ describe('application management API', () => {
     await server.close();
   });
 
-  it('creates an additional credential with explicit products', async () => {
+  it('creates an additional credential explicitly or by cloning a source', async () => {
     const calls: unknown[] = [];
     const applications: ApplicationOperations = {
       list: async () => [],
@@ -256,6 +256,17 @@ describe('application management API', () => {
         }],
       },
     }]);
+    const cloned = await server.inject({
+      method: 'POST',
+      url: '/v1/apps/app-1/credentials',
+      headers: { authorization: 'Bearer token' },
+      payload: { sourceCredentialId: 'credential-1' },
+    });
+    assert.equal(cloned.statusCode, 201);
+    assert.deepEqual(calls[1], {
+      appId: 'app-1',
+      input: { sourceCredentialId: 'credential-1' },
+    });
     const missingProducts = await server.inject({
       method: 'POST',
       url: '/v1/apps/app-1/credentials',
@@ -263,7 +274,7 @@ describe('application management API', () => {
       payload: {},
     });
     assert.equal(missingProducts.statusCode, 400);
-    assert.equal(calls.length, 1);
+    assert.equal(calls.length, 2);
     await server.close();
   });
 
@@ -314,7 +325,18 @@ describe('application management API', () => {
       headers: { authorization: 'Bearer token' },
       payload: { consumerKey: 'replacement' },
     });
-    assert.equal(consumerKeyChange.statusCode, 400);
+    assert.equal(consumerKeyChange.statusCode, 200);
+    assert.deepEqual(calls[1], {
+      credentialId: 'credential-1',
+      input: { consumerKey: 'replacement' },
+    });
+    const invalidConsumerKey = await server.inject({
+      method: 'PATCH',
+      url: '/v1/credentials/credential-1',
+      headers: { authorization: 'Bearer token' },
+      payload: { consumerKey: 'invalid:key' },
+    });
+    assert.equal(invalidConsumerKey.statusCode, 400);
     await server.close();
   });
 

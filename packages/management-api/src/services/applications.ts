@@ -2,6 +2,7 @@ import {
   AdminRole,
   ApplicationManagementError,
   Prisma,
+  cloneManagedCredential,
   createManagedCredential,
   prisma,
   registerDeveloperApplication,
@@ -32,12 +33,20 @@ export interface UpdateApplicationInput {
   status?: 'pending' | 'approved' | 'revoked';
 }
 
-export interface CreateCredentialInput {
-  expiresAt?: Date | null;
-  products: Array<{ productId: string; scopes?: string[] }>;
-}
+export type CreateCredentialInput =
+  | {
+      expiresAt?: Date | null;
+      products: Array<{ productId: string; scopes?: string[] }>;
+      sourceCredentialId?: never;
+    }
+  | {
+      sourceCredentialId: string;
+      expiresAt?: never;
+      products?: never;
+    };
 
 export interface UpdateCredentialInput {
+  consumerKey?: string;
   expiresAt?: Date | null;
   status?: 'pending' | 'approved' | 'revoked';
 }
@@ -267,15 +276,18 @@ export class ApplicationService implements ApplicationOperations {
     if (!canManageOrganization(actor, app.organizationId)) {
       throw forbidden('Organization administration access denied');
     }
-    return createManagedCredential({
-      appId,
-      ...input,
-      actor: {
-        issuer: actor.issuer,
-        subject: actor.subject,
-        role: actorRole(actor, app.organizationId),
-      },
-    });
+    const mutationActor = {
+      issuer: actor.issuer,
+      subject: actor.subject,
+      role: actorRole(actor, app.organizationId),
+    };
+    return input.sourceCredentialId !== undefined
+      ? cloneManagedCredential({
+          appId,
+          sourceCredentialId: input.sourceCredentialId,
+          actor: mutationActor,
+        })
+      : createManagedCredential({ appId, ...input, actor: mutationActor });
   }
 
   async getCredential(credentialId: string, actor: AdminPrincipal) {

@@ -37,7 +37,18 @@ const createCredentialSchema = z.object({
     .nullable().optional(),
   products: credentialProductsSchema,
 }).strict();
+const cloneCredentialSchema = z.object({
+  sourceCredentialId: z.string().trim().min(1).max(120),
+}).strict();
+const createOrCloneCredentialSchema = z.union([
+  createCredentialSchema,
+  cloneCredentialSchema,
+]);
 const updateCredentialSchema = z.object({
+  consumerKey: z.string().trim().min(1).max(120).refine(
+    value => !/[\s:\u0000-\u001f\u007f]/u.test(value),
+    'Consumer key cannot contain whitespace, colons, or control characters',
+  ).optional(),
   expiresAt: z.string().datetime({ offset: true }).transform(value => new Date(value))
     .nullable().optional(),
   status: z.enum(['pending', 'approved', 'revoked']).optional(),
@@ -75,7 +86,12 @@ function sendApplicationError(reply: FastifyReply, error: unknown) {
   if (!(error instanceof ApplicationManagementError)) throw error;
   const statusCode = error.code.endsWith('_not_found')
     ? 404
-    : ['invalid_status_transition', 'public_key_conflict'].includes(error.code)
+    : [
+        'invalid_status_transition',
+        'consumer_key_conflict',
+        'credential_clone_not_allowed',
+        'public_key_conflict',
+      ].includes(error.code)
       ? 409
       : 400;
   return reply.code(statusCode).send({ error: error.code, message: error.message });
@@ -152,7 +168,7 @@ export function registerApplicationRoutes(
       try {
         const result = await applications.createCredential(
           request.params.appId,
-          createCredentialSchema.parse(request.body),
+          createOrCloneCredentialSchema.parse(request.body),
           request.adminPrincipal,
         );
         return reply.code(201).send(result);
