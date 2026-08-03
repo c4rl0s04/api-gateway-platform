@@ -147,7 +147,7 @@ describe('proxy revision management routes', () => {
     await server.close();
   });
 
-  it('activates a revision and reports that runtime restart is required', async () => {
+  it('activates a revision and reports the queued runtime version', async () => {
     const calls: unknown[] = [];
     const revisions: ProxyRevisionOperations = {
       createProxy: async () => ({}),
@@ -158,7 +158,7 @@ describe('proxy revision management routes', () => {
       getRevisionSource: async () => '',
       deployRevision: async (proxyId, revisionNumber, input) => {
         calls.push({ proxyId, revisionNumber, input });
-        return { id: 'deployment-2', status: 'active' };
+        return { id: 'deployment-2', status: 'active', configVersion: 12 };
       },
       retireDeployment: async () => ({}),
     };
@@ -173,7 +173,9 @@ describe('proxy revision management routes', () => {
       },
     });
     assert.equal(response.statusCode, 201);
-    assert.equal(response.json().runtimeRefreshRequired, true);
+    assert.equal(response.json().runtimeRefreshRequired, false);
+    assert.deepEqual(response.json().runtimeSync, { version: 12, state: 'queued' });
+    assert.equal(response.json().deployment.configVersion, undefined);
     assert.deepEqual(calls, [{
       proxyId: 'proxy-1',
       revisionNumber: 2,
@@ -222,7 +224,7 @@ describe('proxy revision management routes', () => {
     await server.close();
   });
 
-  it('retires a deployment and reports that runtime restart is required', async () => {
+  it('retires a deployment and reports the queued runtime version', async () => {
     const calls: string[] = [];
     const revisions: ProxyRevisionOperations = {
       createProxy: async () => ({}),
@@ -234,7 +236,7 @@ describe('proxy revision management routes', () => {
       deployRevision: async () => ({}),
       retireDeployment: async deploymentId => {
         calls.push(deploymentId);
-        return { id: deploymentId, status: 'retired' };
+        return { id: deploymentId, status: 'retired', configVersion: 13 };
       },
     };
     const server = serverWith(revisions);
@@ -244,7 +246,8 @@ describe('proxy revision management routes', () => {
       headers: { authorization: 'Bearer token' },
     });
     assert.equal(response.statusCode, 200);
-    assert.equal(response.json().runtimeRefreshRequired, true);
+    assert.equal(response.json().runtimeRefreshRequired, false);
+    assert.deepEqual(response.json().runtimeSync, { version: 13, state: 'queued' });
     assert.equal(response.json().deployment.status, 'retired');
     assert.deepEqual(calls, ['deployment-1']);
     await server.close();

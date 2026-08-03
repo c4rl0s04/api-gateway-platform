@@ -159,7 +159,8 @@ export class ProxyRevisionService implements ProxyRevisionOperations {
       },
     });
     this.notify(result);
-    return result;
+    const { configVersion: _configVersion, ...proxy } = result;
+    return proxy;
   }
 
   async importRevision(

@@ -43,6 +43,19 @@ function sendDomainError(reply: FastifyReply, error: unknown) {
   throw error;
 }
 
+function runtimeSyncResponse(value: unknown) {
+  const candidate = value as Record<string, unknown>;
+  if (typeof candidate?.configVersion !== 'number') {
+    throw new Error('Routing mutation did not return a configuration version');
+  }
+  const { configVersion, ...resource } = candidate;
+  return {
+    resource,
+    runtimeRefreshRequired: false,
+    runtimeSync: { version: configVersion, state: 'queued' as const },
+  };
+}
+
 async function readBundleFiles(request: FastifyRequest) {
   const files = new Map<string, string>();
   for await (const part of request.parts({
@@ -184,9 +197,11 @@ export function registerProxyRevisionRoutes(
         body.data,
         request.adminPrincipal,
       );
+      const runtime = runtimeSyncResponse(deployment);
       return reply.code(201).send({
-        deployment,
-        runtimeRefreshRequired: true,
+        deployment: runtime.resource,
+        runtimeRefreshRequired: runtime.runtimeRefreshRequired,
+        runtimeSync: runtime.runtimeSync,
       });
     } catch (error) {
       return sendDomainError(reply, error);
@@ -201,7 +216,12 @@ export function registerProxyRevisionRoutes(
           request.params.deploymentId,
           request.adminPrincipal,
         );
-        return reply.send({ deployment, runtimeRefreshRequired: true });
+        const runtime = runtimeSyncResponse(deployment);
+        return reply.send({
+          deployment: runtime.resource,
+          runtimeRefreshRequired: runtime.runtimeRefreshRequired,
+          runtimeSync: runtime.runtimeSync,
+        });
       } catch (error) {
         return sendDomainError(reply, error);
       }
