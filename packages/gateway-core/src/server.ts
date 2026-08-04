@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import Fastify from 'fastify';
 import type { ProxyConfig } from '@api-gateway/shared';
+import { getLatestGatewayConfigVersion } from '@api-gateway/database';
 import {
   loadProxies,
   resolveProxy,
@@ -11,6 +12,7 @@ import {
   resolveEnvironment,
 } from './proxy/resolver';
 import { forwardRequest } from './proxy/forwarder';
+import { validateProxyConfiguration } from './proxy/config-validator.js';
 import { loadProxiesFromDatabase } from './db/proxy-loader.js';
 import { registerBuiltinPolicies } from './policies/registry';
 import { executePipeline } from './policies/pipeline';
@@ -18,6 +20,10 @@ import type { PolicyContext } from './policies/types';
 import { configureRedisConnection } from './redis/client';
 import { loadEnv, type GatewayEnv } from './config/env';
 import { configureOAuthRuntime, getOAuthRuntime } from './oauth/runtime.js';
+import {
+  GatewayConfigReloader,
+  GatewayRuntimeSync,
+} from './runtime-sync/reloader.js';
 
 export interface BuildServerOptions {
   config?: GatewayEnv;
@@ -27,32 +33,6 @@ export interface BuildServerOptions {
    */
   proxies?: ProxyConfig[];
   logger?: boolean;
-}
-
-function validateProxyConfiguration(proxies: ProxyConfig[]): void {
-  for (const proxy of proxies) {
-    for (const endpoint of proxy.endpoints) {
-      const types = endpoint.policies
-        .filter(policy => policy.enabled)
-        .map(policy => policy.type);
-      const authenticationTypes = types.filter(type =>
-        ['api-key-auth', 'oauth-access-token', 'mtls-auth'].includes(type));
-      if (authenticationTypes.length > 1) {
-        throw new Error(`Endpoint "${endpoint.id}" configures more than one authentication policy`);
-      }
-      if (endpoint.mode === 'local' && !types.some(type =>
-        type === 'oauth-token' || type === 'jwks-endpoint')) {
-        throw new Error(`Local endpoint "${endpoint.id}" has no terminal response policy`);
-      }
-      if (endpoint.mode === 'forward' && (!endpoint.targetPath || !proxy.upstreamBaseUrl)) {
-        throw new Error(`Forward endpoint "${endpoint.id}" requires targetPath and upstreamBaseUrl`);
-      }
-      if ((types.includes('oauth-token') || types.includes('jwks-endpoint'))
-        && endpoint.mode !== 'local') {
-        throw new Error(`Terminal OAuth policy on "${endpoint.id}" requires local mode`);
-      }
-    }
-  }
 }
 
 /**
@@ -125,9 +105,12 @@ export async function buildServer(options: BuildServerOptions = {}) {
 
   // Load active proxies from PostgreSQL on startup.
   // The in-memory registry is updated here; resolver.ts and forwarder.ts do not change.
+  const initialConfigVersion = options.proxies
+    ? 0
+    : await getLatestGatewayConfigVersion();
   const proxies = options.proxies ?? await loadProxiesFromDatabase(
-    config.GATEWAY_ENVIRONMENT_ALLOWLIST,
-  );
+      config.GATEWAY_ENVIRONMENT_ALLOWLIST,
+    );
   validateProxyConfiguration(proxies);
   await configureOAuthRuntime(config);
   const requiresSecurityRuntime = proxies.some(proxy =>
@@ -144,6 +127,30 @@ export async function buildServer(options: BuildServerOptions = {}) {
     'Gateway proxy registry initialized',
   );
   configureRedisConnection(config.REDIS_URL);
+  let runtimeSync: GatewayRuntimeSync | null = null;
+  let runtimeReloader: GatewayConfigReloader | null = null;
+  if (!options.proxies) {
+    runtimeReloader = new GatewayConfigReloader({
+      instanceId: config.GATEWAY_INSTANCE_ID,
+      initialVersion: initialConfigVersion,
+      loadSnapshot: () => loadProxiesFromDatabase(
+        config.GATEWAY_ENVIRONMENT_ALLOWLIST,
+      ),
+      applySnapshot: candidate => {
+        validateProxyConfiguration(candidate);
+        loadProxies(candidate);
+      },
+      publishStatus: status => runtimeSync?.publishStatus(status) ?? Promise.resolve(),
+      logger: server.log,
+    });
+    runtimeSync = new GatewayRuntimeSync({
+      redisUrl: config.REDIS_URL,
+      reconcileSeconds: config.GATEWAY_CONFIG_RECONCILE_SECONDS,
+      reloader: runtimeReloader,
+      logger: server.log,
+    });
+    runtimeSync.start();
+  }
   registerBuiltinPolicies();
   server.log.info('Policy pipeline initialized with built-in policies');
 
@@ -160,6 +167,7 @@ export async function buildServer(options: BuildServerOptions = {}) {
       status: ready ? 'ready' : 'not-ready',
       proxiesLoaded: getRegistrySize(),
       environmentsLoaded: getRegistryEnvironmentCount(),
+      runtimeSync: runtimeReloader?.status() ?? null,
       timestamp: new Date().toISOString(),
     });
   });
@@ -258,7 +266,10 @@ export async function buildServer(options: BuildServerOptions = {}) {
 
   server.addHook('onClose', async () => {
     const { closeRedisConnection } = await import('./redis/client.js');
-    await closeRedisConnection();
+    await Promise.all([
+      closeRedisConnection(),
+      runtimeSync?.close(),
+    ]);
   });
 
   return server;
