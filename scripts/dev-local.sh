@@ -219,6 +219,10 @@ printf '%s\n' \
 printf '%s\n' \
   "Local OIDC credentials: $KEYCLOAK_USERS_ENV"
 
+if [[ "${PLATFORM_BOOTSTRAP_ONLY:-0}" == "1" ]]; then
+  exit 0
+fi
+
 cd "$ROOT_DIR"
 compose_arguments=(compose)
 if [[ -n "${PLATFORM_COMPOSE_PROJECT:-}" ]]; then
