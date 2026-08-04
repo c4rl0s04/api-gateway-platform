@@ -191,9 +191,14 @@ function resolveWikiTarget(target, source, maps) {
 function wikiLinks(body) {
   const links = [];
   for (const match of body.matchAll(/\[\[([^\]]+)]]/g)) {
-    links.push(match[1].split('|')[0].trim());
+    links.push(match[1].replaceAll('\\|', '|').split('|')[0].trim());
   }
   return links;
+}
+
+function tableWikiLink(target, title) {
+  const alias = title.replaceAll('\n', ' ').replaceAll('|', '\\|');
+  return `[[${target}\\|${alias}]]`;
 }
 
 function markdownLinks(body) {
@@ -454,7 +459,7 @@ export function renderIndex(notes, lastVerified = indexDate(notes)) {
         ? note.metadata.aliases[0]
         : noteStem(note.relativePath);
       content.push(
-        `| [[${target}|${note.metadata.title}]] | ${note.metadata.doc_status} | `
+        `| ${tableWikiLink(target, note.metadata.title)} | ${note.metadata.doc_status} | `
         + `${note.metadata.implementation_status} | ${note.metadata.last_verified} |`,
       );
     }
