@@ -1,0 +1,56 @@
+services:
+  postgres:
+    environment:
+      POSTGRES_DB: apigw_e2e
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d apigw_e2e"]
+
+  keycloak:
+    environment:
+      KC_HOSTNAME: ${PLATFORM_KEYCLOAK_URL:?Missing isolated Keycloak URL}
+    ports: !override
+      - "${PLATFORM_KEYCLOAK_PORT:-18081}:8080"
+    volumes:
+      - ${PLATFORM_SECRETS_DIR:?Missing isolated secrets directory}/keycloak/realm.json:/opt/keycloak/data/import/realm.json:ro
+
+  database-setup:
+    environment:
+      DATABASE_URL: postgresql://postgres:password@postgres:5432/apigw_e2e?schema=public
+      DEV_GATEWAY_PUBLIC_PORT: ${PLATFORM_GATEWAY_PORT:-18443}
+
+  gateway:
+    environment:
+      DATABASE_URL: postgresql://postgres:password@postgres:5432/apigw_e2e?schema=public
+      GATEWAY_INSTANCE_ID: gateway-e2e
+      MTLS_TRUSTED_PROXY_CIDRS: 172.31.0.250/32
+
+  management-api:
+    environment:
+      DATABASE_URL: postgresql://postgres:password@postgres:5432/apigw_e2e?schema=public
+      OIDC_ISSUER: ${PLATFORM_KEYCLOAK_URL:?Missing isolated Keycloak URL}/realms/api-gateway
+    volumes:
+      - ${PLATFORM_SECRETS_DIR:?Missing isolated secrets directory}:/run/platform-secrets
+      - ${PLATFORM_SDS_DIR:?Missing isolated SDS directory}:/runtime-sds
+
+  admin-panel:
+    environment:
+      OIDC_ISSUER: ${PLATFORM_KEYCLOAK_URL:?Missing isolated Keycloak URL}/realms/api-gateway
+      OIDC_CALLBACK_URL: ${PLATFORM_ADMIN_PANEL_URL:?Missing isolated Admin Panel URL}/api/auth/callback
+    ports: !override
+      - "${PLATFORM_ADMIN_PANEL_PORT:-18080}:8080"
+
+  envoy:
+    ports: !override
+      - "${PLATFORM_GATEWAY_PORT:-18443}:8443"
+    volumes:
+      - ${PLATFORM_SDS_DIR:?Missing isolated SDS directory}:/etc/envoy/sds:ro
+      - ${PLATFORM_SECRETS_DIR:?Missing isolated secrets directory}:/run/platform-secrets:ro
+    networks:
+      default:
+        ipv4_address: 172.31.0.250
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.31.0.0/24

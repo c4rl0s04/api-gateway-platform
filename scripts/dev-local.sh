@@ -3,8 +3,16 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SECRETS_DIR="$ROOT_DIR/.local-secrets"
+SECRETS_DIR="${PLATFORM_SECRETS_DIR:-$ROOT_DIR/.local-secrets}"
+SDS_DIR="${PLATFORM_SDS_DIR:-$ROOT_DIR/infra/envoy/sds}"
+KEYCLOAK_PUBLIC_URL="${PLATFORM_KEYCLOAK_URL:-http://localhost:8081}"
+ADMIN_PANEL_PUBLIC_URL="${PLATFORM_ADMIN_PANEL_URL:-http://localhost:8080}"
 COMPOSE_ENV="$SECRETS_DIR/compose.env"
+
+export PLATFORM_SECRETS_DIR="$SECRETS_DIR"
+export PLATFORM_SDS_DIR="$SDS_DIR"
+export PLATFORM_KEYCLOAK_URL="$KEYCLOAK_PUBLIC_URL"
+export PLATFORM_ADMIN_PANEL_URL="$ADMIN_PANEL_PUBLIC_URL"
 
 for command in docker openssl node; do
   if ! command -v "$command" >/dev/null 2>&1; then
@@ -20,6 +28,7 @@ fi
 
 mkdir -p "$SECRETS_DIR"
 mkdir -p "$SECRETS_DIR/ingress" "$SECRETS_DIR/keycloak" "$SECRETS_DIR/oauth" "$SECRETS_DIR/pki"
+mkdir -p "$SDS_DIR"
 
 KEYCLOAK_USERS_ENV="$SECRETS_DIR/keycloak/users.env"
 if [[ ! -f "$KEYCLOAK_USERS_ENV" ]]; then
@@ -49,8 +58,8 @@ cat > "$SECRETS_DIR/keycloak/realm.json" <<EOF
       "publicClient": true,
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": false,
-      "redirectUris": ["http://localhost:8080/api/auth/callback"],
-      "webOrigins": ["http://localhost:8080"],
+      "redirectUris": ["$ADMIN_PANEL_PUBLIC_URL/api/auth/callback"],
+      "webOrigins": ["$ADMIN_PANEL_PUBLIC_URL"],
       "protocolMappers": [
         {
           "name": "management-api-audience",
@@ -157,9 +166,11 @@ cd "$ROOT_DIR"
 npm run build --workspace=packages/shared >/dev/null
 npm run build --workspace=packages/pki >/dev/null
 node scripts/bootstrap-local-pki.mjs "$SECRETS_DIR"
-touch \
-  "$ROOT_DIR/infra/envoy/sds/server-certificate.yaml" \
-  "$ROOT_DIR/infra/envoy/sds/client-validation.yaml"
+for sds_file in server-certificate.yaml client-validation.yaml; do
+  if [[ ! -f "$SDS_DIR/$sds_file" ]]; then
+    cp "$ROOT_DIR/infra/envoy/sds/$sds_file" "$SDS_DIR/$sds_file"
+  fi
+done
 
 GATEWAY_KEY_BASE64="$(
   openssl base64 -A -in "$SECRETS_DIR/oauth/gateway-signing-private.pem"
@@ -206,7 +217,19 @@ printf '%s\n' \
   > "$COMPOSE_ENV"
 
 printf '%s\n' \
-  "Local OIDC credentials: .local-secrets/keycloak/users.env"
+  "Local OIDC credentials: $KEYCLOAK_USERS_ENV"
 
 cd "$ROOT_DIR"
-exec docker compose --env-file "$COMPOSE_ENV" up --build --force-recreate "$@"
+compose_arguments=(compose)
+if [[ -n "${PLATFORM_COMPOSE_PROJECT:-}" ]]; then
+  compose_arguments+=(--project-name "$PLATFORM_COMPOSE_PROJECT")
+fi
+if [[ -n "${PLATFORM_COMPOSE_FILES:-}" ]]; then
+  IFS=':' read -r -a compose_files <<< "$PLATFORM_COMPOSE_FILES"
+  for compose_file in "${compose_files[@]}"; do
+    compose_arguments+=(--file "$compose_file")
+  done
+fi
+exec docker "${compose_arguments[@]}" \
+  --env-file "$COMPOSE_ENV" \
+  up --build --force-recreate "$@"
