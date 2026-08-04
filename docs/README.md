@@ -3,7 +3,7 @@ title: API Gateway Platform
 type: map
 doc_status: current
 implementation_status: partial
-last_verified: 2026-07-27
+last_verified: 2026-08-02
 tags:
   - type/map
   - area/project
@@ -25,9 +25,9 @@ configuration management in the control plane.
 
 ## Start Here
 
-- [[00-map/Project Map|Project Map]] - navigate by domain or task.
+- [[00-map/Project Map|Project Map]] - choose a domain or development task.
 - [[00-map/Current Status|Current Status]] - see what is implemented, partial, or planned.
-- [[00-map/Documentation Index|Documentation Index]] - browse every note and its metadata.
+- [[00-map/Documentation Index|Documentation Index]] - use the complete metadata inventory when you already know the note type or title.
 - [[04-guides/How to Start the Project|How to Start the Project]] - run the project locally.
 - [[04-guides/How to Run Tests|How to Run Tests]] - execute workspace and documentation checks.
 - [[04-guides/How to Document the Project|How to Document the Project]] - create and maintain notes.
@@ -36,13 +36,16 @@ configuration management in the control plane.
 
 | Area | Purpose |
 | --- | --- |
-| [[01-concepts/What is an API Gateway|Concepts]] | Domain vocabulary and the Apigee model |
-| [[02-architecture/Global Architecture|Architecture]] | Components, boundaries, data flows, and failure modes |
-| [[03-packages/gateway-core|Packages]] | Ownership and public contracts for each workspace |
-| [[04-guides/How to Start the Project|Guides]] | Reproducible development procedures |
-| [[05-decisions/ADR-001 Longest Prefix Match|Decisions]] | Accepted architecture decisions |
-| [[06-reference/Environment Variables|Reference]] | Exact values derived from code and configuration |
-| [[07-runbooks/Debug Gateway 404|Runbooks]] | Operational diagnosis and recovery |
+| [[Data Plane]] | Request routing, policies, local responses, and forwarding |
+| [[Control Plane]] | Management API, proxy lifecycle, products, apps, and runtime sync |
+| [[Security and Identity]] | API keys, OAuth, mTLS, PKI, Keycloak, and administrator identity |
+| [[Operations]] | Startup, configuration, ports, health, synchronization, and recovery |
+| [[Development]] | Packages, persistence, implementation workflows, tests, and seeds |
+| [[Decision Records]] | Architectural rationale grouped by domain |
+
+The numbered folders continue to separate concepts, architecture, packages,
+guides, decisions, reference, and runbooks. The maps above are the primary
+navigation layer; [[Documentation Index]] remains the exhaustive inventory.
 
 ## Documentation Contract
 

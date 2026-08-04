@@ -16,24 +16,35 @@ aliases: []
 # Project Map
 
 > [!summary] At a glance
-> Use this map to move from a development question to the smallest authoritative set of project notes.
+> Choose a domain first, then move to the smallest authoritative architecture, guide, reference, or runbook note.
+
+## By Domain
+
+| Domain | Use it for |
+| --- | --- |
+| [[Data Plane]] | Runtime requests, routing, policies, and forwarding |
+| [[Control Plane]] | Management API, configuration, revisions, deployments, and hot reload |
+| [[Security and Identity]] | Client authentication, authorization, OAuth, mTLS, PKI, and OIDC |
+| [[Operations]] | Local startup, configuration, health, synchronization, and recovery |
+| [[Development]] | Package ownership, persistence, implementation, tests, and documentation |
+| [[Decision Records]] | Architectural rationale and accepted tradeoffs |
 
 ## By Development Task
 
-| Task | Start with | Continue with |
+| Task | Domain map | First authoritative note |
 | --- | --- | --- |
-| Understand the platform | [[Global Architecture]] | [[Data Plane vs Control Plane]] |
-| Trace a gateway request | [[Runtime Request Flow]] | [[Routing Engine]], [[gateway-core]] |
-| Change persistence | [[Data Model]] | [[Database Schema]], [[database]] |
-| Import or deploy a proxy | [[How to Add a New Proxy]] | [[How to Import and Deploy a Proxy Revision]], [[Proxy Revisions and Deployments]] |
-| Trace runtime synchronization | [[Hot Reload Sync]] | [[Debug Gateway Runtime Sync]] |
-| Work on policies | [[Policy Types]] | [[Policy Reference Index]], [[Debug Policy Failure]] |
-| Configure client authentication | [[Authentication and Authorization]] | [[How to Configure Application Authentication]], [[Debug OAuth and mTLS]] |
-| Work on certificates or trust | [[Multi-Client PKI]] | [[pki]], [[ADR-006 Envoy and Managed Client PKI]] |
-| Work on the control plane | [[Control Plane Flow]] | [[Management API]], [[Management API Endpoint Reference]], [[management-api]] |
-| Call the control plane manually | [[How to Use the Management API with Postman]] | [[Management API Endpoint Reference]] |
-| Run the project | [[How to Start the Project]] | [[Ports]], [[Environment Variables]] |
-| Diagnose a failure | [[Debug Gateway 404]] | [[Debug Gateway Runtime Sync]], [[Debug Policy Failure]], [[Reset Local Database]] |
+| Understand the platform | [[Development]] | [[Global Architecture]] |
+| Trace a gateway request | [[Data Plane]] | [[Runtime Request Flow]] |
+| Change persistence | [[Development]] | [[Data Model]] |
+| Import or deploy a proxy | [[Control Plane]] | [[How to Add a New Proxy]] |
+| Trace runtime synchronization | [[Control Plane]] | [[Hot Reload Sync]] |
+| Work on policies | [[Data Plane]] | [[Policy Reference Index]] |
+| Configure client authentication | [[Security and Identity]] | [[Authentication and Authorization]] |
+| Work on certificates or trust | [[Security and Identity]] | [[Multi-Client PKI]] |
+| Work on the control plane | [[Control Plane]] | [[Management API]] |
+| Call the control plane manually | [[Control Plane]] | [[How to Use the Management API with Postman]] |
+| Run the project | [[Operations]] | [[How to Start the Project]] |
+| Diagnose a failure | [[Operations]] | [[Debug Gateway 404]] |
 
 ## Runtime Ownership
 

@@ -23,9 +23,15 @@ aliases: []
 
 | Note | Documentation | Implementation | Verified |
 | --- | --- | --- | --- |
-| [[Documentation Home\|API Gateway Platform]] | current | partial | 2026-07-27 |
+| [[Documentation Home\|API Gateway Platform]] | current | partial | 2026-08-02 |
+| [[00-map/Control Plane\|Control Plane]] | current | not-applicable | 2026-08-02 |
 | [[00-map/Current Status\|Current Status]] | current | partial | 2026-08-02 |
+| [[00-map/Data Plane\|Data Plane]] | current | not-applicable | 2026-08-02 |
+| [[00-map/Decision Records\|Decision Records]] | current | not-applicable | 2026-08-02 |
+| [[00-map/Development\|Development]] | current | not-applicable | 2026-08-02 |
+| [[00-map/Operations\|Operations]] | current | not-applicable | 2026-08-02 |
 | [[00-map/Project Map\|Project Map]] | current | partial | 2026-08-02 |
+| [[00-map/Security and Identity\|Security and Identity]] | current | not-applicable | 2026-08-02 |
 
 ## Concepts
 
