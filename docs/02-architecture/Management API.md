@@ -3,7 +3,7 @@ title: Management API
 type: architecture
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-07-31
+last_verified: 2026-08-02
 tags:
   - type/architecture
   - area/management-api
@@ -41,6 +41,8 @@ to the host; browsers and API clients reach it through the Admin Panel BFF.
 - Application and credential lifecycle updates, additional credential
   generation, one-time secret rotation, desired-state grants, and RSA public
   key registration/revocation.
+- Consumer-key customization and selective credential cloning.
+- Durable routing outbox publication and live gateway synchronization status.
 - CA lifecycle: create/import, activate, retire, revoke, rotate, refresh/upload
   CRL.
 - Certificate lifecycle: issue from CSR, register external, list, download, and
@@ -56,6 +58,9 @@ flowchart LR
     OIDC --> MEMBERSHIP["Load active memberships"]
     MEMBERSHIP --> DOMAIN["Validate role and organization"]
     DOMAIN --> DATABASE["Revision, deployment, and audit transaction"]
+    DATABASE --> OUTBOX["Durable routing version"]
+    OUTBOX --> REDIS["Redis notification"]
+    REDIS --> GATEWAY["Atomic gateway reload"]
     DOMAIN --> KEYSTORE["Managed CA key operation"]
     DOMAIN --> SDS["Atomic CA and CRL bundle update"]
 ```
@@ -63,8 +68,9 @@ flowchart LR
 Exact routes are listed in [[API Routes]]. Application registration passes
 through the database domain operation so product ownership, activity, scopes,
 credential generation, grants, and audit are committed or rolled back together.
-Proxy configuration writes create immutable revisions. Deployments select an
-existing revision and report that the gateway must restart. Product,
+Proxy configuration writes create immutable revisions. Deployment, rollback,
+retirement, and proxy activation mutations create an outbox version in the same
+transaction and return asynchronous runtime-sync metadata. Product,
 credential, grant, and public-key mutations use domain services so routes do
 not reproduce persistence or security rules with direct Prisma calls.
 
@@ -76,14 +82,15 @@ not reproduce persistence or security rules with direct Prisma calls.
 - Keystore, database, CRL, or bundle publication errors fail the mutation.
 - A valid database write followed by SDS publication failure requires operator
   reconciliation from the PKI status and audit views.
+- Redis failure after a routing commit leaves an unpublished outbox row; the
+  mutation remains valid and dispatch retries later.
 
 ## Constraints
 
 The intended control-plane surface for organizations, products, proxies,
 applications, credentials, grants, public keys, audit, and PKI is implemented.
-Membership administration, environment catalog writes, physical deletion,
-consumer-key customization, revision editing, and routing-registry hot reload
-remain outside the current boundary.
+Membership administration, environment catalog writes, physical deletion, and
+revision editing remain outside the current boundary.
 
 ## Sources
 

@@ -3,7 +3,7 @@ title: API Routes
 type: reference
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-07-31
+last_verified: 2026-08-02
 tags:
   - type/reference
   - area/project
@@ -16,6 +16,7 @@ sources:
   - packages/management-api/src/routes/products.routes.ts
   - packages/management-api/src/routes/proxies.routes.ts
   - packages/management-api/src/routes/proxy-revisions.routes.ts
+  - packages/management-api/src/routes/runtime-sync.routes.ts
 aliases: []
 ---
 
@@ -31,7 +32,7 @@ aliases: []
 | Method | Path | Success | Purpose |
 | --- | --- | --- | --- |
 | `GET` | `/live` | `200` | Process liveness and timestamp |
-| `GET` | `/ready` | `200` or `503` | Registry readiness plus deployment and environment counts |
+| `GET` | `/ready` | `200` or `503` | Registry readiness, counts, and local runtime-sync state |
 | `POST` | `/oauth/token` | `200` or OAuth error | Local Client Credentials and JWT Bearer token issuance |
 | `GET` | `/oauth/.well-known/jwks.json` | `200` | Local public gateway signing keys |
 | Any | `/*` | Upstream or gateway error | Proxy resolution, policies, and forwarding |
@@ -58,6 +59,7 @@ The gateway intentionally does not expose a root `/health` route.
 | `GET` | `/live` | `200` | Process liveness |
 | `GET` | `/ready` | `200` or `503` | PostgreSQL readiness |
 | `GET` | `/v1/me` | `200` | Verified identity and active memberships |
+| `GET` | `/v1/runtime-sync` | `200` | Committed version, pending outbox, and live gateway versions |
 | `GET` | `/v1/organizations` | `200` | Organizations visible to the actor |
 | `GET` | `/v1/organizations/:organizationId` | `200` | Organization detail |
 | `POST` | `/v1/organizations` | `201` | Create organization; platform admin only |
@@ -81,8 +83,8 @@ The gateway intentionally does not expose a root `/health` route.
 | `POST` | `/v1/organizations/:organizationId/apps` | `201` | Atomically create app, generated credential, and approved product grants |
 | `GET` | `/v1/apps/:appId` | `200` | App, credentials, grants, public keys, and certificates |
 | `PATCH` | `/v1/apps/:appId` | `200` | Update app name or lifecycle status |
-| `POST` | `/v1/apps/:appId/credentials` | `201` | Generate an additional credential with explicit grants |
-| `GET/PATCH` | `/v1/credentials/:credentialId` | `200` | Read or update public credential lifecycle data |
+| `POST` | `/v1/apps/:appId/credentials` | `201` | Generate explicit grants or clone an active credential |
+| `GET/PATCH` | `/v1/credentials/:credentialId` | `200` | Read or update consumer key and lifecycle data |
 | `POST` | `/v1/credentials/:credentialId/rotate-secret` | `200` | Rotate and return a new consumer secret once |
 | `PUT` | `/v1/credentials/:credentialId/product-grants` | `200` | Replace the desired approved-grant set |
 | `GET/POST` | `/v1/credentials/:credentialId/public-keys` | `200/201` | List or register RSA public JWKs |
@@ -142,8 +144,9 @@ Revision import requires `multipart/form-data` with exactly two file fields,
 }
 ```
 
-The deployment response includes `runtimeRefreshRequired: true`. The active
-runtime changes only after restarting the gateway.
+The deployment response includes `runtimeRefreshRequired: false` and a queued
+`runtimeSync.version`. `GET /v1/runtime-sync` exposes committed, pending, and
+per-instance applied versions; routing changes do not require a restart.
 
 ## Examples
 

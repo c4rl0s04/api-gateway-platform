@@ -3,7 +3,7 @@ title: "How to Use the Management API with Postman"
 type: guide
 doc_status: current
 implementation_status: implemented
-last_verified: "2026-07-31"
+last_verified: "2026-08-02"
 tags:
   - type/guide
   - area/management-api
@@ -54,6 +54,7 @@ Create a Postman environment with these variables:
 | `proxyId` | Empty |
 | `revisionNumber` | Empty |
 | `deploymentId` | Empty |
+| `runtimeVersion` | Empty |
 | `productId` | Empty |
 | `appId` | Empty |
 | `credentialId` | Empty |
@@ -155,9 +156,18 @@ change requires a new import.
 }
 ```
 
-Capture `deployment.id` as `deploymentId`. A successful result contains
-`runtimeRefreshRequired: true`; restart `gateway` before testing the new route.
-Later, the same request with an older `revisionNumber` performs a rollback.
+Capture both IDs:
+
+```javascript
+const body = pm.response.json();
+pm.environment.set('deploymentId', body.deployment.id);
+pm.environment.set('runtimeVersion', body.runtimeSync.version);
+```
+
+A successful result contains `runtimeRefreshRequired: false`. Poll `GET
+{{managementBaseUrl}}/runtime-sync` until `gateway-local` has `state: applied`
+and `appliedVersion >= {{runtimeVersion}}` before testing the route. The same
+deployment request with an older `revisionNumber` performs a rollback.
 
 ### 5. Create the product
 
@@ -223,10 +233,29 @@ present.
 }
 ```
 
-This returns a different consumer key and one-time secret. To rotate it, call
+This returns a different consumer key and one-time secret. Alternatively clone
+only the approved grants, scopes, and expiration of another active credential:
+
+```json
+{ "sourceCredentialId": "{{credentialId}}" }
+```
+
+The clone receives a new key and secret and no JWKs or certificates. To rotate
+an explicit or cloned credential, call
 `POST {{managementBaseUrl}}/credentials/{{credentialId}}/rotate-secret` with
 no body and replace the saved `consumerSecret`. The previous value must fail
 immediately for Client Credentials.
+
+Customize the current public identifier with `PATCH
+{{managementBaseUrl}}/credentials/{{credentialId}}`:
+
+```json
+{ "consumerKey": "postman-client-key" }
+```
+
+The value is globally unique and cannot contain whitespace, controls, or `:`.
+The existing secret remains valid with the new key; the previous key fails
+immediately. Save the replacement in `consumerKey`.
 
 ### 8. Replace grants and reduce scopes
 
@@ -281,8 +310,9 @@ GET {{managementBaseUrl}}/audit-events?organizationId={{organizationId}}&resourc
 
 The result should include creation, rotation, grant replacement, and lifecycle
 events. Retire routing with `POST
-{{managementBaseUrl}}/proxy-deployments/{{deploymentId}}/retire`; restart the
-gateway because the response again sets `runtimeRefreshRequired: true`.
+{{managementBaseUrl}}/proxy-deployments/{{deploymentId}}/retire`; capture and
+wait for its new `runtimeSync.version`. The route should then return `404`
+without restarting the gateway.
 
 ## Verification
 
@@ -293,6 +323,10 @@ gateway because the response again sets `runtimeRefreshRequired: true`.
   next request.
 - Product scope reductions are visible in `GET /credentials/:credentialId`.
 - Registered JWK reads contain only public members.
+- Key replacement preserves the secret and invalidates only the previous key.
+- Cloning copies approved authorization only, not public-key or certificate
+  material.
+- Runtime status confirms deploy, rollback, and retirement versions.
 - Audit results contain every mutation and respect organization filters.
 - Previously issued OAuth access tokens remain valid until `exp`; grant changes
   do not revoke already issued stateless tokens.
@@ -308,8 +342,8 @@ gateway because the response again sets `runtimeRefreshRequired: true`.
 - `409 system_proxy_immutable`: create a business proxy instead of editing
   `platform-oauth`.
 - `400 invalid_scope`: use only scopes currently declared by the product.
-- To roll back routing, deploy an older immutable revision and restart the
-  gateway. To preserve history, revoke or deactivate resources instead of
-  deleting them.
+- To roll back routing, deploy an older immutable revision and wait for its
+  runtime version. To preserve history, revoke or deactivate resources instead
+  of deleting them.
 
 Exact payload and error contracts are in [[Management API Endpoint Reference]].

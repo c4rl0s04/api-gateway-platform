@@ -3,7 +3,7 @@ title: Environment Variables
 type: reference
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-07-29
+last_verified: 2026-08-02
 tags:
   - type/reference
   - area/operations
@@ -33,6 +33,8 @@ aliases: []
 | `DATABASE_URL` | Yes | None | Valid URL |
 | `REDIS_URL` | No | `redis://localhost:6379` | `redis://` or `rediss://` URL |
 | `LOG_LEVEL` | No | `info` | Pino level or `silent` |
+| `GATEWAY_INSTANCE_ID` | No | Hostname | Unique runtime status identity |
+| `GATEWAY_CONFIG_RECONCILE_SECONDS` | No | `10` | Integer from 1 to 60 |
 | `GATEWAY_ENVIRONMENT_ALLOWLIST` | No | All active deployments | Comma-separated environment IDs |
 | `OAUTH_SIGNING_PRIVATE_KEY_BASE64` | Outside tests | None | Base64 PKCS#8 RSA private key; imported at startup |
 | `OAUTH_SIGNING_KEY_ID` | Outside tests | None | Non-empty signing/JWKS `kid` |
@@ -75,6 +77,7 @@ configuration.
 | `HOST` | No | `0.0.0.0` | Listen address |
 | `PORT` | No | `3002` | Internal listen port |
 | `DATABASE_URL` | Yes | None | PostgreSQL connection |
+| `REDIS_URL` | No | `redis://localhost:6379` | Durable outbox publication and runtime status |
 | `OIDC_ISSUER` | Yes | None | Exact accepted token issuer |
 | `OIDC_AUDIENCE` | No | `management-api` | Required access-token audience |
 | `OIDC_JWKS_URI` | No | Issuer discovery | Internal override for JWKS retrieval |
@@ -83,6 +86,9 @@ configuration.
 | `PKI_TRUST_BUNDLE_FILE` | Yes | None | Envoy public CA bundle |
 | `PKI_CRL_BUNDLE_FILE` | Yes | None | Envoy public CRL bundle |
 | `PKI_SDS_TRIGGER_FILE` | Yes | None | Atomically replaced SDS resource |
+
+Management API confirms routing mutations even when Redis is unavailable. Its
+outbox dispatcher retries publication after reconnecting.
 
 ### admin-panel
 

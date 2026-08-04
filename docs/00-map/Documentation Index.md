@@ -3,7 +3,7 @@ title: Documentation Index
 type: map
 doc_status: current
 implementation_status: not-applicable
-last_verified: 2026-07-31
+last_verified: 2026-08-02
 tags:
   - type/map
   - area/project
@@ -24,15 +24,15 @@ aliases: []
 | Note | Documentation | Implementation | Verified |
 | --- | --- | --- | --- |
 | [[Documentation Home|API Gateway Platform]] | current | partial | 2026-07-27 |
-| [[00-map/Current Status|Current Status]] | current | partial | 2026-07-31 |
-| [[00-map/Project Map|Project Map]] | current | partial | 2026-07-31 |
+| [[00-map/Current Status|Current Status]] | current | partial | 2026-08-02 |
+| [[00-map/Project Map|Project Map]] | current | partial | 2026-08-02 |
 
 ## Concepts
 
 | Note | Documentation | Implementation | Verified |
 | --- | --- | --- | --- |
 | [[01-concepts/Apigee - Overview|Apigee - Overview]] | current | not-applicable | 2026-07-31 |
-| [[01-concepts/Data Plane vs Control Plane|Data Plane vs Control Plane]] | current | partial | 2026-07-27 |
+| [[01-concepts/Data Plane vs Control Plane|Data Plane vs Control Plane]] | current | partial | 2026-08-02 |
 | [[01-concepts/Glossary|Glossary]] | current | not-applicable | 2026-07-31 |
 | [[01-concepts/Policies in Apigee|Policies in Apigee]] | current | partial | 2026-07-31 |
 | [[01-concepts/Request Lifecycle in Apigee|Request Lifecycle in Apigee]] | current | partial | 2026-07-27 |
@@ -43,27 +43,27 @@ aliases: []
 | Note | Documentation | Implementation | Verified |
 | --- | --- | --- | --- |
 | [[02-architecture/Authentication and Authorization|Authentication and Authorization]] | current | implemented | 2026-07-29 |
-| [[02-architecture/Control Plane Flow|Control Plane Flow]] | current | partial | 2026-07-31 |
-| [[02-architecture/Data Model|Data Model]] | current | implemented | 2026-07-31 |
-| [[02-architecture/Deployment Model|Deployment Model]] | current | implemented | 2026-07-31 |
+| [[02-architecture/Control Plane Flow|Control Plane Flow]] | current | implemented | 2026-08-02 |
+| [[02-architecture/Data Model|Data Model]] | current | implemented | 2026-08-02 |
+| [[02-architecture/Deployment Model|Deployment Model]] | current | implemented | 2026-08-02 |
 | [[02-architecture/Global Architecture|Global Architecture]] | current | partial | 2026-07-29 |
-| [[02-architecture/Hot Reload Sync|Hot Reload Sync]] | current | planned | 2026-07-27 |
-| [[02-architecture/Management API|Management API]] | current | implemented | 2026-07-31 |
+| [[02-architecture/Hot Reload Sync|Hot Reload Sync]] | current | implemented | 2026-08-02 |
+| [[02-architecture/Management API|Management API]] | current | implemented | 2026-08-02 |
 | [[02-architecture/Monorepo and Packages|Monorepo and Packages]] | current | partial | 2026-07-27 |
 | [[02-architecture/Multi-Client PKI|Multi-Client PKI]] | current | implemented | 2026-07-27 |
 | [[02-architecture/Observability|Observability]] | current | partial | 2026-07-27 |
-| [[02-architecture/Proxy Revisions and Deployments|Proxy Revisions and Deployments]] | current | implemented | 2026-07-31 |
+| [[02-architecture/Proxy Revisions and Deployments|Proxy Revisions and Deployments]] | current | implemented | 2026-08-02 |
 | [[02-architecture/Routing Engine|Routing Engine]] | current | implemented | 2026-07-31 |
-| [[02-architecture/Runtime Request Flow|Runtime Request Flow]] | current | implemented | 2026-07-31 |
+| [[02-architecture/Runtime Request Flow|Runtime Request Flow]] | current | implemented | 2026-08-02 |
 
 ## Packages
 
 | Note | Documentation | Implementation | Verified |
 | --- | --- | --- | --- |
 | [[03-packages/admin-panel|admin-panel]] | current | partial | 2026-07-27 |
-| [[03-packages/database|database]] | current | implemented | 2026-07-31 |
-| [[03-packages/gateway-core|gateway-core]] | current | implemented | 2026-07-31 |
-| [[03-packages/management-api|management-api]] | current | implemented | 2026-07-31 |
+| [[03-packages/database|database]] | current | implemented | 2026-08-02 |
+| [[03-packages/gateway-core|gateway-core]] | current | implemented | 2026-08-02 |
+| [[03-packages/management-api|management-api]] | current | implemented | 2026-08-02 |
 | [[03-packages/pki|pki]] | current | implemented | 2026-07-27 |
 | [[03-packages/shared|shared]] | current | implemented | 2026-07-31 |
 
@@ -71,15 +71,15 @@ aliases: []
 
 | Note | Documentation | Implementation | Verified |
 | --- | --- | --- | --- |
-| [[04-guides/How to Add a New Proxy|How to Add a New Proxy]] | current | implemented | 2026-07-31 |
-| [[04-guides/How to Configure Application Authentication|How to Configure Application Authentication]] | current | implemented | 2026-07-31 |
+| [[04-guides/How to Add a New Proxy|How to Add a New Proxy]] | current | implemented | 2026-08-02 |
+| [[04-guides/How to Configure Application Authentication|How to Configure Application Authentication]] | current | implemented | 2026-08-02 |
 | [[04-guides/How to Document the Project|How to Document the Project]] | current | not-applicable | 2026-07-27 |
-| [[04-guides/How to Import and Deploy a Proxy Revision|How to Import and Deploy a Proxy Revision]] | current | implemented | 2026-07-31 |
+| [[04-guides/How to Import and Deploy a Proxy Revision|How to Import and Deploy a Proxy Revision]] | current | implemented | 2026-08-02 |
 | [[04-guides/How to Operate the PKI|How to Operate the PKI]] | current | implemented | 2026-07-27 |
-| [[04-guides/How to Run Tests|How to Run Tests]] | current | implemented | 2026-07-31 |
+| [[04-guides/How to Run Tests|How to Run Tests]] | current | implemented | 2026-08-02 |
 | [[04-guides/How to Start the Project|How to Start the Project]] | current | implemented | 2026-07-29 |
-| [[04-guides/How to Use Prisma Studio|How to Use Prisma Studio]] | current | implemented | 2026-07-31 |
-| [[04-guides/How to Use the Management API with Postman|How to Use the Management API with Postman]] | current | implemented | 2026-07-31 |
+| [[04-guides/How to Use Prisma Studio|How to Use Prisma Studio]] | current | implemented | 2026-08-02 |
+| [[04-guides/How to Use the Management API with Postman|How to Use the Management API with Postman]] | current | implemented | 2026-08-02 |
 
 ## Decisions
 
@@ -97,10 +97,10 @@ aliases: []
 
 | Note | Documentation | Implementation | Verified |
 | --- | --- | --- | --- |
-| [[06-reference/API Routes|API Routes]] | current | implemented | 2026-07-31 |
-| [[06-reference/Database Schema|Database Schema]] | current | implemented | 2026-07-31 |
-| [[06-reference/Environment Variables|Environment Variables]] | current | implemented | 2026-07-29 |
-| [[06-reference/Management API Endpoint Reference|Management API Endpoint Reference]] | current | implemented | 2026-07-31 |
+| [[06-reference/API Routes|API Routes]] | current | implemented | 2026-08-02 |
+| [[06-reference/Database Schema|Database Schema]] | current | implemented | 2026-08-02 |
+| [[06-reference/Environment Variables|Environment Variables]] | current | implemented | 2026-08-02 |
+| [[06-reference/Management API Endpoint Reference|Management API Endpoint Reference]] | current | implemented | 2026-08-02 |
 | [[06-reference/policies/README|Policy Reference Index]] | current | partial | 2026-07-27 |
 | [[06-reference/Policy Types|Policy Types]] | current | partial | 2026-07-27 |
 | [[06-reference/Ports|Ports]] | current | implemented | 2026-07-27 |
@@ -136,7 +136,8 @@ aliases: []
 
 | Note | Documentation | Implementation | Verified |
 | --- | --- | --- | --- |
-| [[07-runbooks/Debug Gateway 404|Debug Gateway 404]] | current | implemented | 2026-07-31 |
+| [[07-runbooks/Debug Gateway 404|Debug Gateway 404]] | current | implemented | 2026-08-02 |
+| [[07-runbooks/Debug Gateway Runtime Sync|Debug Gateway Runtime Sync]] | current | implemented | 2026-08-02 |
 | [[07-runbooks/Debug OAuth and mTLS|Debug OAuth and mTLS]] | current | implemented | 2026-07-29 |
 | [[07-runbooks/Debug Policy Failure|Debug Policy Failure]] | current | partial | 2026-07-27 |
 | [[07-runbooks/Reset Local Database|Reset Local Database]] | current | implemented | 2026-07-27 |

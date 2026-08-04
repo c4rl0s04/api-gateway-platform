@@ -3,7 +3,7 @@ title: "How to Configure Application Authentication"
 type: guide
 doc_status: current
 implementation_status: implemented
-last_verified: "2026-07-31"
+last_verified: "2026-08-02"
 tags:
   - type/guide
   - area/security
@@ -42,21 +42,26 @@ the Management API and the implemented PKI control plane.
 2. Persist the returned `consumerSecret` in the client secret store. It appears
    only in this response; later reads return the consumer key but no secret or
    hash. Omitting grant scopes assigns all scopes declared by the product.
-3. Call `POST /v1/apps/:appId/credentials` for additional, independently
-   permissioned credentials. For rotation, call
+3. Call `POST /v1/apps/:appId/credentials` with explicit `products` for an
+   independently permissioned credential, or with only `sourceCredentialId`
+   to clone approved grants, scopes, and expiration. A clone receives a new key
+   and secret and never inherits JWKs or certificates. For rotation, call
    `POST /v1/credentials/:credentialId/rotate-secret`; the old secret stops
    working immediately.
-4. Call `PUT /v1/credentials/:credentialId/product-grants` with the complete
+4. Optionally replace the consumer key with `PATCH
+   /v1/credentials/:credentialId`. The existing secret and authorization
+   material remain unchanged, while the previous key stops working.
+5. Call `PUT /v1/credentials/:credentialId/product-grants` with the complete
    desired product and scope set. Omitted grants become revoked without being
    deleted.
-5. For JWT Bearer, call
+6. For JWT Bearer, call
    `POST /v1/credentials/:credentialId/public-keys` with an RSA public JWK and
    unique `kid`. Never send the client private key to the platform.
-6. For mTLS, generate a client-owned key and CSR, then issue or register its
+7. For mTLS, generate a client-owned key and CSR, then issue or register its
    certificate through the Admin Panel or Management API.
-7. Configure one business-endpoint policy: `api-key-auth`,
+8. Configure one business-endpoint policy: `api-key-auth`,
    `oauth-access-token`, or `mtls-auth`.
-8. For OAuth, obtain a token from `/oauth/token` and use it as a Bearer token.
+9. For OAuth, obtain a token from `/oauth/token` and use it as a Bearer token.
 
 Application registration, additional credentials, secret rotation, grant
 changes, and public-JWK registration are available through the Management API.

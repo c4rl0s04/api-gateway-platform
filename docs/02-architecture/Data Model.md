@@ -3,7 +3,7 @@ title: Data Model
 type: architecture
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-07-31
+last_verified: 2026-08-02
 tags:
   - type/architecture
   - area/database
@@ -75,11 +75,18 @@ its authority to select the environment before resolving a proxy path.
 Only one deployment can be active for a proxy/environment. Activating another
 revision retires the current row and creates a new row. Deploying an older
 revision is therefore an auditable rollback, not reactivation of old state.
+The same deployment transaction creates a monotonic `GatewayConfigChange`
+outbox row. Its polymorphic resource fields identify deploy, rollback,
+retirement, or logical-proxy activation without coupling the outbox to one
+specific table.
 
 ## Authorization Flow
 
-An `AppCredential` identifies one application through a generated consumer key
-and secret. Only the scrypt secret hash is persisted. Authentication capability
+An `AppCredential` identifies one application through a globally unique,
+generated or administrator-customized consumer key and secret. Only the scrypt
+secret hash is persisted. A credential can be cloned from another active
+credential in the same app; only approved grants, scopes, and expiration are
+copied. Authentication capability
 is inferred from the material required by the endpoint policy: the base
 credential supports API key and Client Credentials, while public RSA JWKs and
 mTLS certificates are optional validity-controlled records. An approved

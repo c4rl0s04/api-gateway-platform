@@ -3,7 +3,7 @@ title: management-api
 type: package
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-07-31
+last_verified: 2026-08-02
 tags:
   - type/package
   - area/management-api
@@ -39,6 +39,8 @@ management, filtered audit reads, and PKI lifecycle.
 - Generates additional credentials, rotates one-time secrets, replaces grants,
   validates RSA JWKs, and enforces closed lifecycle transitions through domain
   services.
+- Customizes globally unique consumer keys and clones approved grants into new
+  credentials without copying keys, certificates, secrets, or revoked history.
 - Updates products atomically, including removal of retired scopes from grants.
 - Exposes all environments while filtering proxy reads to the actor's visible
   organizations; platform admins can read the complete catalog.
@@ -46,6 +48,8 @@ management, filtered audit reads, and PKI lifecycle.
 - Delegates revision numbering, compilation, promotion, activation, conflicts,
   history, and audit to database domain operations.
 - Prevents public mutation of system-managed proxies.
+- Commits routing changes with a durable outbox version, publishes Redis
+  notifications, and exposes live gateway convergence through `/v1/runtime-sync`.
 
 ## Public Contracts
 
@@ -69,17 +73,17 @@ internal.
 Tests cover cryptographic token verification, missing identities, membership
 resolution, role boundaries, multipart revision contracts, deployment
 activation responses, catalog and mutation routes, application contracts,
-credential rotation, desired-state grants, RSA keys, audit filters, and CA
-authorization. `test:integration:management` verifies domain persistence;
-`test:platform` verifies the full workflow through the real BFF and gateway.
+credential customization, cloning, rotation, desired-state grants, RSA keys,
+outbox publication, runtime status, audit filters, and CA authorization.
+`test:integration:management` verifies domain persistence; `test:platform`
+verifies hot reload and the full workflow through the real BFF and gateway.
 
 ## Limitations
 
 - Membership and environment catalog writes are absent.
-- Consumer-key customization, secret reads, physical deletion, and direct
-  revision editing are intentionally absent.
+- Secret reads, physical deletion, and direct revision editing are intentionally
+  absent.
 - No scheduled external CRL refresh.
-- No routing-registry hot reload.
 
 ## Related Notes
 

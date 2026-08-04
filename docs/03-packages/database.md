@@ -3,7 +3,7 @@ title: database
 type: package
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-07-31
+last_verified: 2026-08-02
 tags:
   - type/package
   - area/database
@@ -36,8 +36,12 @@ This package is the persistence boundary for the monorepo.
 - Creates monotonically numbered revisions through `importProxyRevision()`.
 - Enforces exact-revision promotion and active deployment replacement through
   `deployProxyRevision()`.
+- Records each active-routing mutation in the transactional
+  `GatewayConfigChange` outbox.
 - Exports credential, secret rotation, grant, public-key, and certificate
   domain operations.
+- Validates consumer-key replacement and clones approved authorization into a
+  fresh credential without copying cryptographic material.
 - Registers an app, generated credential, approved product grants, and audit
   event atomically through `registerDeveloperApplication()`.
 - Persists certificate authorities, issuance records, OIDC memberships, and
@@ -90,7 +94,8 @@ Unit tests cover bundle validation, policy inheritance, scrypt hashing, secret
 comparison, fingerprint normalization, and compilation of every seeded
 revision. PostgreSQL integration tests cover
 concurrent numbering, atomic invalid imports, promotion, one-active invariants,
-base-path conflicts, deployment history, and rollback.
+base-path conflicts, deployment history, rollback, outbox creation, consumer
+key replacement, and selective credential cloning.
 
 ## Limitations
 

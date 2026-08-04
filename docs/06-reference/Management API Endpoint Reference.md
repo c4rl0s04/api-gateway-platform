@@ -3,7 +3,7 @@ title: "Management API Endpoint Reference"
 type: reference
 doc_status: current
 implementation_status: implemented
-last_verified: "2026-07-31"
+last_verified: "2026-08-02"
 tags:
   - type/reference
   - area/management-api
@@ -11,6 +11,7 @@ sources:
   - packages/management-api/src/server.ts
   - packages/management-api/src/routes
   - packages/management-api/src/errors.ts
+  - packages/management-api/src/runtime-sync/publisher.ts
   - packages/admin-panel/app/api/management/[...path]/route.ts
 aliases:
   - Management API Reference
@@ -50,6 +51,7 @@ takes precedence.
 | `GET` | `/live` | None | Process liveness |
 | `GET` | `/ready` | None | PostgreSQL readiness |
 | `GET` | `/v1/me` | Any member | Verified identity and active memberships |
+| `GET` | `/v1/runtime-sync` | Any member | Committed version, pending changes, and live gateway status |
 
 ### Organizations, environments, and products
 
@@ -110,9 +112,11 @@ most 5 MiB. Deployment body is:
 ```
 
 `upstreamBaseUrl` is required for forwarding revisions. Deployment and
-retirement return `runtimeRefreshRequired: true`; restart the gateway to load
-the change. Revisions and history are immutable. System proxies cannot be
-mutated through public routes.
+retirement return `runtimeRefreshRequired: false` and
+`runtimeSync: { "version": number, "state": "queued" }`. Poll `/runtime-sync`
+until the target gateway has `state: applied` and `appliedVersion` at least that
+version. Revisions and history are immutable. System proxies cannot be mutated
+through public routes.
 
 ### Applications, credentials, and grants
 
@@ -122,9 +126,9 @@ mutated through public routes.
 | `POST` | `/organizations/:organizationId/apps` | Organization writer | Create app, credential, and grants; `201` |
 | `GET` | `/apps/:appId` | Visible member | Read application aggregate |
 | `PATCH` | `/apps/:appId` | Organization writer | Update `name` and/or `status` |
-| `POST` | `/apps/:appId/credentials` | Organization writer | Generate additional credential and grants; `201` |
+| `POST` | `/apps/:appId/credentials` | Organization writer | Generate explicit or cloned credential; `201` |
 | `GET` | `/credentials/:credentialId` | Visible member | Read public credential detail |
-| `PATCH` | `/credentials/:credentialId` | Organization writer | Update `expiresAt` and/or `status` |
+| `PATCH` | `/credentials/:credentialId` | Organization writer | Update `consumerKey`, `expiresAt`, and/or `status` |
 | `POST` | `/credentials/:credentialId/rotate-secret` | Organization writer | Replace and return secret once |
 | `PUT` | `/credentials/:credentialId/product-grants` | Organization writer | Replace desired approved-grant set |
 
@@ -142,10 +146,24 @@ Application registration requires a name and at least one product:
 Omitting grant `scopes` selects all current product scopes. The response
 contains `application`, `credential`, and one-time `consumerSecret`.
 
-An additional credential accepts optional nullable `expiresAt` and mandatory
-explicit `products`; it never copies permissions. Its generated `consumerKey`
-is immutable and its `consumerSecret` is returned once. Secret rotation has no
-body and invalidates the previous secret immediately.
+An additional credential accepts one of two exclusive payloads. Explicit
+creation uses `products` and optional nullable `expiresAt`. Cloning uses only:
+
+```json
+{ "sourceCredentialId": "credential-existing" }
+```
+
+The source must be a non-revoked credential from the same non-revoked app.
+Cloning copies approved grants, scopes, and expiration while generating a new
+key and secret. It does not copy JWKs, certificates, secret hashes, revoked
+grants, or history. Every generated secret is returned once.
+
+`PATCH /credentials/:credentialId` can replace `consumerKey`. The normalized
+value is case-sensitive, globally unique, 1-120 characters, and cannot contain
+whitespace, control characters, or `:`. The existing secret and all grants and
+public material remain unchanged. The previous key stops authenticating on the
+next request; already issued access tokens remain valid until `exp`. Conflicts
+return `409 consumer_key_conflict`.
 
 Application and credential states are `pending`, `approved`, and `revoked`.
 Allowed transitions are `pending -> approved|revoked` and
@@ -238,7 +256,8 @@ no physical-delete routes. Errors use:
 Stable codes include `organization_not_found`, `product_not_found`,
 `proxy_not_found`, `environment_not_found`, `app_not_found`,
 `credential_not_found`, `invalid_scope`, `organization_mismatch`,
-`invalid_status_transition`, `system_proxy_immutable`, and
+`invalid_status_transition`, `consumer_key_conflict`,
+`credential_clone_not_allowed`, `system_proxy_immutable`, and
 `active_deployment_not_found`.
 
 Revision/deployment codes also include `invalid_openapi`,
