@@ -8,6 +8,10 @@ export function createCodeChallenge(verifier: string): string {
   return createHash('sha256').update(verifier).digest('base64url');
 }
 
+export function publicApplicationUrl(callbackUrl: string): URL {
+  return new URL('/', callbackUrl);
+}
+
 export function oidcConfig() {
   const issuer = process.env.OIDC_ISSUER
     ?? 'http://localhost:8081/realms/api-gateway';
