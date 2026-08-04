@@ -149,3 +149,31 @@ test('detects a stale generated index', async t => {
   );
   assert.match(index, /Added Later/);
 });
+
+test('renders clickable wikilinks without splitting generated table cells', async t => {
+  const root = await fixture(t);
+  await writeFile(
+    path.join(root, 'docs', 'README.md'),
+    note({ title: 'Home', type: 'map', aliases: ['Documentation Home'] }),
+  );
+  await writeFile(
+    path.join(root, 'docs', '01-concepts', 'Table Target.md'),
+    note({ title: 'Table | Target' }),
+  );
+
+  const firstUpdate = await updateIndex(root);
+  const secondUpdate = await updateIndex(root);
+  const index = await readFile(
+    path.join(root, 'docs', '00-map', 'Documentation Index.md'),
+    'utf8',
+  );
+  const targetRow = index.split('\n').find(line => line.includes('Table Target'));
+
+  assert.equal(firstUpdate.changed, true);
+  assert.equal(secondUpdate.changed, false);
+  assert.match(targetRow, /\[\[01-concepts\/Table Target\\\|Table \\\| Target]]/);
+  assert.equal(targetRow.match(/(?<!\\)\|/g)?.length, 5);
+
+  const validation = await validateVault(root, { checkOrphans: false });
+  assert.deepEqual(validation.errors, []);
+});
