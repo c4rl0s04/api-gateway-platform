@@ -10,13 +10,39 @@ import { generateClientKeyAndCsr } from '../packages/pki/dist/index.js';
 
 const exec = promisify(execFile);
 const root = path.resolve(import.meta.dirname, '..');
-const secrets = path.join(root, '.local-secrets');
-const composeEnvironment = path.join(secrets, 'compose.env');
+const secrets = path.resolve(
+  process.env.PLATFORM_TEST_SECRETS_DIR ?? path.join(root, '.local-secrets'),
+);
+const composeEnvironment = path.resolve(
+  process.env.PLATFORM_TEST_COMPOSE_ENV ?? path.join(secrets, 'compose.env'),
+);
 const usersEnvironment = path.join(secrets, 'keycloak/users.env');
-const keycloakBaseUrl = 'http://localhost:8081';
-const adminPanelBaseUrl = 'http://localhost:8080';
-const qualEsGatewayOrigin = 'https://qual-es.gateway.localhost:8443';
+const keycloakBaseUrl = process.env.PLATFORM_TEST_KEYCLOAK_URL
+  ?? 'http://localhost:8081';
+const adminPanelBaseUrl = process.env.PLATFORM_TEST_ADMIN_PANEL_URL
+  ?? 'http://localhost:8080';
+const gatewayPort = process.env.PLATFORM_TEST_GATEWAY_PORT ?? '8443';
+const gatewayInstanceId = process.env.PLATFORM_TEST_GATEWAY_INSTANCE_ID
+  ?? 'gateway-local';
+const gatewayOrigin = hostname => `https://${hostname}:${gatewayPort}`;
+const qualEsGatewayOrigin = gatewayOrigin('qual-es.gateway.localhost');
+const composeProject = process.env.PLATFORM_TEST_COMPOSE_PROJECT;
+const composeFiles = (process.env.PLATFORM_TEST_COMPOSE_FILES ?? '')
+  .split(path.delimiter)
+  .filter(Boolean)
+  .map(file => path.resolve(file));
 const workDirectory = await mkdtemp(path.join(os.tmpdir(), 'gateway-platform-e2e-'));
+
+function composeArguments(...arguments_) {
+  return [
+    'compose',
+    ...(composeProject ? ['--project-name', composeProject] : []),
+    ...composeFiles.flatMap(file => ['--file', file]),
+    '--env-file',
+    composeEnvironment,
+    ...arguments_,
+  ];
+}
 
 function parseEnvironment(content) {
   return Object.fromEntries(
@@ -224,7 +250,7 @@ try {
     for (let attempt = 0; attempt < attempts; attempt += 1) {
       const status = await platformManagement('runtime-sync');
       const gateway = status.gateways.find(candidate =>
-        candidate.instanceId === 'gateway-local');
+        candidate.instanceId === gatewayInstanceId);
       if (
         gateway?.state === 'applied'
         && gateway.appliedVersion >= mutation.runtimeSync.version
@@ -440,7 +466,7 @@ try {
   if (bearerResponse.stdout !== '200') {
     throw new Error(`Issued access token was not accepted: ${bearerResponse.stdout}`);
   }
-  const prodOrigin = 'https://prod-es.gateway.localhost:8443';
+  const prodOrigin = gatewayOrigin('prod-es.gateway.localhost');
   const prodTokenResponse = await gatewayCurl([
     '--user',
     `${registration.credential.consumerKey}:${registration.consumerSecret}`,
@@ -468,7 +494,7 @@ try {
     '/dev/null',
     '--write-out',
     '%{http_code}',
-    'https://localhost:8443/oauth/.well-known/jwks.json',
+    gatewayOrigin('localhost') + '/oauth/.well-known/jwks.json',
   ]);
   if (unknownEnvironment.stdout !== '421') {
     throw new Error('An unknown gateway environment host was not rejected');
@@ -892,13 +918,10 @@ try {
     `certificate-authorities/${authority.id}/rotate`,
     { method: 'POST' },
   );
-  await exec('docker', [
-    'compose',
-    '--env-file',
-    composeEnvironment,
+  await exec('docker', composeArguments(
     'restart',
     'management-api',
-  ], { cwd: root });
+  ), { cwd: root });
   await waitForManagement(await currentPlatformAccessToken(true));
   const authorities = await platformManagement(
     'organizations/org-bank-dev/certificate-authorities',

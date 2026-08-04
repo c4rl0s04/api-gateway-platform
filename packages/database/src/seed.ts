@@ -26,6 +26,16 @@ const DEPLOYMENT_STAGES = [
 
 const DEPLOYMENT_REGIONS = Object.values(DeploymentRegion);
 
+export function parseGatewayPublicPort(
+  value = process.env.DEV_GATEWAY_PUBLIC_PORT ?? '8443',
+): number {
+  const port = Number(value);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error('DEV_GATEWAY_PUBLIC_PORT must be an integer between 1 and 65535');
+  }
+  return port;
+}
+
 function environmentId(
   stage: DeploymentStage,
   region: DeploymentRegion,
@@ -33,11 +43,12 @@ function environmentId(
   return `env-${stage}-${region}`;
 }
 
-function environmentPublicOrigin(
+export function environmentPublicOrigin(
   stage: DeploymentStage,
   region: DeploymentRegion,
+  port = parseGatewayPublicPort(),
 ): string {
-  return `https://${stage}-${region}.gateway.localhost:8443`;
+  return `https://${stage}-${region}.gateway.localhost:${port}`;
 }
 
 export const ENVIRONMENTS = DEPLOYMENT_REGIONS.flatMap(region =>
