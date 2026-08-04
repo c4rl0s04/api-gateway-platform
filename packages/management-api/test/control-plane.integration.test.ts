@@ -40,6 +40,13 @@ integration('management control-plane persistence', () => {
 
   async function cleanup() {
     if (organizationId) {
+      const deploymentIds = (await prisma.proxyDeployment.findMany({
+        where: { proxy: { organizationId } },
+        select: { id: true },
+      })).map(deployment => deployment.id);
+      await prisma.gatewayConfigChange.deleteMany({
+        where: { resourceId: { in: [proxyId, ...deploymentIds].filter(Boolean) } },
+      });
       await prisma.developerApp.deleteMany({ where: { organizationId } });
       await prisma.apiProduct.deleteMany({ where: { organizationId } });
       await prisma.apiProxy.deleteMany({ where: { organizationId } });
@@ -100,7 +107,14 @@ integration('management control-plane persistence', () => {
     const deployed = await proxies.deployRevision(proxyId, revision.revisionNumber, {
       environmentId: 'env-qual-es',
       upstreamBaseUrl: 'http://mock-backend:4000',
-    }, actor) as { id: string };
+    }, actor) as { id: string; configVersion: number };
+    assert.ok(deployed.configVersion > 0);
+    assert.equal(
+      await prisma.gatewayConfigChange.count({
+        where: { version: deployed.configVersion, resourceId: deployed.id },
+      }),
+      1,
+    );
 
     const product = await products.create(organizationId, {
       name: 'Integration product',
@@ -118,7 +132,7 @@ integration('management control-plane persistence', () => {
       }],
     }, actor) as {
       application: { id: string };
-      credential: { id: string };
+      credential: { id: string; consumerKey: string };
       consumerSecret: string;
     };
     appId = registration.application.id;
@@ -132,6 +146,22 @@ integration('management control-plane persistence', () => {
         initialHash.consumerSecretHash,
       ),
       true,
+    );
+
+    const originalConsumerKey = registration.credential.consumerKey;
+    const customizedConsumerKey = `integration_${suffix}`;
+    await applications.updateCredential(registration.credential.id, {
+      consumerKey: `  ${customizedConsumerKey}  `,
+    }, actor);
+    const customized = await prisma.appCredential.findUniqueOrThrow({
+      where: { id: registration.credential.id },
+      select: { consumerKey: true, consumerSecretHash: true },
+    });
+    assert.equal(customized.consumerKey, customizedConsumerKey);
+    assert.equal(customized.consumerSecretHash, initialHash.consumerSecretHash);
+    assert.equal(
+      await prisma.appCredential.count({ where: { consumerKey: originalConsumerKey } }),
+      0,
     );
 
     const additional = await applications.createCredential(appId, {
@@ -198,12 +228,49 @@ integration('management control-plane persistence', () => {
       { kid: `integration-key-${suffix}`, jwk },
       actor,
     ) as { id: string };
+
+    const cloned = await applications.createCredential(appId, {
+      sourceCredentialId: registration.credential.id,
+    }, actor) as {
+      credential: {
+        id: string;
+        consumerKey: string;
+        expiresAt: Date | null;
+        productGrants: Array<{
+          id: string;
+          productId: string;
+          status: string;
+          scopes: string[];
+        }>;
+      };
+      consumerSecret: string;
+    };
+    assert.notEqual(cloned.credential.consumerKey, customizedConsumerKey);
+    assert.notEqual(cloned.consumerSecret, registration.consumerSecret);
+    assert.deepEqual(cloned.credential.productGrants, [{
+      id: cloned.credential.productGrants[0].id,
+      productId,
+      status: 'approved',
+      scopes: ['integration:read'],
+    }]);
+    const clonedMaterials = await prisma.appCredential.findUniqueOrThrow({
+      where: { id: cloned.credential.id },
+      select: {
+        publicKeys: { select: { id: true } },
+        certificates: { select: { id: true } },
+      },
+    });
+    assert.deepEqual(clonedMaterials, { publicKeys: [], certificates: [] });
+
     const revokedKey = await applications.revokePublicKey(publicKey.id, actor) as {
       status: string;
     };
     assert.equal(revokedKey.status, 'revoked');
 
-    await proxies.retireDeployment(deployed.id, actor);
+    const retired = await proxies.retireDeployment(deployed.id, actor) as {
+      configVersion: number;
+    };
+    assert.ok(retired.configVersion > deployed.configVersion);
     assert.equal(
       (await prisma.proxyDeployment.findUniqueOrThrow({
         where: { id: deployed.id },
@@ -229,6 +296,8 @@ integration('management control-plane persistence', () => {
       'product.create',
       'application.register',
       'credential.create',
+      'credential.updateConsumerKey',
+      'credential.clone',
       'credential.rotateSecret',
       'credential.replaceProductGrants',
       'publicKey.register',
