@@ -89,6 +89,8 @@ services:
       DATABASE_URL: postgresql://postgres:password@postgres:5432/apigw?schema=public
       REDIS_URL: redis://redis:6379
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      GATEWAY_INSTANCE_ID: gateway-local
+      GATEWAY_CONFIG_RECONCILE_SECONDS: 10
       GATEWAY_ENVIRONMENT_ALLOWLIST: ${GATEWAY_ENVIRONMENT_ALLOWLIST:-}
       OAUTH_SIGNING_KEY_ID: local-gateway-1
       OAUTH_SIGNING_PRIVATE_KEY_BASE64: ${OAUTH_SIGNING_PRIVATE_KEY_BASE64:?Run through npm run dev:local}
@@ -117,6 +119,7 @@ services:
       HOST: 0.0.0.0
       PORT: 3002
       DATABASE_URL: postgresql://postgres:password@postgres:5432/apigw?schema=public
+      REDIS_URL: redis://redis:6379
       OIDC_ISSUER: http://localhost:8081/realms/api-gateway
       OIDC_AUDIENCE: management-api
       OIDC_JWKS_URI: http://keycloak:8080/realms/api-gateway/protocol/openid-connect/certs
@@ -133,6 +136,8 @@ services:
         condition: service_completed_successfully
       keycloak:
         condition: service_started
+      redis:
+        condition: service_healthy
     healthcheck:
       test:
         - CMD

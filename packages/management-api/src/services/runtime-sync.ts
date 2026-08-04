@@ -111,7 +111,7 @@ export function createRuntimeSyncService(redisUrl: string): RuntimeSyncService {
     lazyConnect: true,
     connectTimeout: 1_000,
     maxRetriesPerRequest: 1,
-    retryStrategy: times => times > 3 ? null : Math.min(times * 200, 2_000),
+    retryStrategy: times => Math.min(times * 200, 2_000),
   });
   return new RuntimeSyncService(client);
 }
