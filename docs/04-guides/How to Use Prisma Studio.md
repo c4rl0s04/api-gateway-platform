@@ -3,7 +3,7 @@ title: How to Use Prisma Studio
 type: guide
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-07-31
+last_verified: 2026-08-02
 tags:
   - type/guide
   - area/database
@@ -49,10 +49,10 @@ protected operations, verify policy order and enabled state.
 ## Troubleshooting or Rollback
 
 Do not create revisions or deployments manually: that bypasses bundle
-validation, audit events, active-deployment uniqueness, conflict checks, and
-stage progression. Use Management API for mutations. A running gateway will not
-see changes until it restarts. Use [[Reset Local Database]] only for disposable
-local data.
+validation, audit events, active-deployment uniqueness, conflict checks, stage
+progression, and outbox creation. Use Management API for mutations; direct
+Prisma edits do not trigger runtime synchronization. Use
+[[Reset Local Database]] only for disposable local data.
 
 ## Related Notes
 

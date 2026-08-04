@@ -3,7 +3,7 @@ title: Proxy Revisions and Deployments
 type: architecture
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-07-31
+last_verified: 2026-08-02
 tags:
   - type/architecture
   - area/database
@@ -85,7 +85,8 @@ same revision has existed in `qual`; `prod` requires the same revision in
   `deployment_conflict`.
 - Missing promotion history returns `promotion_required`.
 - The database enforces one active deployment per proxy and environment.
-- A committed activation is not visible to a running gateway until restart.
+- A committed activation returns an outbox version and becomes visible after
+  the running gateway atomically applies that version.
 
 ## Constraints
 

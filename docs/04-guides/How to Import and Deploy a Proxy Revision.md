@@ -3,7 +3,7 @@ title: How to Import and Deploy a Proxy Revision
 type: guide
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-07-31
+last_verified: 2026-08-02
 tags:
   - type/guide
   - area/management-api
@@ -12,6 +12,7 @@ sources:
   - packages/management-api/src/routes/proxy-revisions.routes.ts
   - packages/database/src/proxy-revisions.ts
   - packages/database/src/proxy-deployments.ts
+  - packages/gateway-core/src/runtime-sync/reloader.ts
 aliases:
   - Deploy a Proxy Revision
   - Roll Back a Proxy Revision
@@ -73,8 +74,8 @@ Content-Type: application/json
 }
 ```
 
-4. Restart `gateway-core` when the response returns
-   `runtimeRefreshRequired: true`.
+4. Record `runtimeSync.version` and poll `GET /v1/runtime-sync` until the
+   intended gateway reports that version as applied.
 5. Promote the same revision to `env-pprod-es` and then `env-prod-es`, supplying
    each environment's upstream.
 6. Inspect revision and deployment history through the corresponding GET
@@ -85,8 +86,8 @@ Content-Type: application/json
 - The revisions list contains the imported revision and content hash.
 - Exactly one deployment for the proxy/environment has status `active`.
 - Older deployment records have status `retired`.
-- After gateway restart, the configured method and path reach the selected
-  upstream.
+- After runtime synchronization, the configured method and path reach the
+  selected upstream without restarting the process.
 - A known path with the wrong method returns `405` and `Allow`.
 
 ## Troubleshooting or Rollback
@@ -99,4 +100,5 @@ proxy owns the base path in that environment.
 
 To roll back, submit the deployment request again using an earlier revision
 number. The current row becomes `retired`, a new active deployment is created,
-and the gateway must be restarted. Do not edit deployment status manually.
+and the returned version is applied automatically. Do not edit deployment
+status manually.

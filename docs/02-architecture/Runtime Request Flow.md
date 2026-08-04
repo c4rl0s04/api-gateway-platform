@@ -3,7 +3,7 @@ title: Runtime Request Flow
 type: architecture
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-07-31
+last_verified: 2026-08-02
 tags:
   - type/architecture
   - area/gateway-core
@@ -12,6 +12,7 @@ sources:
   - packages/gateway-core/src/proxy/resolver.ts
   - packages/gateway-core/src/proxy/forwarder.ts
   - packages/gateway-core/src/policies/pipeline.ts
+  - packages/gateway-core/src/runtime-sync/reloader.ts
 aliases: []
 ---
 
@@ -71,9 +72,10 @@ gateway; `mtls-auth` then authorizes the connection-derived fingerprint.
 ## Constraints
 
 The gateway loads only `active` deployments and their selected immutable
-revision. The registry changes only at startup, so a Management API deployment
-returns `runtimeRefreshRequired: true`. Envoy certificate and CRL trust is a
-separate runtime and reloads atomically through file SDS.
+revision. Routing mutations return `runtimeRefreshRequired: false` plus a queued
+outbox version. Redis notification or periodic PostgreSQL reconciliation loads
+a complete candidate snapshot and replaces the registry atomically. Envoy
+certificate and CRL trust is a separate runtime and reloads through file SDS.
 
 ## Sources
 

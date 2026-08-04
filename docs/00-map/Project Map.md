@@ -3,7 +3,7 @@ title: Project Map
 type: map
 doc_status: current
 implementation_status: partial
-last_verified: 2026-07-31
+last_verified: 2026-08-02
 tags:
   - type/map
   - area/project
@@ -26,13 +26,14 @@ aliases: []
 | Trace a gateway request | [[Runtime Request Flow]] | [[Routing Engine]], [[gateway-core]] |
 | Change persistence | [[Data Model]] | [[Database Schema]], [[database]] |
 | Import or deploy a proxy | [[How to Add a New Proxy]] | [[How to Import and Deploy a Proxy Revision]], [[Proxy Revisions and Deployments]] |
+| Trace runtime synchronization | [[Hot Reload Sync]] | [[Debug Gateway Runtime Sync]] |
 | Work on policies | [[Policy Types]] | [[Policy Reference Index]], [[Debug Policy Failure]] |
 | Configure client authentication | [[Authentication and Authorization]] | [[How to Configure Application Authentication]], [[Debug OAuth and mTLS]] |
 | Work on certificates or trust | [[Multi-Client PKI]] | [[pki]], [[ADR-006 Envoy and Managed Client PKI]] |
 | Work on the control plane | [[Control Plane Flow]] | [[Management API]], [[Management API Endpoint Reference]], [[management-api]] |
 | Call the control plane manually | [[How to Use the Management API with Postman]] | [[Management API Endpoint Reference]] |
 | Run the project | [[How to Start the Project]] | [[Ports]], [[Environment Variables]] |
-| Diagnose a failure | [[Debug Gateway 404]] | [[Debug Policy Failure]], [[Reset Local Database]] |
+| Diagnose a failure | [[Debug Gateway 404]] | [[Debug Gateway Runtime Sync]], [[Debug Policy Failure]], [[Reset Local Database]] |
 
 ## Runtime Ownership
 
@@ -64,7 +65,7 @@ Solid arrows represent current runtime interactions.
 
 ## Current Gaps
 
-Membership administration, environment catalog writes, proxy configuration hot
-reload, production key management, and Prometheus metrics are not implemented.
+Membership administration, environment catalog writes, production key
+management, and Prometheus metrics are not implemented.
 The Admin Panel does not yet expose the complete Management API. See
 [[Current Status]] for the verified feature matrix.

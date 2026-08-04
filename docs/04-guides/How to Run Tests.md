@@ -3,7 +3,7 @@ title: How to Run Tests
 type: guide
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-07-31
+last_verified: 2026-08-02
 tags:
   - type/guide
   - area/project
@@ -72,7 +72,7 @@ representative live API-key, OAuth, public-operation, policy override, custom
 header, promotion, rollback, undeployed revision, and idempotency examples.
 
 `test:platform` checks all 30 environment origins, Management API revision
-import and deployment, gateway restart and rollback, API key and OAuth flows,
+import, hot reload and rollback, API key and OAuth flows,
 cross-environment token rejection, disposable CA and certificate records,
 revocation, authority rotation, and persistence.
 

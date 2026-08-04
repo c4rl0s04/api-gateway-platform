@@ -3,7 +3,7 @@ title: Data Plane vs Control Plane
 type: concept
 doc_status: current
 implementation_status: partial
-last_verified: 2026-07-27
+last_verified: 2026-08-02
 tags:
   - type/concept
   - area/project
@@ -50,9 +50,9 @@ flowchart LR
     CONTROL -. "planned writes" .-> DATABASE
 ```
 
-The gateway does not query PostgreSQL per request, but it does depend on the
-database during startup. Runtime configuration changes require a restart
-because synchronization between the planes is not implemented.
+The gateway does not query PostgreSQL per request. It loads a complete snapshot
+at startup and after committed routing versions; Redis notification accelerates
+reload while PostgreSQL reconciliation guarantees convergence.
 
 ## Related Notes
 

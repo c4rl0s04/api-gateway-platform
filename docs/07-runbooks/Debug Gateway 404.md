@@ -3,7 +3,7 @@ title: Debug Gateway 404
 type: runbook
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-07-31
+last_verified: 2026-08-02
 tags:
   - type/runbook
   - area/gateway-core
@@ -40,7 +40,7 @@ The request never reaches the upstream service.
 5. For `405`, compare the request method with the operation methods listed in
    `Allow`.
 6. Check static/dynamic path spelling and `{parameter}` positions.
-7. Restart the gateway after a deployment change.
+7. Inspect `/runtime-sync` and confirm the deployment version is applied.
 
 ## Resolution
 
@@ -48,6 +48,7 @@ The request never reaches the upstream service.
 - Use the intended environment hostname or correct its `publicOrigin`.
 - Import a new revision containing the missing OpenAPI operation.
 - Correct the request path; arbitrary suffixes are intentionally rejected.
+- Resolve queued or failed synchronization with [[Debug Gateway Runtime Sync]].
 
 ## Verification
 

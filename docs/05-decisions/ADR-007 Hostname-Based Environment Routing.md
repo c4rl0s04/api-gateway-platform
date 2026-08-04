@@ -58,8 +58,8 @@ share a proxy path across `qual`, `pprod`, and `prod`.
 Every environment requires a unique DNS name and matching TLS identity. The
 same logical proxy path can be deployed with different upstreams while OAuth
 tokens remain valid only for the issuing origin. Operational endpoints remain
-host-independent. Configuration changes still require a gateway restart
-because registry hot reload is not implemented.
+host-independent. Routing changes propagate through the durable outbox and
+atomic registry reload described in [[Hot Reload Sync]].
 
 ## Related Implementation
 

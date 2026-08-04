@@ -3,7 +3,7 @@ title: Deployment Model
 type: architecture
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-07-31
+last_verified: 2026-08-02
 tags:
   - type/architecture
   - area/operations
@@ -77,8 +77,8 @@ Prometheus and Grafana require the optional `observability` profile.
   mTLS material until the environment is recreated.
 - A stale Keycloak volume does not re-import a changed local realm; use the
   documented volume reset when bootstrap definitions change.
-- Importing or deploying a revision does not refresh a running gateway; restart
-  it to load the new active deployment set.
+- Import alone does not affect routing. Deploy, rollback, retirement, and proxy
+  activation create versions that running gateways apply automatically.
 
 ## Constraints
 

@@ -3,7 +3,7 @@ title: Current Status
 type: map
 doc_status: current
 implementation_status: partial
-last_verified: 2026-07-31
+last_verified: 2026-08-02
 tags:
   - type/map
   - area/project
@@ -28,7 +28,7 @@ aliases: []
 | --- | --- | --- |
 | Proxy and operation routing | Implemented | Longest-prefix revision matching, method-aware OpenAPI operations, parameter extraction, and `405` responses |
 | HTTP forwarding | Implemented | Streams arbitrary request and response bytes through `undici` |
-| PostgreSQL configuration loading | Implemented | All active deployments are loaded once and grouped by environment |
+| PostgreSQL configuration loading | Implemented | Active deployments are loaded at startup and on each versioned runtime reload |
 | Immutable proxy revisions | Implemented | Atomic OpenAPI/Gateway YAML imports preserve source, normalized operations, effective policies, and bundle hash |
 | Environment-specific deployments | Implemented | Active revision plus retired history, unique HTTPS origins, rollback, and exact-revision `qual -> pprod -> prod` progression |
 | Hostname environment routing | Implemented | Request authority selects the environment; unknown hosts return `421` |
@@ -40,10 +40,10 @@ aliases: []
 | Direct mTLS authentication | Implemented | Envoy chain/CRL validation, connection-derived fingerprints, trusted CIDR, and grants |
 | Multi-client PKI | Implemented | Managed/external organization CAs, encrypted keystore, issuance, CRLs, rotation, and SDS |
 | Rate limiting | Implemented | Fixed-window Redis counter with atomic Lua execution |
-| Application security management | Implemented | App lifecycle, generated credentials, one-time secret rotation, desired-state grants, RSA public keys, and certificate lifecycle |
-| Management API | Implemented | Organization/product/proxy/app security lifecycle, audit queries, and PKI are implemented; memberships, environment writes, deletes, and hot reload remain out of scope |
+| Application security management | Implemented | App lifecycle, customizable consumer keys, explicit or cloned credentials, one-time secret rotation, desired-state grants, RSA public keys, and certificates |
+| Management API | Implemented | Organization/product/proxy/app security lifecycle, audit, runtime synchronization status, and PKI; memberships, environment writes, and deletes remain out of scope |
 | Admin panel | Partial | OIDC login and PKI workflows are implemented; proxy/product mutation is not |
-| Configuration hot reload | Planned | Redis is used for rate limiting, not configuration invalidation |
+| Configuration hot reload | Implemented | Transactional outbox, Redis Pub/Sub, atomic snapshots, periodic reconciliation, and per-instance status |
 | Metrics and dashboards | Planned | Prometheus and Grafana containers exist; gateway metrics are not exposed |
 
 ## Operational Endpoints

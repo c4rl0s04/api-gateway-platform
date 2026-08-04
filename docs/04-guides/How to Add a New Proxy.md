@@ -3,7 +3,7 @@ title: How to Add a New Proxy
 type: guide
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-07-31
+last_verified: 2026-08-02
 tags:
   - type/guide
   - area/database
@@ -43,7 +43,8 @@ revision in an environment without bypassing validation or promotion rules.
    policies.
 4. Deploy it with
    `POST /v1/proxies/:proxyId/revisions/:revisionNumber/deployments`.
-5. Restart `gateway-core` because configuration hot reload is not implemented.
+5. Poll `GET /v1/runtime-sync` until the deployment's returned version is
+   applied by the intended gateway.
 6. Promote the same revision through `qual`, `pprod`, and `prod` for the same
    region.
 
@@ -53,7 +54,7 @@ reproducible local baseline and are not the normal configuration interface.
 
 ## Verification
 
-- `GET /ready` reports the expected active deployment count after restart.
+- `GET /ready` reports the expected active deployment count after sync.
 - A declared method and operation reaches the expected upstream.
 - An undeclared path returns `404`; a known path with a different method returns
   `405` and an `Allow` header.
@@ -63,8 +64,7 @@ reproducible local baseline and are not the normal configuration interface.
 If promotion is rejected, confirm that the exact revision was deployed in the
 preceding stage for the same region. A failed import or deployment does not
 change the active revision. Roll back by deploying an older revision number;
-this creates another deployment history record and also requires a gateway
-restart.
+this creates another deployment history record and is applied by hot reload.
 
 ## Related Notes
 

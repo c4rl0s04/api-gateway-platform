@@ -2,8 +2,8 @@
 title: Control Plane Flow
 type: architecture
 doc_status: current
-implementation_status: partial
-last_verified: 2026-07-31
+implementation_status: implemented
+last_verified: 2026-08-02
 tags:
   - type/architecture
   - area/management-api
@@ -20,7 +20,7 @@ aliases: []
 # Control Plane Flow
 
 > [!summary] At a glance
-> The control plane provides OIDC-protected revision deployment, application registration, PKI administration, and audit; product administration and hot reload remain planned.
+> The control plane provides OIDC-protected configuration, durable routing synchronization, application security management, PKI administration, and audit.
 
 ## Context
 
@@ -38,7 +38,9 @@ flowchart LR
     API --> KEYSTORE["Encrypted CA keystore"]
     API --> SDS["Envoy SDS resources"]
     SDS --> ENVOY["Envoy"]
-    DATABASE -. "loaded on restart" .-> GATEWAY["gateway-core"]
+    DATABASE --> OUTBOX["GatewayConfigChange outbox"]
+    OUTBOX --> REDIS["Redis version notification"]
+    REDIS --> GATEWAY["gateway-core atomic reload"]
 ```
 
 ### Responsibilities
@@ -98,9 +100,10 @@ and body to Management API. The BFF does not grant permissions. Management API
 verifies the token signature, issuer, audience, and expiration, then checks the
 database membership and role before running the requested operation.
 
-Proxy imports compile OpenAPI and gateway configuration atomically; deployment
-activation persists desired routing and requires gateway restart. CA/CRL
-changes continue to publish dynamically to Envoy.
+Proxy imports compile OpenAPI and gateway configuration atomically. Routing
+activation commits an outbox version, publishes it through Redis, and gateway
+instances reload a validated PostgreSQL snapshot. CA/CRL changes continue to
+publish dynamically to Envoy.
 
 ## Failure Modes
 
@@ -112,8 +115,9 @@ changes continue to publish dynamically to Envoy.
 
 ## Constraints
 
-PKI and proxy revision APIs are implemented. Product and proxy web pages remain
-contextual placeholders, and Redis-based routing hot reload remains a design.
+The control-plane API and synchronization path are implemented. Product and
+proxy web pages remain contextual placeholders; their future UI can poll
+`/runtime-sync` without changing the domain contracts.
 
 ## Sources
 

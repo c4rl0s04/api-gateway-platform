@@ -3,7 +3,7 @@ title: gateway-core
 type: package
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-07-31
+last_verified: 2026-08-02
 tags:
   - type/package
   - area/gateway-core
@@ -91,7 +91,8 @@ npm test --workspace=packages/gateway-core
 
 ## Limitations
 
-- Configuration reload requires a process restart.
+- Routing reload uses versioned Redis notifications plus PostgreSQL
+  reconciliation and preserves the last valid registry on failure.
 - Metrics are not exposed.
 - Forwarding timeouts are fixed at 30 seconds.
 
