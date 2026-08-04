@@ -270,8 +270,10 @@ try {
   if (
     environments.length !== 30
     || new Set(environments.map(environment => environment.publicOrigin)).size !== 30
+    || environments.some(environment =>
+      new URL(environment.publicOrigin).port !== gatewayPort)
   ) {
-    throw new Error('Management API did not expose 30 unique environment origins');
+    throw new Error('Management API did not expose 30 isolated environment origins');
   }
   const proxies = await platformManagement('proxies');
   const oauthProxy = proxies.find(proxy => proxy.id === 'proxy-platform-oauth');

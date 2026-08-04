@@ -22,7 +22,7 @@ compose_arguments=(
 
 cleanup() {
   local exit_code=$?
-  trap - EXIT INT TERM
+  trap - EXIT
   docker "${compose_arguments[@]}" down --volumes --remove-orphans >/dev/null 2>&1 || true
   case "$TEST_ROOT" in
     "$TEMP_BASE"/api-gateway-platform-e2e.*)
@@ -35,7 +35,9 @@ cleanup() {
   esac
   exit "$exit_code"
 }
-trap cleanup EXIT INT TERM
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 if [[ "$SECRETS_DIR" == "$ROOT_DIR/.local-secrets" || "$SDS_DIR" == "$ROOT_DIR/infra/envoy/sds" ]]; then
   echo 'Platform E2E resources must not use normal local runtime paths.' >&2
@@ -62,6 +64,11 @@ if [[ "${PLATFORM_TEST_CONFIG_ONLY:-0}" == "1" ]]; then
 fi
 
 docker "${compose_arguments[@]}" up --build --force-recreate --detach
+
+if [[ "${PLATFORM_TEST_FORCE_FAILURE_AFTER_START:-0}" == "1" ]]; then
+  echo 'Forced platform test failure after isolated stack startup.' >&2
+  exit 97
+fi
 
 export PLATFORM_TEST_SECRETS_DIR="$SECRETS_DIR"
 export PLATFORM_TEST_COMPOSE_ENV="$COMPOSE_ENV"
