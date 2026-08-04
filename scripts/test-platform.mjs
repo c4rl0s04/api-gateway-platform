@@ -183,32 +183,6 @@ async function oauthClientCredentials(consumerKey, consumerSecret, scope) {
   return { status, body };
 }
 
-async function restartGateway() {
-  await exec('docker', [
-    'compose',
-    '--env-file',
-    composeEnvironment,
-    'restart',
-    'gateway',
-  ], { cwd: root });
-  for (let attempt = 0; attempt < 40; attempt += 1) {
-    try {
-      const response = await gatewayCurl([
-        '--output',
-        '/dev/null',
-        '--write-out',
-        '%{http_code}',
-        `${qualEsGatewayOrigin}/oauth/.well-known/jwks.json`,
-      ]);
-      if (response.stdout === '200') return;
-    } catch {
-      // Envoy may briefly observe the gateway restart.
-    }
-    await new Promise(resolve => setTimeout(resolve, 500));
-  }
-  throw new Error('Gateway did not become ready after restart');
-}
-
 try {
   const users = parseEnvironment(await readFile(usersEnvironment, 'utf8'));
   await waitFor(`${keycloakBaseUrl}/realms/api-gateway`);
@@ -239,6 +213,28 @@ try {
   };
   const platformManagement = async (route, options) =>
     management(await currentPlatformAccessToken(), route, options);
+  const waitForRuntimeSync = async (mutation, attempts = 80) => {
+    if (
+      mutation.runtimeRefreshRequired !== false
+      || mutation.runtimeSync?.state !== 'queued'
+      || !Number.isInteger(mutation.runtimeSync?.version)
+    ) {
+      throw new Error('Routing mutation did not return a queued runtime version');
+    }
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      const status = await platformManagement('runtime-sync');
+      const gateway = status.gateways.find(candidate =>
+        candidate.instanceId === 'gateway-local');
+      if (
+        gateway?.state === 'applied'
+        && gateway.appliedVersion >= mutation.runtimeSync.version
+      ) {
+        return status;
+      }
+      await new Promise(resolve => setTimeout(resolve, 250));
+    }
+    throw new Error(`Gateway did not apply config version ${mutation.runtimeSync.version}`);
+  };
 
   const principal = await platformManagement('me');
   if (!principal.memberships.some(membership => membership.role === 'platformAdmin')) {
@@ -310,31 +306,26 @@ try {
 
   const revision1 = await importRevision('getRevisionOne', '/revision-one');
   const firstDeployment = await deployRevision(revision1.revisionNumber);
-  if (!firstDeployment.runtimeRefreshRequired) {
-    throw new Error('Deployment did not report the required runtime restart');
-  }
-  await restartGateway();
+  await waitForRuntimeSync(firstDeployment);
   const revisionOneResponse = await gatewayCurl([
     '--output', '/dev/null', '--write-out', '%{http_code}',
     `${qualEsGatewayOrigin}${revisionBasePath}/revision-one`,
   ]);
   if (revisionOneResponse.stdout !== '200') {
-    throw new Error('Gateway did not load revision 1 after restart');
+    throw new Error('Gateway did not hot reload revision 1');
   }
 
   const revision2 = await importRevision('getRevisionTwo', '/revision-two');
-  await deployRevision(revision2.revisionNumber);
-  await restartGateway();
+  await waitForRuntimeSync(await deployRevision(revision2.revisionNumber));
   const revisionTwoResponse = await gatewayCurl([
     '--output', '/dev/null', '--write-out', '%{http_code}',
     `${qualEsGatewayOrigin}${revisionBasePath}/revision-two`,
   ]);
   if (revisionTwoResponse.stdout !== '200') {
-    throw new Error('Gateway did not load revision 2 after restart');
+    throw new Error('Gateway did not hot reload revision 2');
   }
 
-  await deployRevision(revision1.revisionNumber);
-  await restartGateway();
+  await waitForRuntimeSync(await deployRevision(revision1.revisionNumber));
   const rollbackResponse = await gatewayCurl([
     '--output', '/dev/null', '--write-out', '%{http_code}',
     `${qualEsGatewayOrigin}${revisionBasePath}/revision-one`,
@@ -557,7 +548,7 @@ try {
   const authenticatedDeployment = await deployRevision(
     authenticatedRevision.revisionNumber,
   );
-  await restartGateway();
+  await waitForRuntimeSync(authenticatedDeployment);
 
   const managedProduct = await platformManagement(
     'organizations/org-bank-dev/products',
@@ -608,6 +599,46 @@ try {
   );
   if (managedToken.status !== '200' || !managedToken.body.access_token) {
     throw new Error('Dynamically created app did not obtain an OAuth token');
+  }
+  const originalManagedKey = managedRegistration.credential.consumerKey;
+  const customizedManagedKey = `managed_${revisionSuffix}`;
+  const customizedCredential = await platformManagement(
+    `credentials/${managedRegistration.credential.id}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ consumerKey: `  ${customizedManagedKey}  ` }),
+    },
+  );
+  if (customizedCredential.consumerKey !== customizedManagedKey) {
+    throw new Error('Consumer key customization was not normalized and persisted');
+  }
+  const oldKeyApiResponse = await gatewayCurl([
+    '--header', `x-api-key: ${originalManagedKey}`,
+    '--output', '/dev/null', '--write-out', '%{http_code}',
+    `${qualEsGatewayOrigin}${revisionBasePath}/api-key`,
+  ]);
+  const newKeyApiResponse = await gatewayCurl([
+    '--header', `x-api-key: ${customizedManagedKey}`,
+    '--output', '/dev/null', '--write-out', '%{http_code}',
+    `${qualEsGatewayOrigin}${revisionBasePath}/api-key`,
+  ]);
+  const oldKeyOAuth = await oauthClientCredentials(
+    originalManagedKey,
+    managedRegistration.consumerSecret,
+    'banking:read',
+  );
+  const newKeyOAuth = await oauthClientCredentials(
+    customizedManagedKey,
+    managedRegistration.consumerSecret,
+    'banking:read',
+  );
+  if (
+    oldKeyApiResponse.stdout !== '401'
+    || newKeyApiResponse.stdout !== '200'
+    || oldKeyOAuth.status !== '401'
+    || newKeyOAuth.status !== '200'
+  ) {
+    throw new Error('Consumer key replacement did not take effect immediately');
   }
   const managedBearer = await gatewayCurl([
     '--header',
@@ -710,6 +741,25 @@ try {
   if (!listedKeys.some(key => key.id === registeredKey.id && key.jwk.kty === 'RSA')) {
     throw new Error('Registered public JWK was not returned by the read endpoint');
   }
+  const clonedCredential = await platformManagement(
+    `apps/${managedRegistration.application.id}/credentials`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ sourceCredentialId: additionalCredential.credential.id }),
+    },
+  );
+  const clonedDetail = await platformManagement(
+    `credentials/${clonedCredential.credential.id}`,
+  );
+  if (
+    clonedCredential.credential.consumerKey === additionalCredential.credential.consumerKey
+    || clonedCredential.consumerSecret === rotation.consumerSecret
+    || clonedDetail.publicKeys.length !== 0
+    || clonedDetail.certificates.length !== 0
+    || clonedDetail.productGrants.length !== 1
+  ) {
+    throw new Error('Credential cloning copied identity material or omitted approved grants');
+  }
   const revokedKey = await platformManagement(
     `public-keys/${registeredKey.id}/revoke`,
     { method: 'POST' },
@@ -752,16 +802,30 @@ try {
       throw new Error(`Management mutation was not audited: ${action}`);
     }
   }
+  const workflowAuditEvents = await platformManagement(
+    'audit-events?organizationId=org-bank-dev&limit=200',
+  );
+  const workflowActions = new Set(workflowAuditEvents.items.map(event => event.action));
+  for (const action of ['credential.updateConsumerKey', 'credential.clone']) {
+    if (!workflowActions.has(action)) {
+      throw new Error(`Credential workflow was not audited: ${action}`);
+    }
+  }
 
   const retiredDeployment = await platformManagement(
     `proxy-deployments/${authenticatedDeployment.deployment.id}/retire`,
     { method: 'POST' },
   );
-  if (
-    retiredDeployment.deployment.status !== 'retired'
-    || !retiredDeployment.runtimeRefreshRequired
-  ) {
+  if (retiredDeployment.deployment.status !== 'retired') {
     throw new Error('Active deployment retirement did not preserve the runtime contract');
+  }
+  await waitForRuntimeSync(retiredDeployment);
+  const retiredRoute = await gatewayCurl([
+    '--output', '/dev/null', '--write-out', '%{http_code}',
+    `${qualEsGatewayOrigin}${revisionBasePath}/api-key`,
+  ]);
+  if (retiredRoute.stdout !== '404') {
+    throw new Error('Retired deployment remained in the gateway registry');
   }
 
   const authority = await platformManagement(
