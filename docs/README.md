@@ -3,7 +3,7 @@ title: API Gateway Platform
 type: map
 doc_status: current
 implementation_status: partial
-last_verified: 2026-08-02
+last_verified: 2026-08-06
 tags:
   - type/map
   - area/project
@@ -29,7 +29,9 @@ configuration management in the control plane.
 - [[00-map/Current Status|Current Status]] - see what is implemented, partial, or planned.
 - [[00-map/Documentation Index|Documentation Index]] - use the complete metadata inventory when you already know the note type or title.
 - [[04-guides/How to Start the Project|How to Start the Project]] - run the project locally.
+- [[04-guides/How to Manage the Local Platform Lifecycle|How to Manage the Local Platform Lifecycle]] - start, stop, resume, or reset retained local state.
 - [[04-guides/How to Run Tests|How to Run Tests]] - execute workspace and documentation checks.
+- [[06-reference/Command Reference|Command Reference]] - find every supported command and its operational effects.
 - [[04-guides/How to Document the Project|How to Document the Project]] - create and maintain notes.
 
 ## Main Areas

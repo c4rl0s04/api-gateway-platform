@@ -14,6 +14,8 @@ Open [`docs/`](docs/README.md) as an Obsidian vault or browse it directly:
 - [Project Map](docs/00-map/Project%20Map.md)
 - [Current Status](docs/00-map/Current%20Status.md)
 - [How to Start the Project](docs/04-guides/How%20to%20Start%20the%20Project.md)
+- [How to Manage the Local Platform Lifecycle](docs/04-guides/How%20to%20Manage%20the%20Local%20Platform%20Lifecycle.md)
+- [Command Reference](docs/06-reference/Command%20Reference.md)
 
 Validate documentation with:
 
@@ -42,6 +44,8 @@ npm run dev:local:down
 The detached variant returns control to the terminal. See
 [How to Start the Project](docs/04-guides/How%20to%20Start%20the%20Project.md)
 for verification, data persistence, and troubleshooting.
+See [How to Manage the Local Platform Lifecycle](docs/04-guides/How%20to%20Manage%20the%20Local%20Platform%20Lifecycle.md)
+to resume retained containers without rerunning the seed setup.
 
 - API ingress: `https://<stage>-<region>.gateway.localhost:8443`
 - Example QUAL ES ingress: `https://qual-es.gateway.localhost:8443`

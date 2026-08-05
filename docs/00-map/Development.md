@@ -3,7 +3,7 @@ title: Development
 type: map
 doc_status: current
 implementation_status: not-applicable
-last_verified: 2026-08-02
+last_verified: 2026-08-06
 tags:
   - type/map
   - area/project
@@ -43,6 +43,7 @@ change before implementing a feature.
 - [[How to Import and Deploy a Proxy Revision]]
 - [[How to Use Prisma Studio]]
 - [[How to Run Tests]]
+- [[Command Reference]]
 - [[How to Document the Project]]
 
 ## Reference

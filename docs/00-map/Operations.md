@@ -3,7 +3,7 @@ title: Operations
 type: map
 doc_status: current
 implementation_status: not-applicable
-last_verified: 2026-08-02
+last_verified: 2026-08-06
 tags:
   - type/map
   - area/operations
@@ -41,6 +41,7 @@ runtime health, synchronization, PKI operations, and incident diagnosis.
 ## Guides
 
 - [[How to Start the Project]]
+- [[How to Manage the Local Platform Lifecycle]]
 - [[How to Run Tests]]
 - [[How to Operate the PKI]]
 - [[How to Import and Deploy a Proxy Revision]]
@@ -48,6 +49,7 @@ runtime health, synchronization, PKI operations, and incident diagnosis.
 ## Reference
 
 - [[Ports]]
+- [[Command Reference]]
 - [[Environment Variables]]
 - [[Seed Example Catalog]]
 - [[Current Status]]

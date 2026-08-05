@@ -3,7 +3,7 @@ title: How to Use Prisma Studio
 type: guide
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-08-02
+last_verified: 2026-08-06
 tags:
   - type/guide
   - area/database
@@ -57,6 +57,7 @@ Prisma edits do not trigger runtime synchronization. Use
 ## Related Notes
 
 - [[Data Model]]
+- [[Command Reference]]
 - [[Database Schema]]
 - [[How to Import and Deploy a Proxy Revision]]
 - [[Hot Reload Sync]]

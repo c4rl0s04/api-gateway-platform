@@ -3,7 +3,7 @@ title: Reset Local Database
 type: runbook
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-07-27
+last_verified: 2026-08-06
 tags:
   - type/runbook
   - area/database
@@ -44,6 +44,9 @@ npm run db:seed:policies --workspace=packages/database
 ```
 
 Restart `gateway-core` after the reset.
+
+For a full Compose-volume reset or a retained-container lifecycle, see
+[[How to Manage the Local Platform Lifecycle]] and [[Command Reference]].
 
 ## Verification
 

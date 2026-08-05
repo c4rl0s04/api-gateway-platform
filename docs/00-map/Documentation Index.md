@@ -3,7 +3,7 @@ title: Documentation Index
 type: map
 doc_status: current
 implementation_status: not-applicable
-last_verified: 2026-08-03
+last_verified: 2026-08-06
 tags:
   - type/map
   - area/project
@@ -23,14 +23,14 @@ aliases: []
 
 | Note | Documentation | Implementation | Verified |
 | --- | --- | --- | --- |
-| [[Documentation Home\|API Gateway Platform]] | current | partial | 2026-08-02 |
+| [[Documentation Home\|API Gateway Platform]] | current | partial | 2026-08-06 |
 | [[00-map/Control Plane\|Control Plane]] | current | not-applicable | 2026-08-02 |
 | [[00-map/Current Status\|Current Status]] | current | partial | 2026-08-02 |
 | [[00-map/Data Plane\|Data Plane]] | current | not-applicable | 2026-08-02 |
 | [[00-map/Decision Records\|Decision Records]] | current | not-applicable | 2026-08-02 |
-| [[00-map/Development\|Development]] | current | not-applicable | 2026-08-02 |
-| [[00-map/Operations\|Operations]] | current | not-applicable | 2026-08-02 |
-| [[00-map/Project Map\|Project Map]] | current | partial | 2026-08-02 |
+| [[00-map/Development\|Development]] | current | not-applicable | 2026-08-06 |
+| [[00-map/Operations\|Operations]] | current | not-applicable | 2026-08-06 |
+| [[00-map/Project Map\|Project Map]] | current | partial | 2026-08-06 |
 | [[00-map/Security and Identity\|Security and Identity]] | current | not-applicable | 2026-08-02 |
 
 ## Concepts
@@ -81,10 +81,11 @@ aliases: []
 | [[04-guides/How to Configure Application Authentication\|How to Configure Application Authentication]] | current | implemented | 2026-08-02 |
 | [[04-guides/How to Document the Project\|How to Document the Project]] | current | not-applicable | 2026-07-27 |
 | [[04-guides/How to Import and Deploy a Proxy Revision\|How to Import and Deploy a Proxy Revision]] | current | implemented | 2026-08-02 |
-| [[04-guides/How to Operate the PKI\|How to Operate the PKI]] | current | implemented | 2026-07-27 |
-| [[04-guides/How to Run Tests\|How to Run Tests]] | current | implemented | 2026-08-03 |
-| [[04-guides/How to Start the Project\|How to Start the Project]] | current | implemented | 2026-08-03 |
-| [[04-guides/How to Use Prisma Studio\|How to Use Prisma Studio]] | current | implemented | 2026-08-02 |
+| [[04-guides/How to Manage the Local Platform Lifecycle\|How to Manage the Local Platform Lifecycle]] | current | implemented | 2026-08-06 |
+| [[04-guides/How to Operate the PKI\|How to Operate the PKI]] | current | implemented | 2026-08-06 |
+| [[04-guides/How to Run Tests\|How to Run Tests]] | current | implemented | 2026-08-06 |
+| [[04-guides/How to Start the Project\|How to Start the Project]] | current | implemented | 2026-08-06 |
+| [[04-guides/How to Use Prisma Studio\|How to Use Prisma Studio]] | current | implemented | 2026-08-06 |
 | [[04-guides/How to Use the Management API with Postman\|How to Use the Management API with Postman]] | current | implemented | 2026-08-02 |
 
 ## Decisions
@@ -104,6 +105,7 @@ aliases: []
 | Note | Documentation | Implementation | Verified |
 | --- | --- | --- | --- |
 | [[06-reference/API Routes\|API Routes]] | current | implemented | 2026-08-02 |
+| [[06-reference/Command Reference\|Command Reference]] | current | implemented | 2026-08-06 |
 | [[06-reference/Database Schema\|Database Schema]] | current | implemented | 2026-08-02 |
 | [[06-reference/Environment Variables\|Environment Variables]] | current | implemented | 2026-08-02 |
 | [[06-reference/Management API Endpoint Reference\|Management API Endpoint Reference]] | current | implemented | 2026-08-02 |
@@ -146,4 +148,4 @@ aliases: []
 | [[07-runbooks/Debug Gateway Runtime Sync\|Debug Gateway Runtime Sync]] | current | implemented | 2026-08-02 |
 | [[07-runbooks/Debug OAuth and mTLS\|Debug OAuth and mTLS]] | current | implemented | 2026-07-29 |
 | [[07-runbooks/Debug Policy Failure\|Debug Policy Failure]] | current | partial | 2026-07-27 |
-| [[07-runbooks/Reset Local Database\|Reset Local Database]] | current | implemented | 2026-07-27 |
+| [[07-runbooks/Reset Local Database\|Reset Local Database]] | current | implemented | 2026-08-06 |

@@ -3,7 +3,7 @@ title: "How to Operate the PKI"
 type: guide
 doc_status: current
 implementation_status: implemented
-last_verified: "2026-07-27"
+last_verified: "2026-08-06"
 tags:
   - type/guide
   - area/security
@@ -121,4 +121,4 @@ rotation, and persistence after Management API restart.
   and rotate to a recoverable CA.
 - Never regenerate `master.key` over an existing keystore.
 
-See [[Debug OAuth and mTLS]] and [[Multi-Client PKI]].
+See [[Command Reference]], [[Debug OAuth and mTLS]], and [[Multi-Client PKI]].

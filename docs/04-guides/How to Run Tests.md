@@ -3,7 +3,7 @@ title: How to Run Tests
 type: guide
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-08-03
+last_verified: 2026-08-06
 tags:
   - type/guide
   - area/project
@@ -27,6 +27,9 @@ aliases: []
 ## Goal
 
 Run the same build and test boundaries expected by CI.
+
+Use [[Command Reference]] for the complete command catalog, including
+workspace-level and advanced diagnostic commands.
 
 ## Prerequisites
 
@@ -125,6 +128,7 @@ after collecting logs. Never reuse those files as `.local-secrets`.
 ## Related Notes
 
 - [[gateway-core]]
+- [[Command Reference]]
 - [[shared]]
 - [[How to Document the Project]]
 - [[Seed Example Catalog]]

@@ -3,7 +3,7 @@ title: Project Map
 type: map
 doc_status: current
 implementation_status: partial
-last_verified: 2026-08-02
+last_verified: 2026-08-06
 tags:
   - type/map
   - area/project
@@ -44,6 +44,8 @@ aliases: []
 | Work on the control plane | [[Control Plane]] | [[Management API]] |
 | Call the control plane manually | [[Control Plane]] | [[How to Use the Management API with Postman]] |
 | Run the project | [[Operations]] | [[How to Start the Project]] |
+| Stop, resume, or reset local state | [[Operations]] | [[How to Manage the Local Platform Lifecycle]] |
+| Find the right command | [[Operations]] | [[Command Reference]] |
 | Diagnose a failure | [[Operations]] | [[Debug Gateway 404]] |
 
 ## Runtime Ownership

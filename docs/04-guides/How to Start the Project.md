@@ -3,7 +3,7 @@ title: How to Start the Project
 type: guide
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-08-03
+last_verified: 2026-08-06
 tags:
   - type/guide
   - area/operations
@@ -72,6 +72,9 @@ npm run dev:local:detached
 npm run dev:local:down
 ```
 
+For the difference between stopping, removing, resuming without seeds, and
+resetting persistent local state, see [[How to Manage the Local Platform Lifecycle]].
+
 PostgreSQL uses a named volume, so a normal stop preserves local data. Remove
 containers and disposable database data explicitly with:
 
@@ -132,6 +135,8 @@ organizations, credentials, or revisions to the normal local database.
 ## Related Notes
 
 - [[Environment Variables]]
+- [[How to Manage the Local Platform Lifecycle]]
+- [[Command Reference]]
 - [[Deployment Model]]
 - [[gateway-core]]
 - [[How to Operate the PKI]]
