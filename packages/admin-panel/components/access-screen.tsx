@@ -5,6 +5,7 @@ import {
   ShieldCheck,
   Waypoints,
 } from 'lucide-react';
+import * as React from 'react';
 
 export type AccessScreenState = 'checking' | 'unauthenticated' | 'error';
 

@@ -1,8 +1,12 @@
 #!/usr/bin/env node
 
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { stdin } from 'node:process';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 const testRoot = path.resolve(process.argv[2] ?? '');
 const projectName = process.argv[3] ?? '';
@@ -66,6 +70,21 @@ assertInsideTestRoot(
   sourceForTarget('keycloak', '/opt/keycloak/data/import/realm.json'),
   'Keycloak realm',
 );
+const realm = JSON.parse(fs.readFileSync(
+  sourceForTarget('keycloak', '/opt/keycloak/data/import/realm.json'),
+  'utf8',
+));
+assert.equal(realm.displayName, 'API Gateway Platform');
+assert.equal(realm.loginTheme, 'api-gateway');
+
+const keycloakTheme = config.services.keycloak.volumes.find(
+  volume => volume.target === '/opt/keycloak/themes/api-gateway',
+);
+assert.equal(
+  path.resolve(keycloakTheme?.source ?? ''),
+  path.join(projectRoot, 'infra/keycloak/themes/api-gateway'),
+);
+assert.equal(keycloakTheme?.read_only, true);
 for (const [serviceName, target] of [
   ['management-api', '/run/platform-secrets'],
   ['management-api', '/runtime-sds'],
