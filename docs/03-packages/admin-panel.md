@@ -58,7 +58,7 @@ The pre-authentication surface and the `api-gateway` Keycloak login theme share
 the following visual contract:
 
 - Geist Sans for interface text and Geist Mono for technical identifiers.
-- An off-white canvas, white surfaces, graphite text, and deep green accent.
+- An off-white canvas, white surfaces, graphite text, and dark red accent.
 - The Lucide `Waypoints` symbol and `API Gateway Platform` product name.
 - Maximum `8px` radius, restrained shadows, visible keyboard focus, controls of
   at least `44px`, and reduced-motion support.

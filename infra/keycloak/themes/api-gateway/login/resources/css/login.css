@@ -22,9 +22,9 @@
   --ag-muted: #68716e;
   --ag-border: #d5dad8;
   --ag-border-strong: #aeb7b3;
-  --ag-accent: #14624b;
-  --ag-accent-hover: #0f503d;
-  --ag-accent-soft: #edf6f2;
+  --ag-accent: #7a263a;
+  --ag-accent-hover: #641d2f;
+  --ag-accent-soft: #f8eef1;
   --ag-danger: #8a2929;
   --ag-danger-soft: #fff3f3;
 }
@@ -176,7 +176,7 @@ input[type="password"] {
 .pf-v5-c-input-group:focus-within {
   outline: 2px solid var(--ag-accent);
   outline-offset: 2px;
-  box-shadow: 0 0 0 3px rgb(20 98 75 / 22%);
+  box-shadow: 0 0 0 3px rgb(122 38 58 / 22%);
 }
 
 .pf-v5-c-form-control:focus-within,
@@ -185,7 +185,7 @@ button:focus-visible,
 a:focus-visible {
   outline: 2px solid var(--ag-accent) !important;
   outline-offset: 2px;
-  box-shadow: 0 0 0 3px rgb(20 98 75 / 22%) !important;
+  box-shadow: 0 0 0 3px rgb(122 38 58 / 22%) !important;
 }
 
 .pf-v5-c-button.pf-m-primary,
