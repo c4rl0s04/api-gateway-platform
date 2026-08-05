@@ -1,0 +1,220 @@
+@font-face {
+  font-family: "Geist";
+  src: url("../fonts/geist-sans.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Geist Mono";
+  src: url("../fonts/geist-mono.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: light;
+  --ag-canvas: #f3f5f4;
+  --ag-surface: #ffffff;
+  --ag-text: #202725;
+  --ag-muted: #68716e;
+  --ag-border: #d5dad8;
+  --ag-border-strong: #aeb7b3;
+  --ag-accent: #14624b;
+  --ag-accent-hover: #0f503d;
+  --ag-accent-soft: #edf6f2;
+  --ag-danger: #8a2929;
+  --ag-danger-soft: #fff3f3;
+}
+
+html,
+body,
+.login-pf body,
+.pf-v5-c-login,
+.pf-v5-c-page {
+  min-height: 100%;
+  color: var(--ag-text);
+  background: var(--ag-canvas) !important;
+  background-image: none !important;
+  font-family: "Geist", Arial, sans-serif;
+}
+
+.pf-v5-c-login__container {
+  width: min(400px, calc(100vw - 40px));
+  max-width: 400px;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.pf-v5-c-login__main {
+  overflow: hidden;
+  border: 1px solid var(--ag-border);
+  border-radius: 8px;
+  background: var(--ag-surface);
+  box-shadow: 0 12px 32px rgb(30 43 38 / 7%);
+  animation: ag-enter 180ms ease-out both;
+}
+
+.pf-v5-c-login__main-header,
+.pf-v5-c-login__main-body,
+.pf-v5-c-login__main-footer {
+  padding-inline: 30px;
+}
+
+.pf-v5-c-login__main-header {
+  padding-top: 30px;
+  padding-bottom: 10px;
+}
+
+.pf-v5-c-login__main-header::before {
+  content: "API Gateway Platform";
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  margin-bottom: 58px;
+  padding-left: 44px;
+  background-image: url("../img/waypoints.svg");
+  background-position: 7px center;
+  background-repeat: no-repeat;
+  background-size: 21px;
+  color: var(--ag-text);
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.pf-v5-c-login__main-header::after {
+  content: "OIDC secured";
+  display: block;
+  margin-bottom: 14px;
+  color: var(--ag-accent);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+#kc-header,
+.pf-v5-c-login__header,
+.pf-v5-c-login__main-header-desc {
+  display: none;
+}
+
+#kc-page-title,
+.pf-v5-c-title {
+  margin: 0;
+  color: var(--ag-text);
+  font-size: 25px;
+  font-weight: 650;
+  line-height: 1.22;
+  letter-spacing: 0;
+}
+
+.pf-v5-c-login__main-body {
+  padding-top: 14px;
+  padding-bottom: 30px;
+}
+
+.pf-v5-c-form,
+#kc-form-login {
+  display: grid;
+  gap: 18px;
+}
+
+.pf-v5-c-form__group {
+  margin: 0;
+}
+
+.pf-v5-c-form__label,
+label {
+  color: var(--ag-text);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.pf-v5-c-form-control,
+input[type="text"],
+input[type="email"],
+input[type="password"] {
+  min-height: 44px;
+  border-color: var(--ag-border-strong) !important;
+  border-radius: 4px !important;
+  background: var(--ag-surface) !important;
+  color: var(--ag-text) !important;
+  box-shadow: none !important;
+  font-family: "Geist", Arial, sans-serif;
+}
+
+.pf-v5-c-form-control:focus-within,
+input:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--ag-accent) !important;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px rgb(20 98 75 / 22%) !important;
+}
+
+.pf-v5-c-button.pf-m-primary,
+#kc-login {
+  min-height: 44px;
+  border: 1px solid var(--ag-accent);
+  border-radius: 4px;
+  background: var(--ag-accent) !important;
+  color: #ffffff;
+  font-weight: 650;
+  box-shadow: none;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+
+.pf-v5-c-button.pf-m-primary:hover,
+#kc-login:hover {
+  border-color: var(--ag-accent-hover);
+  background: var(--ag-accent-hover) !important;
+}
+
+.pf-v5-c-alert.pf-m-danger,
+.alert-error {
+  border: 1px solid #dfb4b4;
+  border-radius: 4px;
+  background: var(--ag-danger-soft);
+  color: var(--ag-danger);
+  box-shadow: none;
+}
+
+.pf-v5-c-form__helper-text,
+.pf-v5-c-login__main-footer,
+#kc-info {
+  color: var(--ag-muted);
+  font-size: 13px;
+}
+
+.pf-v5-c-check__input {
+  accent-color: var(--ag-accent);
+}
+
+@media (max-width: 520px) {
+  .pf-v5-c-login__container {
+    width: calc(100vw - 40px);
+  }
+
+  .pf-v5-c-login__main-header,
+  .pf-v5-c-login__main-body,
+  .pf-v5-c-login__main-footer {
+    padding-inline: 24px;
+  }
+
+  .pf-v5-c-login__main-header::before {
+    margin-bottom: 50px;
+  }
+}
+
+@keyframes ag-enter {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}

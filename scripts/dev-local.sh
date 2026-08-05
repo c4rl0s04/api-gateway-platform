@@ -46,6 +46,8 @@ source "$KEYCLOAK_USERS_ENV"
 cat > "$SECRETS_DIR/keycloak/realm.json" <<EOF
 {
   "realm": "api-gateway",
+  "displayName": "API Gateway Platform",
+  "loginTheme": "api-gateway",
   "enabled": true,
   "sslRequired": "none",
   "registrationAllowed": false,
