@@ -154,6 +154,7 @@ dependencies and configuration.
 
 ## Related Notes
 
+- [[How to Manage the Local Platform Lifecycle]]
 - [[How to Start the Project]]
 - [[How to Run Tests]]
 - [[Reset Local Database]]
