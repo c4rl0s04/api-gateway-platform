@@ -60,8 +60,10 @@ the following visual contract:
 - Geist Sans for interface text and Geist Mono for technical identifiers.
 - An off-white canvas, white surfaces, graphite text, and dark red accent.
 - The Lucide `Waypoints` symbol and `API Gateway Platform` product name.
-- Maximum `8px` radius, restrained shadows, visible keyboard focus, controls of
-  at least `44px`, and reduced-motion support.
+- A shadow-defined access surface, deliberate whitespace, and a quiet security
+  footer that keeps the login hierarchy consistent across both runtimes.
+- Maximum `8px` radius, tactile command states, visible keyboard focus, controls
+  of at least `44px`, and reduced-motion support.
 
 Admin Panel tokens are defined in `app/globals.css`. Keycloak owns its own
 self-contained copies of the fonts and equivalent tokens under
