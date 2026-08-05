@@ -16,17 +16,18 @@
 
 :root {
   color-scheme: light;
-  --ag-canvas: #f3f5f4;
-  --ag-surface: #ffffff;
-  --ag-text: #202725;
-  --ag-muted: #68716e;
-  --ag-border: #d5dad8;
-  --ag-border-strong: #aeb7b3;
+  --ag-canvas: #f2f0ee;
+  --ag-surface: #fffdfb;
+  --ag-text: #24201f;
+  --ag-muted: #6f6764;
+  --ag-border: #ded9d6;
+  --ag-border-strong: #b9b0ac;
   --ag-accent: #7a263a;
   --ag-accent-hover: #641d2f;
   --ag-accent-soft: #f8eef1;
   --ag-danger: #8a2929;
   --ag-danger-soft: #fff3f3;
+  --ag-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 html,
@@ -39,11 +40,14 @@ body,
   background: var(--ag-canvas) !important;
   background-image: none !important;
   font-family: "Geist", Arial, sans-serif;
+  caret-color: var(--ag-accent);
 }
 
+::selection { color: var(--ag-surface); background: var(--ag-accent); }
+
 .pf-v5-c-login__container {
-  width: min(400px, calc(100vw - 40px)) !important;
-  max-width: 400px !important;
+  width: min(424px, calc(100vw - 40px)) !important;
+  max-width: 424px !important;
   display: block !important;
   padding: 0 !important;
 }
@@ -51,37 +55,36 @@ body,
 .pf-v5-c-login__main {
   width: 100% !important;
   overflow: hidden;
-  border: 1px solid var(--ag-border);
   border-radius: 8px;
   background: var(--ag-surface);
-  box-shadow: 0 12px 32px rgb(30 43 38 / 7%);
-  animation: ag-enter 180ms ease-out both;
+  box-shadow: 0 22px 60px rgb(58 43 46 / 10%), 0 2px 8px rgb(58 43 46 / 5%);
+  animation: ag-enter 220ms var(--ag-ease-out) both;
 }
 
 .pf-v5-c-login__main-header,
 .pf-v5-c-login__main-body,
 .pf-v5-c-login__main-footer {
-  padding-inline: 30px;
+  padding-inline: 34px;
 }
 
 .pf-v5-c-login__main-header {
   display: flex !important;
   flex-direction: column;
-  padding-top: 30px;
-  padding-bottom: 10px;
+  padding-top: 34px;
+  padding-bottom: 12px;
 }
 
 .pf-v5-c-login__main-header::before {
   content: "API Gateway Platform";
-  min-height: 34px;
+  min-height: 24px;
   display: flex;
   align-items: center;
-  margin-bottom: 58px;
-  padding-left: 44px;
+  margin-bottom: 76px;
+  padding-left: 35px;
   background-image: url("../img/waypoints.svg");
-  background-position: 7px center;
+  background-position: left center;
   background-repeat: no-repeat;
-  background-size: 21px;
+  background-size: 23px;
   color: var(--ag-text);
   font-size: 14px;
   font-weight: 650;
@@ -89,13 +92,15 @@ body,
 }
 
 .pf-v5-c-login__main-header::after {
-  content: "OIDC secured";
-  display: block;
-  margin-bottom: 14px;
-  color: var(--ag-accent);
-  font-size: 12px;
-  font-weight: 650;
-  order: 2;
+  content: "Sign in with your organization identity to continue.";
+  max-width: 36ch;
+  margin-top: 12px;
+  color: var(--ag-muted);
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.6;
+  text-wrap: pretty;
+  order: 3;
 }
 
 #kc-header,
@@ -108,22 +113,24 @@ body,
 .pf-v5-c-title {
   margin: 0;
   color: var(--ag-text);
-  font-size: 25px;
-  font-weight: 650;
-  line-height: 1.22;
+  max-width: 12ch;
+  font-size: 30px;
+  font-weight: 640;
+  line-height: 1.08;
   letter-spacing: 0;
-  order: 3;
+  text-wrap: balance;
+  order: 2;
 }
 
 .pf-v5-c-login__main-body {
-  padding-top: 14px;
-  padding-bottom: 30px;
+  padding-top: 18px;
+  padding-bottom: 0;
 }
 
 .pf-v5-c-form,
 #kc-form-login {
   display: grid;
-  gap: 18px;
+  gap: 20px;
 }
 
 .pf-v5-c-form__group {
@@ -134,7 +141,7 @@ body,
 label {
   color: var(--ag-text);
   font-size: 13px;
-  font-weight: 650;
+  font-weight: 620;
 }
 
 .pf-v5-c-form-control,
@@ -170,7 +177,7 @@ input[type="password"] {
   border: 0;
   border-left: 1px solid var(--ag-border);
   background: var(--ag-surface);
-  color: var(--ag-text-muted);
+  color: var(--ag-muted);
 }
 
 .pf-v5-c-input-group:focus-within {
@@ -190,20 +197,46 @@ a:focus-visible {
 
 .pf-v5-c-button.pf-m-primary,
 #kc-login {
-  min-height: 44px;
+  min-height: 48px;
   border: 1px solid var(--ag-accent);
   border-radius: 4px;
   background: var(--ag-accent) !important;
   color: #ffffff;
-  font-weight: 650;
-  box-shadow: none;
-  transition: background 140ms ease, border-color 140ms ease;
+  font-weight: 640;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 16%), 0 5px 14px rgb(122 38 58 / 18%);
+  transition: background 160ms var(--ag-ease-out), border-color 160ms var(--ag-ease-out), transform 160ms var(--ag-ease-out), box-shadow 160ms var(--ag-ease-out);
 }
 
-.pf-v5-c-button.pf-m-primary:hover,
-#kc-login:hover {
-  border-color: var(--ag-accent-hover);
-  background: var(--ag-accent-hover) !important;
+#kc-login:active { transform: scale(.98); }
+
+.pf-v5-c-form__actions {
+  flex-direction: column;
+}
+
+.pf-v5-c-form__actions::after {
+  content: "OIDC secured";
+  min-height: 62px;
+  margin-top: 26px;
+  display: flex;
+  align-items: center;
+  padding-left: 24px;
+  border-top: 1px solid var(--ag-border);
+  background-image: url("../img/fingerprint.svg");
+  background-position: left center;
+  background-repeat: no-repeat;
+  background-size: 16px;
+  color: var(--ag-muted);
+  font-size: 12px;
+  font-weight: 520;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pf-v5-c-button.pf-m-primary:hover,
+  #kc-login:hover {
+    border-color: var(--ag-accent-hover);
+    background: var(--ag-accent-hover) !important;
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 14%), 0 7px 18px rgb(122 38 58 / 22%);
+  }
 }
 
 .pf-v5-c-alert.pf-m-danger,
@@ -238,8 +271,13 @@ a:focus-visible {
   }
 
   .pf-v5-c-login__main-header::before {
-    margin-bottom: 50px;
+    margin-bottom: 64px;
   }
+
+  #kc-page-title,
+  .pf-v5-c-title { font-size: 28px; }
+
+  .pf-v5-c-form__actions::after { min-height: 58px; margin-top: 22px; }
 }
 
 @keyframes ag-enter {
