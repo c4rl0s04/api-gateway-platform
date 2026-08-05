@@ -3,32 +3,39 @@ title: admin-panel
 type: package
 doc_status: current
 implementation_status: partial
-last_verified: 2026-07-27
+last_verified: 2026-08-06
 tags:
   - type/package
   - area/admin-panel
 sources:
   - packages/admin-panel/package.json
   - packages/admin-panel/app
+  - packages/admin-panel/components/access-screen.tsx
+  - packages/admin-panel/components/session-shell.tsx
   - packages/admin-panel/lib/api-client.ts
+  - infra/keycloak/themes/api-gateway/login
+  - scripts/dev-local.sh
 aliases: []
 ---
 
 # admin-panel
 
 > [!summary] At a glance
-> `admin-panel` is a Next.js control-plane UI with OIDC Authorization Code + PKCE, an HttpOnly session, and a BFF for PKI Management API workflows.
+> `admin-panel` is a Next.js control-plane UI with OIDC Authorization Code + PKCE, an HttpOnly session, a Management API BFF, and a shared visual foundation for administrative access.
 
 ## Responsibility
 
 The package is the browser interface for organization, app, certificate
-authority, certificate, runtime status, and audit views.
+authority, certificate, runtime status, and audit views. It also owns the
+pre-authentication session surface shown before the browser redirects to the
+identity provider.
 
 ## Boundaries
 
 The browser never calls internal Management API directly. Route handlers own
 OIDC login/callback/logout and proxy authenticated `/api/management/*` calls.
-Products and proxies remain context-only placeholders.
+The Admin Panel does not render username or password fields and never receives
+those credentials; the Keycloak login theme is a separate runtime resource.
 
 ## Public Contracts
 
@@ -38,9 +45,30 @@ Products and proxies remain context-only placeholders.
 
 ## Runtime Flow
 
-Unauthenticated users are redirected to Keycloak. PKCE state and verifier are
-HttpOnly cookies; callback exchange stores the short-lived access token in an
-HttpOnly cookie. Client components call the BFF for reads and mutations.
+The session shell first renders the stable access surface while it requests
+`/api/auth/session`. A `401` exposes the sign-in command, while service and
+network failures expose an inline retry state. The sign-in command redirects to
+Keycloak. PKCE state and verifier are HttpOnly cookies; callback exchange stores
+the short-lived access token in an HttpOnly cookie. Client components call the
+BFF for reads and mutations.
+
+## Authentication Interface
+
+The pre-authentication surface and the `api-gateway` Keycloak login theme share
+the following visual contract:
+
+- Geist Sans for interface text and Geist Mono for technical identifiers.
+- An off-white canvas, white surfaces, graphite text, and deep green accent.
+- The Lucide `Waypoints` symbol and `API Gateway Platform` product name.
+- Maximum `8px` radius, restrained shadows, visible keyboard focus, controls of
+  at least `44px`, and reduced-motion support.
+
+Admin Panel tokens are defined in `app/globals.css`. Keycloak owns its own
+self-contained copies of the fonts and equivalent tokens under
+`infra/keycloak/themes/api-gateway/login`; the theme inherits `keycloak.v2` and
+does not override FreeMarker templates. The generated local realm selects the
+theme through `loginTheme: api-gateway` and displays the product name through
+`displayName`.
 
 ## Configuration
 
@@ -50,17 +78,22 @@ Compose serves the panel on host port `8080`. `MANAGEMENT_API_URL`,
 
 ## Tests
 
-Tests cover RFC 7636 S256 challenges and random URL-safe OIDC state.
+Tests cover RFC 7636 S256 challenges, random URL-safe OIDC state, BFF token
+selection, session failure states, and the rendered retry action. Platform
+configuration tests verify the generated realm metadata and read-only Keycloak
+theme mount.
 
 ## Limitations
 
-- Product, proxy, app, credential, and grant mutations are not implemented.
 - The session does not implement refresh tokens; users log in again after token
   expiry.
 - Automated browser tests are not yet part of the package suite.
+- The authenticated dashboard and navigation still use the previous interface
+  styling; the authentication tokens are the baseline for their future update.
 
 ## Related Notes
 
 - [[Control Plane Flow]]
+- [[Authentication and Authorization]]
 - [[Management API]]
 - [[Ports]]

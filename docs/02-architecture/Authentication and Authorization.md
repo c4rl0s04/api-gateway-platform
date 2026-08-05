@@ -3,7 +3,7 @@ title: "Authentication and Authorization"
 type: architecture
 doc_status: current
 implementation_status: implemented
-last_verified: "2026-07-29"
+last_verified: "2026-08-06"
 tags:
   - type/architecture
   - area/security
@@ -14,6 +14,9 @@ sources:
   - packages/gateway-core/src/policies/oauth/oauth-access-token.policy.ts
   - packages/gateway-core/src/policies/auth/mtls.policy.ts
   - packages/management-api/src/services/applications.ts
+  - packages/admin-panel/app/api/auth
+  - packages/admin-panel/components/session-shell.tsx
+  - infra/keycloak/themes/api-gateway/login
   - infra/envoy/envoy.yaml
 aliases:
   - Authentication Architecture
@@ -70,6 +73,35 @@ The system-managed `platform-oauth` proxy exposes local endpoints at
 Local endpoints return from a terminal policy and never invoke an upstream.
 The request hostname selects the environment. Its `publicOrigin` is the access
 token issuer and `<publicOrigin>/oauth/token` is the assertion audience.
+
+### Administrative Login Boundary
+
+The Admin Panel and Keycloak have deliberately separate responsibilities. The
+Admin Panel checks its HttpOnly session and starts Authorization Code + PKCE by
+redirecting the browser to `/api/auth/login`. Keycloak renders the real login
+form, receives the username and password, and returns only an authorization
+code to the callback. The Admin Panel exchanges that code server-side and never
+receives or stores the user's password.
+
+The `api-gateway` Keycloak theme changes only presentation. It inherits the
+native `keycloak.v2` templates so validation, password-manager behavior, error
+messages, keyboard behavior, and OIDC semantics remain owned by Keycloak.
+
+```mermaid
+sequenceDiagram
+  Browser->>Admin Panel: GET /
+  Admin Panel-->>Browser: Administrative access surface
+  Browser->>Admin Panel: GET /api/auth/login
+  Admin Panel-->>Browser: Redirect with PKCE challenge
+  Browser->>Keycloak: Authorization request
+  Keycloak-->>Browser: Themed native login form
+  Browser->>Keycloak: Username and password
+  Keycloak-->>Browser: Redirect with authorization code
+  Browser->>Admin Panel: GET /api/auth/callback
+  Admin Panel->>Keycloak: Code + PKCE verifier
+  Keycloak-->>Admin Panel: Access token
+  Admin Panel-->>Browser: HttpOnly session cookie
+```
 
 ## Data Flow
 

@@ -48,7 +48,7 @@ aliases: []
 
 | Note | Documentation | Implementation | Verified |
 | --- | --- | --- | --- |
-| [[02-architecture/Authentication and Authorization\|Authentication and Authorization]] | current | implemented | 2026-07-29 |
+| [[02-architecture/Authentication and Authorization\|Authentication and Authorization]] | current | implemented | 2026-08-06 |
 | [[02-architecture/Control Plane Flow\|Control Plane Flow]] | current | implemented | 2026-08-02 |
 | [[02-architecture/Data Model\|Data Model]] | current | implemented | 2026-08-02 |
 | [[02-architecture/Deployment Model\|Deployment Model]] | current | implemented | 2026-08-02 |
@@ -66,7 +66,7 @@ aliases: []
 
 | Note | Documentation | Implementation | Verified |
 | --- | --- | --- | --- |
-| [[03-packages/admin-panel\|admin-panel]] | current | partial | 2026-07-27 |
+| [[03-packages/admin-panel\|admin-panel]] | current | partial | 2026-08-06 |
 | [[03-packages/database\|database]] | current | implemented | 2026-08-02 |
 | [[03-packages/gateway-core\|gateway-core]] | current | implemented | 2026-08-02 |
 | [[03-packages/management-api\|management-api]] | current | implemented | 2026-08-02 |
