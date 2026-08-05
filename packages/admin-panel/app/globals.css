@@ -1,41 +1,143 @@
 :root {
   color-scheme: light;
-  font-family: Arial, Helvetica, sans-serif;
-  color: #1f252b;
-  background: #f4f6f7;
+  --font-interface: var(--font-geist-sans), Arial, sans-serif;
+  --font-technical: var(--font-geist-mono), monospace;
+  --color-canvas: #f3f5f4;
+  --color-surface: #ffffff;
+  --color-surface-subtle: #f8f9f8;
+  --color-text: #202725;
+  --color-text-muted: #68716e;
+  --color-border: #d5dad8;
+  --color-border-strong: #aeb7b3;
+  --color-accent: #14624b;
+  --color-accent-hover: #0f503d;
+  --color-accent-soft: #edf6f2;
+  --color-danger: #8a2929;
+  --color-danger-soft: #fff3f3;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --shadow-surface: 0 12px 32px rgb(30 43 38 / 7%);
+  --focus-ring: 0 0 0 3px rgb(20 98 75 / 22%);
+  --transition-fast: 140ms ease;
+  font-family: var(--font-interface);
+  color: var(--color-text);
+  background: var(--color-canvas);
   font-synthesis: none;
 }
 
 * { box-sizing: border-box; }
-body { margin: 0; min-height: 100vh; }
+body { margin: 0; min-height: 100vh; background: var(--color-canvas); }
 a { color: inherit; text-decoration: none; }
 button, input, select, textarea { font: inherit; }
+button, a { -webkit-tap-highlight-color: transparent; }
 
-.center-state, .login-screen {
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  box-shadow: var(--focus-ring);
+}
+
+.access-screen {
   min-height: 100vh;
   display: grid;
   place-items: center;
+  padding: 32px 20px;
+  background: var(--color-canvas);
 }
-.login-screen { background: #e9edef; }
-.login-panel {
-  width: min(420px, calc(100vw - 32px));
-  border: 1px solid #c9d0d4;
-  border-top: 4px solid #17755b;
-  background: white;
-  padding: 32px;
+.access-surface {
+  width: min(400px, 100%);
+  min-height: 410px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  padding: 30px;
+  box-shadow: var(--shadow-surface);
+  animation: access-enter 180ms ease-out both;
 }
-.login-panel h1 { margin: 18px 0 28px; font-size: 24px; }
+.access-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--color-text);
+  font-size: 14px;
+  font-weight: 650;
+}
+.access-brand-mark {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #b9cdc5;
+  border-radius: var(--radius-sm);
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+.access-content { margin-top: 64px; }
+.access-status {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-accent);
+  font-size: 12px;
+  font-weight: 650;
+}
+.access-content h1 {
+  margin: 14px 0 9px;
+  color: var(--color-text);
+  font-size: 25px;
+  line-height: 1.22;
+  letter-spacing: 0;
+}
+.access-content p {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+.access-action {
+  min-height: 88px;
+  margin-top: auto;
+  padding-top: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.access-command { width: 100%; min-height: 44px; justify-content: center; border-radius: var(--radius-sm); }
+.access-progress {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  color: var(--color-text-muted);
+  font-size: 14px;
+}
+.access-error {
+  min-height: 36px;
+  margin: 0;
+  color: var(--color-danger);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.spin { animation: spin 900ms linear infinite; }
 .primary-command {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   min-height: 40px;
   padding: 0 16px;
-  border: 1px solid #0e6048;
-  background: #17755b;
+  border: 1px solid var(--color-accent);
+  background: var(--color-accent);
   color: white;
-  font-weight: 700;
+  font-weight: 650;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
 }
+.primary-command:hover { background: var(--color-accent-hover); border-color: var(--color-accent-hover); }
 .app-shell {
   min-height: 100vh;
   display: grid;
@@ -110,7 +212,7 @@ button, input, select, textarea { font: inherit; }
   padding: 8px 10px;
   color: #1f252b;
 }
-.field textarea { resize: vertical; font-family: monospace; font-size: 12px; }
+.field textarea { resize: vertical; font-family: var(--font-technical); font-size: 12px; }
 .compact-field select { min-width: 180px; }
 .secondary-command, .icon-command {
   min-height: 40px;
@@ -138,7 +240,7 @@ button:disabled { cursor: not-allowed; opacity: .55; }
   border-bottom: 1px solid #e0e4e6;
 }
 .entity-panel h2 { margin: 0 0 4px; font-size: 17px; }
-code { display: block; color: #667177; font-size: 11px; margin-top: 4px; }
+code { display: block; color: #667177; font-family: var(--font-technical); font-size: 11px; margin-top: 4px; }
 .credential-row {
   display: grid;
   grid-template-columns: minmax(210px, 1fr) minmax(260px, 1.3fr);
@@ -245,6 +347,9 @@ td { padding: 13px; border-bottom: 1px solid #e4e8ea; vertical-align: top; }
 .audit-panel h2 { margin: 0; font-size: 17px; }
 
 @media (max-width: 760px) {
+  .access-screen { padding: 20px; }
+  .access-surface { min-height: 390px; padding: 24px; }
+  .access-content { margin-top: 52px; }
   .app-shell { grid-template-columns: 1fr; }
   .sidebar { position: static; width: 100%; height: auto; }
   .sidebar nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -253,4 +358,19 @@ td { padding: 13px; border-bottom: 1px solid #e4e8ea; vertical-align: top; }
   .credential-row { grid-template-columns: 1fr; }
   .page-header { flex-direction: column; }
   .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes access-enter {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
 }

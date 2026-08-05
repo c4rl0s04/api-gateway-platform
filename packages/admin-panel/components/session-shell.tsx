@@ -4,49 +4,35 @@ import {
   AppWindow,
   Building2,
   KeyRound,
-  LogIn,
   LogOut,
   ShieldCheck,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
-
-interface Session {
-  authenticated: boolean;
-  principal?: {
-    memberships: Array<{
-      role: string;
-      organizationId: string | null;
-    }>;
-  };
-}
+import { useCallback, useEffect, useState } from 'react';
+import { AccessScreen, AccessScreenState } from '@/components/access-screen';
+import { AdminSession, checkSession } from '@/lib/session';
 
 export function SessionShell({ children }: { children: React.ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null);
-  useEffect(() => {
-    fetch('/api/auth/session', { cache: 'no-store' })
-      .then(async response => response.ok
-        ? response.json() as Promise<Session>
-        : { authenticated: false })
-      .then(setSession);
+  const [session, setSession] = useState<AdminSession | null>(null);
+  const [accessState, setAccessState] = useState<AccessScreenState>('checking');
+
+  const loadSession = useCallback(async () => {
+    setAccessState('checking');
+    const result = await checkSession();
+    if (result.status === 'authenticated') {
+      setSession(result.session);
+      return;
+    }
+    setSession(null);
+    setAccessState(result.status);
   }, []);
 
+  useEffect(() => {
+    void loadSession();
+  }, [loadSession]);
+
   if (!session) {
-    return <main className="center-state">Loading session...</main>;
-  }
-  if (!session.authenticated) {
-    return (
-      <main className="login-screen">
-        <div className="login-panel">
-          <ShieldCheck size={32} aria-hidden="true" />
-          <h1>API Gateway Administration</h1>
-          <a className="primary-command" href="/api/auth/login">
-            <LogIn size={17} aria-hidden="true" />
-            Sign in
-          </a>
-        </div>
-      </main>
-    );
+    return <AccessScreen state={accessState} onRetry={loadSession} />;
   }
   const role = session.principal?.memberships[0]?.role ?? 'viewer';
   return (
