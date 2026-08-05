@@ -391,7 +391,8 @@ async function main() {
   }
   console.log(`✓ ${DEVELOPER_APPS.length} developer apps`);
 
-  const localIssuer = 'http://localhost:8081/realms/api-gateway';
+  const localIssuer =
+    process.env.DEV_OIDC_ISSUER ?? 'http://localhost:8081/realms/api-gateway';
   const memberships = [
     {
       id: 'membership-local-platform-admin',

@@ -79,7 +79,7 @@ async function tokenRequest(realm, parameters) {
   );
 }
 
-async function waitFor(url, attempts = 160) {
+async function waitFor(url, attempts = 600) {
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     try {
       const response = await fetch(url);
