@@ -23,6 +23,11 @@ compose_arguments=(
 cleanup() {
   local exit_code=$?
   trap - EXIT
+  if [[ "$exit_code" -ne 0 && "${PLATFORM_TEST_KEEP_ON_FAILURE:-0}" == "1" ]]; then
+    printf 'Preserving failed E2E project %s with runtime files at %s\n' \
+      "$COMPOSE_PROJECT" "$TEST_ROOT" >&2
+    exit "$exit_code"
+  fi
   docker "${compose_arguments[@]}" down --volumes --remove-orphans >/dev/null 2>&1 || true
   case "$TEST_ROOT" in
     "$TEMP_BASE"/api-gateway-platform-e2e.*)
