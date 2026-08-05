@@ -3,7 +3,7 @@ title: How to Run Tests
 type: guide
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-08-02
+last_verified: 2026-08-03
 tags:
   - type/guide
   - area/project
@@ -13,6 +13,9 @@ sources:
   - packages/shared/package.json
   - packages/database/package.json
   - .github/workflows/ci.yml
+  - docker-compose.e2e.yml
+  - scripts/test-platform-isolated.sh
+  - scripts/assert-platform-test-isolation.mjs
 aliases: []
 ---
 
@@ -54,7 +57,7 @@ npm test --workspace=packages/admin-panel
 npm run docs:test
 ```
 
-With the local platform running:
+Live infrastructure suites:
 
 ```bash
 npm run test:integration:revisions
@@ -62,6 +65,11 @@ npm run test:integration:seed-examples
 npm run test:integration:mtls
 npm run test:platform
 ```
+
+The first three integration commands use explicitly configured live services.
+`test:platform` is self-contained: it creates a uniquely named Compose project,
+temporary secrets and SDS files, dedicated PostgreSQL volumes, and an isolated
+Keycloak database. The normal local platform does not need to be running.
 
 `test:integration:revisions` uses live PostgreSQL to verify concurrent revision
 numbering, atomic failures, deployment history, rollback, promotion, and base
@@ -74,7 +82,15 @@ header, promotion, rollback, undeployed revision, and idempotency examples.
 `test:platform` checks all 30 environment origins, Management API revision
 import, hot reload and rollback, API key and OAuth flows,
 cross-environment token rejection, disposable CA and certificate records,
-revocation, authority rotation, and persistence.
+revocation, authority rotation, and persistence. It publishes only temporary
+host ports `18080`, `18081`, and `18443`, then removes its containers, networks,
+volumes, and generated files whether the workflow succeeds or fails.
+
+Validate only the isolation contract without starting services:
+
+```bash
+npm run test:platform:config
+```
 
 Authentication tests generate ephemeral RSA keys. Clean migration/seed
 validation requires disposable PostgreSQL and must never target retained data.
@@ -95,6 +111,16 @@ npm run build --workspace=packages/pki
 ```
 
 Do not reset the database to fix isolated gateway unit tests.
+
+To inspect an E2E failure, preserve that failed stack explicitly:
+
+```bash
+PLATFORM_TEST_KEEP_ON_FAILURE=1 npm run test:platform
+```
+
+The command prints the Compose project and temporary runtime directory. Bring
+the project down with `docker compose --project-name <project> down --volumes`
+after collecting logs. Never reuse those files as `.local-secrets`.
 
 ## Related Notes
 

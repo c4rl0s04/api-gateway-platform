@@ -3,7 +3,7 @@ title: How to Start the Project
 type: guide
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-07-29
+last_verified: 2026-08-03
 tags:
   - type/guide
   - area/operations
@@ -110,6 +110,10 @@ Open `http://localhost:8080`; local usernames and generated passwords are in
 `.local-secrets/keycloak/users.env`.
 
 See [[Seed Example Catalog]] for the complete revision and policy examples.
+
+`npm run test:platform` does not use this retained environment. It creates and
+removes a separate stack so Management API mutation tests cannot add
+organizations, credentials, or revisions to the normal local database.
 
 ## Troubleshooting or Rollback
 

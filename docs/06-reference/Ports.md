@@ -3,7 +3,7 @@ title: Ports
 type: reference
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-07-27
+last_verified: 2026-08-03
 tags:
   - type/reference
   - area/operations
@@ -13,6 +13,7 @@ sources:
   - packages/gateway-core/src/config/env.ts
   - packages/management-api/src/server.ts
   - packages/admin-panel/package.json
+  - docker-compose.e2e.yml
 aliases: []
 ---
 
@@ -40,6 +41,18 @@ aliases: []
 ## Known Collisions
 
 The default `npm run dev:local` environment has no host-port collisions.
+
+The isolated `npm run test:platform` stack uses a separate set of ports:
+
+| E2E component | Host port |
+| --- | --- |
+| Admin Panel/BFF | `18080` |
+| Keycloak | `18081` |
+| Envoy gateway ingress | `18443` |
+
+Its PostgreSQL instances, Redis, Gateway, Management API, and mock backend are
+not published. The test uses a unique Compose project and removes all of these
+resources after execution.
 
 ## Examples
 

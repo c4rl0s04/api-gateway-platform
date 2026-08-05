@@ -3,7 +3,7 @@ title: Documentation Index
 type: map
 doc_status: current
 implementation_status: not-applicable
-last_verified: 2026-08-02
+last_verified: 2026-08-03
 tags:
   - type/map
   - area/project
@@ -82,8 +82,8 @@ aliases: []
 | [[04-guides/How to Document the Project\|How to Document the Project]] | current | not-applicable | 2026-07-27 |
 | [[04-guides/How to Import and Deploy a Proxy Revision\|How to Import and Deploy a Proxy Revision]] | current | implemented | 2026-08-02 |
 | [[04-guides/How to Operate the PKI\|How to Operate the PKI]] | current | implemented | 2026-07-27 |
-| [[04-guides/How to Run Tests\|How to Run Tests]] | current | implemented | 2026-08-02 |
-| [[04-guides/How to Start the Project\|How to Start the Project]] | current | implemented | 2026-07-29 |
+| [[04-guides/How to Run Tests\|How to Run Tests]] | current | implemented | 2026-08-03 |
+| [[04-guides/How to Start the Project\|How to Start the Project]] | current | implemented | 2026-08-03 |
 | [[04-guides/How to Use Prisma Studio\|How to Use Prisma Studio]] | current | implemented | 2026-08-02 |
 | [[04-guides/How to Use the Management API with Postman\|How to Use the Management API with Postman]] | current | implemented | 2026-08-02 |
 
@@ -109,7 +109,7 @@ aliases: []
 | [[06-reference/Management API Endpoint Reference\|Management API Endpoint Reference]] | current | implemented | 2026-08-02 |
 | [[06-reference/policies/README\|Policy Reference Index]] | current | partial | 2026-07-27 |
 | [[06-reference/Policy Types\|Policy Types]] | current | partial | 2026-07-27 |
-| [[06-reference/Ports\|Ports]] | current | implemented | 2026-07-27 |
+| [[06-reference/Ports\|Ports]] | current | implemented | 2026-08-03 |
 | [[06-reference/Seed Example Catalog\|Seed Example Catalog]] | current | implemented | 2026-07-31 |
 
 ## Policies
