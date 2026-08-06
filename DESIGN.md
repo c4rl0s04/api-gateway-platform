@@ -185,7 +185,9 @@ Identity, Session, and Control plane form a three-node rail. OIDC is the only ac
 
 ### Proxy Inventory
 
-The inventory is a ruled operational register, not a table inside a card. Each row leads with proxy and organization identity, then route evidence, compact environment markers, revision/product counts, and state. Search and filters occupy one shallow control rail. Runtime synchronization is shown above the register as a single live status line.
+The inventory is a ruled operational register, not a table inside a card. Each row leads with proxy and organization identity, then route evidence, compact environment markers, revision/product counts, and state. Search and filters occupy one shallow control rail. Country and Stage are independent multi-select facets; Organization and State are single-select facets. Applied values remain visible as removable 4px-corner chips, and committed filter state is encoded in the URL. Runtime synchronization is shown above the register as a single live status line.
+
+Desktop facets open focused anchored overlays with draft-and-apply behavior for multi-selection. On compact screens, one Filters control reveals a flat inline sheet containing the same four facets; active chips remain outside the sheet so the current result context never disappears.
 
 ### Deployment Path
 
