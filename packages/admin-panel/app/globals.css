@@ -299,10 +299,10 @@ td { padding: 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
 .proxy-cell small, .proxy-counts span, .muted-value { color: var(--ink-faint); font-size: 11px; line-height: 1.4; }
 .proxy-cell code { overflow: hidden; margin: 0; text-overflow: ellipsis; white-space: nowrap; }
 .proxy-counts strong { color: var(--ink); font-family: var(--font-technical); font-weight: 540; }
-.environment-markers { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
-.environment-marker { min-width: 48px; min-height: 36px; display: grid; place-items: center; align-content: center; gap: 1px; padding: 4px 8px; border: 1px solid var(--line); border-radius: var(--radius-1); color: var(--ink-soft); font-family: var(--font-technical); font-size: 9px; font-weight: 650; text-transform: uppercase; }
-.environment-marker small { font-size: 8px; font-weight: 400; }
-.environment-marker.stage-prod { border-color: var(--red-line); color: var(--red); background: var(--red-soft); }
+.environment-markers { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.environment-marker { min-width: 64px; min-height: 48px; display: grid; place-items: center; align-content: center; gap: 4px; padding: 8px; border: 1px solid var(--line); border-radius: var(--radius-1); color: var(--ink-soft); font-family: var(--font-technical); font-size: 10px; font-weight: 650; text-transform: uppercase; }
+.environment-marker small { font-size: 9px; font-weight: 400; }
+.environment-marker.stage-pprod, .environment-marker.stage-prod { border-color: var(--red-line); color: var(--red); background: var(--red-soft); }
 .proxy-row-arrow { width: 17px; height: 17px; color: var(--ink-faint); }
 .status-system { color: var(--red); border-color: var(--red-line); background: var(--red-soft); }
 .status-inactive { color: var(--ink-soft); border-color: var(--line); background: var(--surface-subtle); }
