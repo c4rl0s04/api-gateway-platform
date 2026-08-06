@@ -173,7 +173,7 @@ Fields use Raised Paper, Warm Ink, a 1px Strong Warm Rule, 4px corners, and 8px 
 
 ### Navigation
 
-Desktop navigation is a fixed-width warm surface with 44px rows. The active route uses pale red fill, red text, and a 2px edge marker. Mobile navigation becomes a compact top matrix and moves the active marker to the top edge.
+Desktop navigation is a 208px warm surface with 44px rows that can collapse to a persistent 72px icon rail. The toggle sits on the shell divider, the active route keeps its pale-red fill and edge marker, and every icon-only destination retains an accessible name and native tooltip. The preference is applied before paint and persists locally. Mobile uses the same toggle to reduce the full navigation matrix to a 64px brand header; reopening restores the complete information architecture and moves the active marker to the top edge.
 
 ### Request Path
 
