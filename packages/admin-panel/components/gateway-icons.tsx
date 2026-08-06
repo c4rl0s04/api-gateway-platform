@@ -116,3 +116,11 @@ export function PauseIcon(props: IconProps) {
 export function CopyIcon(props: IconProps) {
   return <IconFrame {...props}><rect x="8" y="8" width="11" height="11" rx="2" /><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" /></IconFrame>;
 }
+
+export function FilterIcon(props: IconProps) {
+  return <IconFrame {...props}><path d="M4 6h16M7 12h10M10 18h4" /></IconFrame>;
+}
+
+export function CloseIcon(props: IconProps) {
+  return <IconFrame {...props}><path d="m6 6 12 12M18 6 6 18" /></IconFrame>;
+}
