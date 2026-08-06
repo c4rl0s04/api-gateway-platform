@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-06T21:00:00.000Z",
+  "title": "Design System: Gateway Control",
+  "extensions": {
+    "colorMeta": {
+      "route-red": { "role": "primary", "displayName": "Route Vermilion", "canonical": "#b4232f", "tonalRamp": ["#45161b", "#6c1b23", "#941b26", "#b4232f", "#cf4b55", "#e7838a", "#f4bdc1", "#fbe9ea"] },
+      "canvas": { "role": "neutral", "displayName": "Warm Canvas", "canonical": "#f5f1ee", "tonalRamp": ["#272122", "#4a4140", "#6e6461", "#968a86", "#b9afab", "#d9d1cd", "#eee9e6", "#f5f1ee"] },
+      "ink": { "role": "neutral", "displayName": "Warm Ink", "canonical": "#282122", "tonalRamp": ["#181516", "#282122", "#463d3e", "#63595a", "#817677", "#a89d99", "#d9d1cd", "#f2ece9"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Route Display", "purpose": "Home and authentication thesis statements." },
+      "body": { "displayName": "Operational Body", "purpose": "Explanatory interface copy." },
+      "metadata": { "displayName": "Technical Metadata", "purpose": "Protocols, roles, status, and measurements only." }
+    },
+    "shadows": [
+      { "name": "modal-focus", "value": "0 24px 72px color-mix(in srgb, var(--ink) 18%, transparent)", "purpose": "Modal focus only; content surfaces remain flat." }
+    ],
+    "motion": [
+      { "name": "ease-out", "value": "cubic-bezier(0.23, 1, 0.32, 1)", "purpose": "Entering UI and press feedback." },
+      { "name": "fast", "value": "140ms", "purpose": "Hover and tactile press states." },
+      { "name": "login-enter", "value": "280ms", "purpose": "One-time authentication form arrival along the request rail." }
+    ],
+    "breakpoints": [
+      { "name": "route-collapse", "value": "980px" },
+      { "name": "compact", "value": "760px" },
+      { "name": "small", "value": "420px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Command",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The decisive red action used for authentication and high-value submits.",
+      "html": "<button class=\"ds-primary-command\">Continue with OIDC</button>",
+      "css": ".ds-primary-command{min-height:52px;padding:0 16px;border:1px solid var(--red-action,#b4232f);border-radius:4px;background:var(--red-action,#b4232f);color:#fff8f6;font:650 14px var(--font-interface,sans-serif);transition:background 140ms ease,transform 140ms cubic-bezier(.23,1,.32,1)}.ds-primary-command:hover{background:var(--red-action-hover,#941b26)}.ds-primary-command:focus-visible{outline:2px solid var(--red,#b4232f);outline-offset:3px}.ds-primary-command:active{transform:scale(.97)}"
+    },
+    {
+      "name": "Operational Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Flat warm field with a crisp boundary and red focus treatment.",
+      "html": "<input class=\"ds-field\" value=\"qual-es.gateway.localhost\" aria-label=\"Gateway hostname\">",
+      "css": ".ds-field{min-height:40px;padding:8px 12px;border:1px solid var(--line-strong,#b9ada8);border-radius:4px;background:var(--surface-raised,#fffdfa);color:var(--ink,#282122);font:400 14px var(--font-interface,sans-serif)}.ds-field:focus-visible{outline:2px solid var(--red,#b4232f);outline-offset:3px}"
+    },
+    {
+      "name": "Active Navigation",
+      "kind": "nav",
+      "refersTo": "navigation-active",
+      "description": "A compact active route row with pale-red fill and a decisive edge marker.",
+      "html": "<a class=\"ds-nav-active\" href=\"#\">Overview</a>",
+      "css": ".ds-nav-active{position:relative;min-height:44px;display:flex;align-items:center;padding:0 12px;border-radius:4px;background:#f8e7e8;color:var(--red,#b4232f);font:650 13px var(--font-interface,sans-serif)}.ds-nav-active:before{content:'';position:absolute;top:10px;bottom:10px;left:-12px;width:2px;background:var(--red,#b4232f)}.ds-nav-active:focus-visible{outline:2px solid var(--red,#b4232f);outline-offset:3px}"
+    },
+    {
+      "name": "Route Node",
+      "kind": "custom",
+      "description": "The circular waypoint anchoring every gateway stage.",
+      "html": "<span class=\"ds-route-node\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\"><circle cx=\"12\" cy=\"12\" r=\"4\"/><path d=\"M16 12h6\"/></svg></span>",
+      "css": ".ds-route-node{width:48px;height:48px;display:grid;place-items:center;border:1px solid var(--red,#b4232f);border-radius:50%;background:var(--surface,#fcfaf8);color:var(--red,#b4232f)}.ds-route-node svg{width:21px;height:21px}"
+    },
+    {
+      "name": "Coming Soon Method",
+      "kind": "custom",
+      "description": "A deliberately non-interactive authentication roadmap row.",
+      "html": "<div class=\"ds-future-method\" aria-disabled=\"true\"><strong>mTLS</strong><small>Client certificate</small><em>Coming soon</em></div>",
+      "css": ".ds-future-method{min-height:72px;display:grid;grid-template-columns:1fr auto;align-items:center;gap:4px 16px;border-bottom:1px solid var(--line,#d9d1cd);color:var(--ink-faint,#6e6364);font-family:var(--font-interface,sans-serif)}.ds-future-method strong{color:var(--ink-soft,#63595a);font-size:14px}.ds-future-method small{grid-row:2;font-size:12px}.ds-future-method em{grid-row:1/3;grid-column:2;padding:4px 8px;border-radius:999px;background:var(--surface-subtle,#eee9e6);font-size:10px;font-style:normal;font-weight:650;text-transform:uppercase}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Request Path",
+    "overview": "Gateway Control uses the request lifecycle as its organizing structure. A thin vermilion rail connects identity, routing, policy, and upstream trust; controls attach to the stage they affect. The visual system is operational, low-density, and matte rather than promotional or card-driven.",
+    "keyCharacteristics": ["Flat warm surfaces separated by 1px rules", "One continuous red route as the signature geometry", "Strong Geist Sans hierarchy with mono reserved for real metadata", "Large intentional whitespace and a strict 4px/8px rhythm", "Authored technical line icons with consistent 1.75px strokes"],
+    "rules": [
+      { "name": "The Red Route Rule", "body": "Red identifies the current route or decisive action; it does not fill large sections or decorate passive content.", "section": "colors" },
+      { "name": "The Mono Evidence Rule", "body": "Use Geist Mono only when the content is code, protocol, role, state, or measurement—not as a generic technical costume.", "section": "typography" },
+      { "name": "The Flat Control Plane Rule", "body": "Operational content stays flat; do not wrap sections in floating cards or combine a border with a decorative shadow.", "section": "elevation" }
+    ],
+    "dos": ["Do attach gateway controls to the request stage they affect.", "Do keep red contrast at WCAG AA or better for normal text and actions.", "Do use 4px/8px spacing increments and more space above sections than below headings.", "Do preserve clear loading, zero, error, disabled, focus, and reduced-motion states.", "Do let dark mode use warm aubergine-charcoal surfaces so red remains controlled."],
+    "donts": ["Don't build equal icon-heading-text card grids or nest cards inside cards.", "Don't use pure black, neutral gray, gradients, glass effects, or heavy default shadows.", "Don't use red as a large section background or as decoration without state meaning.", "Don't substitute a system default font, generic thin icon library, or emoji for the authored visual language.", "Don't present planned authentication methods as enabled controls."]
+  }
+}
