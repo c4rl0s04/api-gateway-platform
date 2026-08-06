@@ -1,6 +1,6 @@
 export type SidebarPreference = 'expanded' | 'collapsed';
 
-export const SIDEBAR_STORAGE_KEY = 'gateway-control:sidebar';
+export const SIDEBAR_STORAGE_KEY = 'gateway-control:sidebar:v1';
 export const DEFAULT_SIDEBAR_PREFERENCE: SidebarPreference = 'expanded';
 
 export function parseSidebarPreference(value: unknown): SidebarPreference {

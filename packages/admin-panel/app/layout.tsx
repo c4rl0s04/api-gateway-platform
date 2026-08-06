@@ -1,5 +1,6 @@
 import './globals.css';
 import { SessionShell } from '@/components/session-shell';
+import { SidebarPreferenceScript } from '@/components/sidebar-preference-script';
 import type { Metadata } from 'next';
 import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
@@ -29,6 +30,7 @@ export default function RootLayout({
         data-design-form="Approved horizontal request path, selected direction A, seed request-path-770149a6."
         data-design-finish="unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md"
       >
+        <SidebarPreferenceScript />
         <SessionShell>{children}</SessionShell>
       </body>
     </html>
