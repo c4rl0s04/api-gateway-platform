@@ -217,14 +217,10 @@ td { padding: 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
 .proxy-inline-form { display: grid; grid-template-columns: minmax(160px, .7fr) minmax(220px, 1.3fr); align-items: end; gap: 16px; }
 .proxy-name-field { min-width: 0; }
 .inline-form-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; grid-column: 1 / -1; padding-top: 8px; }
-.proxy-filters { display: grid; grid-template-columns: minmax(240px, 1.5fr) repeat(3, minmax(144px, .7fr)); gap: 8px; margin-bottom: 40px; }
 .proxy-search { min-height: 48px; display: flex; align-items: center; gap: 12px; padding: 0 16px; border-bottom: 1px solid var(--line-strong); color: var(--ink-faint); }
 .proxy-search svg { width: 18px; height: 18px; flex: 0 0 auto; }
 .proxy-search input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--ink); }
 .proxy-search:focus-within { border-color: var(--red); box-shadow: inset 0 -1px 0 var(--red); }
-.filter-field { min-height: 48px; display: grid; align-content: center; gap: 2px; padding: 0 12px; border-left: 1px solid var(--line); }
-.filter-field span { color: var(--ink-faint); font-size: 10px; }
-.filter-field select { min-width: 0; border: 0; outline: 0; background: transparent; color: var(--ink); font-size: 12px; font-weight: 620; }
 .proxy-filter-system { position: relative; z-index: 4; margin-bottom: 40px; }
 .proxy-filter-rail { display: grid; grid-template-columns: minmax(240px, 1.25fr) minmax(0, 2.75fr); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .proxy-filter-rail .proxy-search { min-height: 56px; border-bottom: 0; }
@@ -463,7 +459,6 @@ td { padding: 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
   .route-map { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 48px 0; }
   .route-stage:nth-child(2) .route-line { display: none; }
   .gateway-summary { gap: 48px; }
-  .proxy-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .proxy-search { grid-column: 1 / -1; }
   .proxy-filter-rail { grid-template-columns: 1fr; }
   .proxy-filter-rail .proxy-search { grid-column: auto; border-bottom: 1px solid var(--line); }
@@ -524,9 +519,7 @@ td { padding: 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
   .proxy-action-sheet { grid-template-columns: 1fr; gap: 32px; padding: 24px 20px; }
   .proxy-inline-form, .proxy-file-form, .deploy-form { grid-template-columns: 1fr; }
   .proxy-upstream-field { grid-column: auto; }
-  .proxy-filters { grid-template-columns: 1fr; margin-bottom: 32px; }
   .proxy-search { grid-column: auto; }
-  .filter-field { border-left: 0; border-top: 1px solid var(--line); padding: 8px 12px; }
   .proxy-filter-system { margin-bottom: 32px; }
   .proxy-filter-rail { grid-template-columns: minmax(0, 1fr) auto; align-items: start; border-top: 0; }
   .proxy-filter-rail .proxy-search { min-height: 48px; border-top: 1px solid var(--line); }

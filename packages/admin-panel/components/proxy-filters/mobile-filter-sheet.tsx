@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { FilterIcon } from '@/components/gateway-icons';
 import type {
   CountedOption,
@@ -31,6 +31,7 @@ export function MobileFilterSheet({
 }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(filters);
+  const sheetId = useId();
   const activeCount = activeProxyFilterCount(filters);
 
   function openSheet() {
@@ -62,6 +63,7 @@ export function MobileFilterSheet({
         className={`mobile-filter-trigger ${activeCount > 0 ? 'is-active' : ''}`}
         type="button"
         aria-expanded={open}
+        aria-controls={sheetId}
         onClick={() => open ? setOpen(false) : openSheet()}
       >
         <FilterIcon />
@@ -69,7 +71,7 @@ export function MobileFilterSheet({
       </button>
 
       {open && (
-        <section className="mobile-filter-sheet" aria-label="Proxy filters">
+        <section className="mobile-filter-sheet" id={sheetId} aria-label="Proxy filters">
           <fieldset>
             <legend>Country</legend>
             <div className="mobile-filter-options country-options">

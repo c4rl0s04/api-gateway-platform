@@ -158,7 +158,7 @@ export function ProxyFilterBar({
               <span>State</span>{stateLabel ?? filters.state}<CloseIcon />
             </button>
           )}
-          <button className="clear-filter-command" type="button" onClick={() => { setQuery(''); onCommit(defaultProxyFilters); }}>Clear filters</button>
+          <button className="clear-filter-command" type="button" onClick={() => onCommit(defaultProxyFilters)}>Clear filters</button>
         </div>
       )}
     </div>
