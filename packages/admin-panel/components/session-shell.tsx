@@ -1,18 +1,24 @@
 'use client';
 
-import {
-  AppWindow,
-  Building2,
-  KeyRound,
-  LogOut,
-  ShieldCheck,
-} from 'lucide-react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { AccessScreen, AccessScreenState } from '@/components/access-screen';
+import { AdminSessionProvider } from '@/components/session-context';
+import {
+  ApplicationIcon,
+  AuthorityIcon,
+  CertificateIcon,
+  GatewayMark,
+  LogoutIcon,
+  OverviewIcon,
+  ProductIcon,
+  ProxyIcon,
+} from '@/components/gateway-icons';
 import { AdminSession, checkSession } from '@/lib/session';
 
 export function SessionShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const [session, setSession] = useState<AdminSession | null>(null);
   const [accessState, setAccessState] = useState<AccessScreenState>('checking');
 
@@ -35,28 +41,45 @@ export function SessionShell({ children }: { children: React.ReactNode }) {
     return <AccessScreen state={accessState} onRetry={loadSession} />;
   }
   const role = session.principal?.memberships[0]?.role ?? 'viewer';
+  const navigation = [
+    { href: '/', label: 'Overview', icon: OverviewIcon },
+    { href: '/proxies', label: 'Proxies', icon: ProxyIcon },
+    { href: '/apps', label: 'Applications', icon: ApplicationIcon },
+    { href: '/products', label: 'API products', icon: ProductIcon },
+    { href: '/certificates', label: 'Certificates', icon: CertificateIcon },
+    { href: '/authorities', label: 'Authorities', icon: AuthorityIcon },
+  ];
+
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
+    <AdminSessionProvider session={session}>
+      <div className="app-shell">
+        <aside className="sidebar">
         <div className="brand">
-          <ShieldCheck size={22} aria-hidden="true" />
-          <span>Gateway Control</span>
+          <GatewayMark className="brand-mark" />
+          <span>Gateway<br />Control</span>
         </div>
-        <nav>
-          <Link href="/"><Building2 size={17} />Overview</Link>
-          <Link href="/apps"><AppWindow size={17} />Applications</Link>
-          <Link href="/certificates"><KeyRound size={17} />Certificates</Link>
-          <Link href="/authorities"><ShieldCheck size={17} />Authorities</Link>
+        <nav aria-label="Gateway navigation">
+          {navigation.map(item => {
+            const Icon = item.icon;
+            const isActive = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
+            return (
+              <Link href={item.href} key={item.href} aria-current={isActive ? 'page' : undefined}>
+                <Icon />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
         </nav>
         <div className="session-meta">
-          <span>{role}</span>
+          <span className="session-role">{role}</span>
           <a href="/api/auth/logout" title="Sign out">
-            <LogOut size={17} aria-hidden="true" />
-            Sign out
+            <LogoutIcon />
+            <span>Sign out</span>
           </a>
         </div>
-      </aside>
-      <main className="workspace">{children}</main>
-    </div>
+        </aside>
+        <main className="workspace">{children}</main>
+      </div>
+    </AdminSessionProvider>
   );
 }
