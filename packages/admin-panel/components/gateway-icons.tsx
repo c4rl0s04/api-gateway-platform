@@ -124,3 +124,7 @@ export function FilterIcon(props: IconProps) {
 export function CloseIcon(props: IconProps) {
   return <IconFrame {...props}><path d="m6 6 12 12M18 6 6 18" /></IconFrame>;
 }
+
+export function SidebarToggleIcon(props: IconProps) {
+  return <IconFrame {...props}><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16M17 9l-3 3 3 3" /></IconFrame>;
+}
