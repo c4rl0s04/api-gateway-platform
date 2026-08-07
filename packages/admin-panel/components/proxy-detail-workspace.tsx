@@ -42,7 +42,13 @@ interface ApplyNotice {
   message?: string;
 }
 
-export function ProxyDetailWorkspace({ proxyId }: { proxyId: string }) {
+export function ProxyDetailWorkspace({
+  proxyId,
+  created = false,
+}: {
+  proxyId: string;
+  created?: boolean;
+}) {
   const session = useAdminSession();
   const [proxy, setProxy] = useState<ApiProxyDetail | null>(null);
   const [revisions, setRevisions] = useState<ProxyRevisionSummary[]>([]);
@@ -330,6 +336,26 @@ export function ProxyDetailWorkspace({ proxyId }: { proxyId: string }) {
 
       {proxy.systemManaged && (
         <div className="system-proxy-note">This route is managed by the platform and is available for inspection only.</div>
+      )}
+      {created && (
+        <section className="created-proxy-notice" aria-live="polite">
+          <div>
+            <strong>Proxy created with revision 1.</strong>
+            <span>No environments are deployed.</span>
+          </div>
+          {canManage && revisions.length > 0 && (
+            <button
+              className="secondary-command"
+              type="button"
+              onClick={() => {
+                setDeployRevisionNumber(1);
+                setMode('deploy');
+              }}
+            >
+              <ArrowIcon />Deploy to QUAL
+            </button>
+          )}
+        </section>
       )}
       {error && <div className="alert error" role="alert">{error}</div>}
       {notice && <div className="alert success" role="status">{notice}</div>}

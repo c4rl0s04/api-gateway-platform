@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowIcon,
   PlusIcon,
@@ -61,8 +61,6 @@ export function ProxyInventoryWorkspace() {
   const [runtime, setRuntime] = useState<RuntimeSyncStatus | null>(null);
   const [isLoading, setLoading] = useState(true);
   const [isRefreshing, setRefreshing] = useState(false);
-  const [isCreating, setCreating] = useState(false);
-  const [showCreate, setShowCreate] = useState(false);
   const [error, setError] = useState('');
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const requestRef = useRef<AbortController | null>(null);
@@ -171,28 +169,6 @@ export function ProxyInventoryWorkspace() {
       count: filterProxies(proxies, { ...filters, state: state.value }, environmentMap).length,
     })), [environmentMap, filters, proxies]);
 
-  async function createProxy(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const data = new FormData(form);
-    const selectedOrganization = String(data.get('organizationId'));
-    setCreating(true);
-    setError('');
-    try {
-      await managementFetch(`organizations/${selectedOrganization}/proxies`, {
-        method: 'POST',
-        body: JSON.stringify({ name: String(data.get('name')) }),
-      });
-      form.reset();
-      setShowCreate(false);
-      await refresh();
-    } catch (cause) {
-      setError((cause as Error).message);
-    } finally {
-      setCreating(false);
-    }
-  }
-
   const synchronizedGateways = runtime?.gateways.filter(gateway => gateway.synchronized).length ?? 0;
   const runtimeTone = !runtime?.redisAvailable
     ? 'warning'
@@ -221,15 +197,13 @@ export function ProxyInventoryWorkspace() {
             <RefreshIcon className={isRefreshing ? 'is-spinning' : undefined} />
           </button>
           {writableOrganizations.length > 0 && (
-            <button
+            <Link
               className="primary-command"
-              type="button"
-              onClick={() => setShowCreate(value => !value)}
-              aria-expanded={showCreate}
+              href="/proxies/new"
             >
               <PlusIcon />
               Create proxy
-            </button>
+            </Link>
           )}
         </div>
       </header>
@@ -260,33 +234,6 @@ export function ProxyInventoryWorkspace() {
           </time>
         )}
       </section>
-
-      {showCreate && (
-        <section className="proxy-action-sheet" aria-labelledby="create-proxy-title">
-          <div>
-            <h2 id="create-proxy-title">Create a logical proxy</h2>
-            <p>Create the route identity first. Importing a revision does not affect runtime traffic.</p>
-          </div>
-          <form className="proxy-inline-form" onSubmit={createProxy}>
-            <label className="field">
-              <span>Organization</span>
-              <select name="organizationId" required defaultValue={writableOrganizations[0]?.id}>
-                {writableOrganizations.map(organization => (
-                  <option value={organization.id} key={organization.id}>{organization.name}</option>
-                ))}
-              </select>
-            </label>
-            <label className="field proxy-name-field">
-              <span>Proxy name</span>
-              <input name="name" required maxLength={120} placeholder="Accounts API" autoFocus />
-            </label>
-            <div className="inline-form-actions">
-              <button className="secondary-command" type="button" onClick={() => setShowCreate(false)}>Cancel</button>
-              <button className="primary-command" disabled={isCreating}>{isCreating ? 'Creating…' : 'Create proxy'}</button>
-            </div>
-          </form>
-        </section>
-      )}
 
       {error && <div className="alert error" role="alert">{error}</div>}
 
