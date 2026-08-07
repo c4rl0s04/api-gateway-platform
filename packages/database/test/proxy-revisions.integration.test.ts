@@ -46,7 +46,13 @@ function bundle(basePath: string, operationId: string) {
     gatewayConfigSource: JSON.stringify({
       apiVersion: 'gateway.platform/v1',
       basePath,
-      defaults: { policies: [] },
+      defaults: {
+        policies: [{
+          type: 'rate-limit',
+          enabled: true,
+          config: { limit: 100, windowSeconds: 60, failureMode: 'closed' },
+        }],
+      },
       operations: {
         [operationId]: { targetPath: '/backend/{id}' },
       },
@@ -83,6 +89,7 @@ integration('proxy revision persistence', () => {
     assert.equal(configured.proxy.name, 'Configured accounts');
     assert.equal(configured.revision.revisionNumber, 1);
     assert.equal(configured.revision.operations.length, 1);
+    assert.equal(configured.revision.operations[0].policies.length, 1);
     assert.equal(
       await prisma.apiProxyRevision.count({
         where: { proxyId: configured.proxy.id },
@@ -115,6 +122,29 @@ integration('proxy revision persistence', () => {
       (error: unknown) => error instanceof ProxyBundleError,
     );
     assert.equal(await prisma.apiProxy.count({ where: { name } }), 0);
+
+    await assert.rejects(
+      createConfiguredApiProxy({
+        organizationId,
+        name: `${name} gateway`,
+        openapiSource: bundle('/unused', 'getRejected').openapiSource,
+        gatewayConfigSource: 'apiVersion: [',
+        actor,
+      }),
+      (error: unknown) => error instanceof ProxyBundleError,
+    );
+    assert.equal(await prisma.apiProxy.count({ where: { name: `${name} gateway` } }), 0);
+  });
+
+  it('rolls back the proxy identity when revision persistence fails', async () => {
+    const rejectedName = 'Rolled back configured proxy';
+    await assert.rejects(createConfiguredApiProxy({
+      organizationId,
+      name: rejectedName,
+      ...bundle(`/transaction-test-${suffix}`, 'getTransactionFailure'),
+      actor: { ...actor, role: 'invalidRole' as AdminRole },
+    }));
+    assert.equal(await prisma.apiProxy.count({ where: { name: rejectedName } }), 0);
   });
 
   it('numbers concurrent immutable imports and rejects invalid bundles atomically', async () => {

@@ -37,6 +37,10 @@ function multipart(files: Record<string, string>) {
 }
 
 function configuredMultipart(name: string, files: Record<string, string>) {
+  return configuredMultipartEntries(name, Object.entries(files));
+}
+
+function configuredMultipartEntries(name: string, files: Array<[string, string]>) {
   const boundary = 'gateway-configured-test-boundary';
   const field = [
     `--${boundary}`,
@@ -44,7 +48,7 @@ function configuredMultipart(name: string, files: Record<string, string>) {
     '',
     name,
   ].join('\r\n');
-  const fileParts = Object.entries(files).map(([fieldName, content]) => [
+  const fileParts = files.map(([fieldName, content]) => [
     `--${boundary}`,
     `Content-Disposition: form-data; name="${fieldName}"; filename="${fieldName}.yaml"`,
     'Content-Type: application/yaml',
@@ -192,6 +196,78 @@ describe('proxy revision management routes', () => {
         },
       },
     ]);
+    await server.close();
+  });
+
+  it('rejects incomplete, duplicate, oversized, malformed, and unauthenticated configured requests', async () => {
+    let called = false;
+    const revisions: ProxyRevisionOperations = {
+      ...configuredOperations,
+      createProxy: async () => ({}),
+      validateConfiguration: async () => {
+        called = true;
+        return {};
+      },
+      createConfiguredProxy: async () => {
+        called = true;
+        return {};
+      },
+      updateProxy: async () => ({}),
+      importRevision: async () => ({}),
+      listRevisions: async () => [],
+      getRevision: async () => ({}),
+      getRevisionSource: async () => '',
+      deployRevision: async () => ({}),
+      retireDeployment: async () => ({}),
+    };
+    const server = serverWith(revisions);
+    const missing = await server.inject({
+      method: 'POST',
+      url: '/v1/organizations/org-a/proxies/configured',
+      ...configuredMultipart('Accounts', { openapi: 'openapi: 3.1.0' }),
+    });
+    assert.equal(missing.statusCode, 400);
+    assert.equal(missing.json().error, 'invalid_gateway_config');
+
+    const duplicate = await server.inject({
+      method: 'POST',
+      url: '/v1/organizations/org-a/proxies/configured',
+      ...configuredMultipartEntries('Accounts', [
+        ['openapi', 'openapi: 3.1.0'],
+        ['openapi', 'openapi: 3.0.3'],
+      ]),
+    });
+    assert.equal(duplicate.statusCode, 400);
+
+    const oversized = await server.inject({
+      method: 'POST',
+      url: '/v1/organizations/org-a/proxies/configured',
+      ...configuredMultipart('Accounts', {
+        openapi: 'x'.repeat((5 * 1024 * 1024) + 1),
+        gateway: 'apiVersion: gateway.platform/v1',
+      }),
+    });
+    assert.equal(oversized.statusCode, 413);
+
+    const malformed = await server.inject({
+      method: 'POST',
+      url: '/v1/organizations/org-a/proxies/configured',
+      headers: {
+        authorization: 'Bearer token',
+        'content-type': 'multipart/form-data; boundary=broken',
+      },
+      payload: Buffer.from('--broken\r\nnot-a-valid-part'),
+    });
+    assert.equal(malformed.statusCode, 400);
+
+    const unauthenticated = await server.inject({
+      method: 'POST',
+      url: '/v1/organizations/org-a/proxies/configured',
+      headers: { 'content-type': 'application/json' },
+      payload: {},
+    });
+    assert.equal(unauthenticated.statusCode, 401);
+    assert.equal(called, false);
     await server.close();
   });
 
