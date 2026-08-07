@@ -276,7 +276,14 @@ export function ProxyCreationWorkspace() {
 
       <div className="proxy-creation-shell">
         <CreationStepNav currentStep={step} highestStep={highestStep} onSelect={goToStep} />
-        <main className="creation-workspace">
+        <form
+          className="creation-workspace"
+          onSubmit={e => {
+            e.preventDefault();
+            if (step < 3) void continueFlow();
+            else void finishCreation();
+          }}
+        >
           <p className="sr-only" aria-live="polite">
             {isBusy ? (step === 3 ? 'Creating proxy.' : 'Validating configuration.') : error}
           </p>
@@ -342,13 +349,13 @@ export function ProxyCreationWorkspace() {
             <div>
               {step > 0 && <button className="secondary-command" type="button" disabled={isBusy} onClick={() => goToStep(step - 1)}>Back</button>}
               {step < 3 ? (
-                <button className="primary-command" type="button" disabled={isBusy} onClick={() => void continueFlow()}>{isBusy ? 'Validating…' : <>Continue<ArrowIcon /></>}</button>
+                <button className="primary-command" type="submit" disabled={isBusy}>{isBusy ? 'Validating…' : <>Continue<ArrowIcon /></>}</button>
               ) : (
-                <button className="primary-command" type="button" disabled={isBusy} onClick={() => void finishCreation()}>{isBusy ? 'Creating…' : 'Create proxy and revision'}</button>
+                <button className="primary-command" type="submit" disabled={isBusy}>{isBusy ? 'Creating…' : 'Create proxy and revision'}</button>
               )}
             </div>
           </footer>
-        </main>
+        </form>
       </div>
     </div>
   );
