@@ -2,8 +2,10 @@ import assert from 'node:assert/strict';
 import { it } from 'node:test';
 import {
   createConfiguredProxy,
+  describeProxyCreationFailure,
   validateProxyConfiguration,
 } from '../lib/proxy-creation-api';
+import { ManagementApiError } from '../lib/api-client';
 
 it('formats proxy validation and configured creation multipart requests', async t => {
   const originalFetch = globalThis.fetch;
@@ -48,4 +50,22 @@ it('formats proxy validation and configured creation multipart requests', async 
   assert.equal(creation.get('name'), 'Accounts');
   assert.equal((creation.get('openapi') as File).name, 'openapi.yaml');
   assert.equal((creation.get('gateway') as File).name, 'gateway.yaml');
+});
+
+it('maps server failures to the responsible creation step', () => {
+  assert.deepEqual(
+    describeProxyCreationFailure(new ManagementApiError('invalid', 400, 'invalid_openapi')),
+    {
+      message: 'The OpenAPI source is invalid. Check its version, references, paths, and operation IDs.',
+      step: 1,
+    },
+  );
+  assert.equal(
+    describeProxyCreationFailure(new ManagementApiError('invalid', 400, 'unknown_operation')).step,
+    2,
+  );
+  assert.equal(
+    describeProxyCreationFailure(new ManagementApiError('too large', 413)).step,
+    1,
+  );
 });

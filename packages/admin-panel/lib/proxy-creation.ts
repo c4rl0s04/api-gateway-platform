@@ -90,6 +90,15 @@ export interface DraftValidation {
   errors: string[];
 }
 
+export type ProxyCreationDraftAction =
+  | { type: 'set-identity'; organizationId?: string; name?: string }
+  | { type: 'set-openapi-source'; source: string; filename: string }
+  | { type: 'apply-openapi-inspection'; inspection: OpenApiInspection }
+  | { type: 'hydrate-gateway-source'; source: string }
+  | { type: 'set-base-path'; basePath: string }
+  | { type: 'set-default-policies'; policies: EditablePolicy[] }
+  | { type: 'set-operation'; operation: OpenApiOperationDraft };
+
 const AUTHENTICATION_POLICIES = new Set<BusinessPolicyType>([
   'api-key-auth',
   'oauth-access-token',
@@ -192,6 +201,44 @@ export function applyOpenApiInspection(
       };
     }),
   };
+}
+
+export function proxyCreationDraftReducer(
+  draft: ProxyCreationDraft,
+  action: ProxyCreationDraftAction,
+): ProxyCreationDraft {
+  switch (action.type) {
+    case 'set-identity':
+      return {
+        ...draft,
+        organizationId: action.organizationId ?? draft.organizationId,
+        name: action.name ?? draft.name,
+      };
+    case 'set-openapi-source':
+      return {
+        ...draft,
+        openapiSource: action.source,
+        openapiSourceName: action.filename,
+        openapiVersion: '',
+        openapiTitle: null,
+        warnings: [],
+        operations: [],
+      };
+    case 'apply-openapi-inspection':
+      return applyOpenApiInspection(draft, action.inspection);
+    case 'hydrate-gateway-source':
+      return hydrateGatewaySource(draft, action.source);
+    case 'set-base-path':
+      return { ...draft, basePath: action.basePath };
+    case 'set-default-policies':
+      return { ...draft, defaultPolicies: action.policies };
+    case 'set-operation':
+      return {
+        ...draft,
+        operations: draft.operations.map(operation =>
+          operation.operationId === action.operation.operationId ? action.operation : operation),
+      };
+  }
 }
 
 export function hydrateGatewaySource(
@@ -319,6 +366,37 @@ export function validateRoutingDraft(draft: ProxyCreationDraft): DraftValidation
       ));
     }
   }
+  return { valid: errors.length === 0, errors };
+}
+
+export function validateProxyCreationStep(
+  draft: ProxyCreationDraft,
+  step: 0 | 1 | 2 | 3,
+): DraftValidation {
+  if (step === 0) {
+    const validName = draft.name.trim().length > 0 && draft.name.trim().length <= 120;
+    return {
+      valid: Boolean(draft.organizationId && validName),
+      errors: [
+        ...(!draft.organizationId ? ['Select an organization.'] : []),
+        ...(!validName ? ['Provide a proxy name between 1 and 120 characters.'] : []),
+      ],
+    };
+  }
+  if (step === 1) {
+    const errors = [
+      ...(!draft.openapiSource.trim() ? ['Provide an OpenAPI document.'] : []),
+      ...(sourceByteLength(draft.openapiSource) > MAX_PROXY_SOURCE_BYTES
+        ? ['The OpenAPI source exceeds the 5 MiB limit.']
+        : []),
+    ];
+    return { valid: errors.length === 0, errors };
+  }
+  const routing = validateRoutingDraft(draft);
+  const errors = [
+    ...(draft.operations.length === 0 ? ['The OpenAPI document has no supported operations.'] : []),
+    ...routing.errors,
+  ];
   return { valid: errors.length === 0, errors };
 }
 

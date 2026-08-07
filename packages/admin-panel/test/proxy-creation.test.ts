@@ -5,9 +5,11 @@ import {
   createEditablePolicy,
   emptyProxyCreationDraft,
   hydrateGatewaySource,
+  proxyCreationDraftReducer,
   serializeGatewayConfiguration,
   validatePolicies,
   validateRoutingDraft,
+  validateProxyCreationStep,
   validateTargetPath,
 } from '../lib/proxy-creation';
 
@@ -28,6 +30,42 @@ describe('proxy creation draft', () => {
     const refreshed = applyOpenApiInspection(initial, inspection);
     assert.equal(refreshed.operations[0].targetPath, '/customers');
     assert.equal(refreshed.operations[1].targetPath, '/accounts/{id}');
+  });
+
+  it('reduces focused draft edits without mutating unrelated state', () => {
+    const identity = proxyCreationDraftReducer(emptyProxyCreationDraft(), {
+      type: 'set-identity',
+      organizationId: 'org-a',
+      name: 'Accounts',
+    });
+    const withSource = proxyCreationDraftReducer(identity, {
+      type: 'set-openapi-source',
+      source: 'openapi: 3.1.0',
+      filename: 'accounts.yaml',
+    });
+    assert.equal(withSource.organizationId, 'org-a');
+    assert.equal(withSource.name, 'Accounts');
+    assert.equal(withSource.openapiSourceName, 'accounts.yaml');
+    assert.notEqual(withSource, identity);
+  });
+
+  it('reports local validity for every creation step', () => {
+    let draft = emptyProxyCreationDraft();
+    assert.equal(validateProxyCreationStep(draft, 0).valid, false);
+    draft = proxyCreationDraftReducer(draft, {
+      type: 'set-identity',
+      organizationId: 'org-a',
+      name: 'Accounts',
+    });
+    assert.equal(validateProxyCreationStep(draft, 0).valid, true);
+    assert.equal(validateProxyCreationStep(draft, 1).valid, false);
+    draft = proxyCreationDraftReducer(draft, {
+      type: 'set-openapi-source',
+      source: 'openapi: 3.1.0',
+      filename: 'accounts.yaml',
+    });
+    assert.equal(validateProxyCreationStep(draft, 1).valid, true);
+    assert.equal(validateProxyCreationStep(draft, 2).valid, false);
   });
 
   it('hydrates imported gateway YAML into editable defaults and overrides', () => {
