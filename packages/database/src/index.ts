@@ -14,16 +14,21 @@ export {
 
 export {
   compileProxyBundle,
+  inspectOpenApi,
   ProxyBundleError,
 } from './proxy-bundle.js';
 export type {
   CompileProxyBundleInput,
   CompiledProxyBundle,
   CompiledProxyOperation,
+  HttpMethod,
+  InspectedOpenApi,
+  OpenApiOperationSummary,
   ProxyBundleErrorCode,
 } from './proxy-bundle.js';
 export {
   createApiProxy,
+  createConfiguredApiProxy,
   getProxyRevision,
   getProxyRevisionSource,
   importProxyRevision,
@@ -45,6 +50,7 @@ export type {
 } from './proxy-deployments.js';
 export type {
   CreateApiProxyInput,
+  CreateConfiguredApiProxyInput,
   ImportProxyRevisionInput,
   ProxyMutationActor,
   ProxyRevisionErrorCode,

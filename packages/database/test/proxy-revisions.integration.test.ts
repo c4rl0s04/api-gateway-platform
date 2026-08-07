@@ -4,6 +4,7 @@ import { after, before, describe, it } from 'node:test';
 import {
   AdminRole,
   createApiProxy,
+  createConfiguredApiProxy,
   deployProxyRevision,
   importProxyRevision,
   prisma,
@@ -70,6 +71,50 @@ integration('proxy revision persistence', () => {
   after(async () => {
     await cleanup();
     await prisma.$disconnect();
+  });
+
+  it('creates a configured proxy and revision one atomically', async () => {
+    const configured = await createConfiguredApiProxy({
+      organizationId,
+      name: 'Configured accounts',
+      ...bundle(`/configured-test-${suffix}`, 'getConfigured'),
+      actor,
+    });
+    assert.equal(configured.proxy.name, 'Configured accounts');
+    assert.equal(configured.revision.revisionNumber, 1);
+    assert.equal(configured.revision.operations.length, 1);
+    assert.equal(
+      await prisma.apiProxyRevision.count({
+        where: { proxyId: configured.proxy.id },
+      }),
+      1,
+    );
+    const audits = await prisma.auditEvent.findMany({
+      where: {
+        actorSubject: actor.subject,
+        resourceId: { in: [configured.proxy.id, configured.revision.id] },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+    assert.deepEqual(audits.map(event => event.action), [
+      'proxy.create',
+      'proxyRevision.import',
+    ]);
+  });
+
+  it('does not create a proxy when configured creation validation fails', async () => {
+    const name = 'Rejected configured proxy';
+    await assert.rejects(
+      createConfiguredApiProxy({
+        organizationId,
+        name,
+        openapiSource: 'swagger: "2.0"',
+        gatewayConfigSource: '{}',
+        actor,
+      }),
+      (error: unknown) => error instanceof ProxyBundleError,
+    );
+    assert.equal(await prisma.apiProxy.count({ where: { name } }), 0);
   });
 
   it('numbers concurrent immutable imports and rejects invalid bundles atomically', async () => {

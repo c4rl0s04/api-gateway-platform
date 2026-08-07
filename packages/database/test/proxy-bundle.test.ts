@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { compileProxyBundle, ProxyBundleError } from '../src/proxy-bundle.js';
+import {
+  compileProxyBundle,
+  inspectOpenApi,
+  ProxyBundleError,
+} from '../src/proxy-bundle.js';
 
 function openapi(version = '3.1.0'): string {
   return `
@@ -49,6 +53,20 @@ operations:
 `;
 
 describe('proxy bundle compiler', () => {
+  it('inspects OpenAPI without requiring gateway configuration', async () => {
+    const result = await inspectOpenApi(openapi());
+    assert.equal(result.title, 'Accounts');
+    assert.equal(result.openapiVersion, '3.1.0');
+    assert.deepEqual(result.operations.map(operation => ({
+      id: operation.operationId,
+      method: operation.method,
+      path: operation.path,
+    })), [
+      { id: 'getAccounts', method: 'GET', path: '/accounts' },
+      { id: 'getAccount', method: 'GET', path: '/accounts/{id}' },
+    ]);
+  });
+
   for (const version of ['3.0.3', '3.1.0']) {
     it(`compiles OpenAPI ${version} with inherited and replaced policies`, async () => {
       const result = await compileProxyBundle({

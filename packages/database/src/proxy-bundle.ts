@@ -35,7 +35,7 @@ const AUTHENTICATION_POLICY_TYPES = new Set<PolicyType>([
   'mtls-auth',
 ]);
 
-type HttpMethod = Uppercase<(typeof HTTP_METHODS)[number]>;
+export type HttpMethod = Uppercase<(typeof HTTP_METHODS)[number]>;
 
 export type ProxyBundleErrorCode =
   | 'invalid_openapi'
@@ -71,6 +71,19 @@ export interface CompiledProxyBundle {
   gatewayConfig: Record<string, unknown>;
   contentHash: string;
   operations: CompiledProxyOperation[];
+  warnings: string[];
+}
+
+export interface OpenApiOperationSummary {
+  operationId: string;
+  method: HttpMethod;
+  path: string;
+}
+
+export interface InspectedOpenApi {
+  openapiVersion: string;
+  title: string | null;
+  operations: OpenApiOperationSummary[];
   warnings: string[];
 }
 
@@ -207,11 +220,15 @@ function validateTargetPath(path: string, targetPath: string): void {
   }
 }
 
-export async function compileProxyBundle(
-  input: CompileProxyBundleInput,
-): Promise<CompiledProxyBundle> {
-  const openapiDocument = parseDocument(input.openapiSource, 'invalid_openapi');
-  const openapiVersion = openapiDocument.openapi;
+interface InspectedOpenApiDocument extends InspectedOpenApi {
+  sourceDocument: Record<string, unknown>;
+}
+
+async function inspectOpenApiDocument(
+  openapiSource: string,
+): Promise<InspectedOpenApiDocument> {
+  const sourceDocument = parseDocument(openapiSource, 'invalid_openapi');
+  const openapiVersion = sourceDocument.openapi;
   if (
     typeof openapiVersion !== 'string'
     || (!openapiVersion.startsWith('3.0.') && !openapiVersion.startsWith('3.1.'))
@@ -221,8 +238,8 @@ export async function compileProxyBundle(
       'Only OpenAPI 3.0 and 3.1 documents are supported',
     );
   }
-  assertInternalReferences(openapiDocument);
-  const parserDocument = openapiDocument as unknown as Parameters<typeof validate>[0];
+  assertInternalReferences(sourceDocument);
+  const parserDocument = sourceDocument as unknown as Parameters<typeof validate>[0];
   const validation = await validate(parserDocument, {
     resolve: { external: false, file: false },
   });
@@ -236,6 +253,64 @@ export async function compileProxyBundle(
     resolve: { external: false, file: false },
     dereference: { circular: 'ignore' },
   }) as Record<string, unknown>;
+  const paths = resolved.paths;
+  if (!record(paths)) {
+    throw new ProxyBundleError('invalid_openapi', 'OpenAPI paths must be an object');
+  }
+  const operations: OpenApiOperationSummary[] = [];
+  const operationIds = new Set<string>();
+  for (const [path, pathItem] of Object.entries(paths)) {
+    if (!record(pathItem)) continue;
+    for (const method of HTTP_METHODS) {
+      const operation = pathItem[method];
+      if (!record(operation)) continue;
+      if (typeof operation.operationId !== 'string' || !operation.operationId.trim()) {
+        throw new ProxyBundleError(
+          'invalid_openapi',
+          `${method.toUpperCase()} ${path} requires operationId`,
+        );
+      }
+      const operationId = operation.operationId.trim();
+      if (operationIds.has(operationId)) {
+        throw new ProxyBundleError('invalid_openapi', `operationId ${operationId} is duplicated`);
+      }
+      operationIds.add(operationId);
+      operations.push({
+        operationId,
+        method: method.toUpperCase() as HttpMethod,
+        path,
+      });
+    }
+  }
+  if (operations.length === 0) {
+    throw new ProxyBundleError('invalid_openapi', 'OpenAPI document has no operations');
+  }
+  const info = record(sourceDocument.info) ? sourceDocument.info : null;
+  return {
+    sourceDocument,
+    openapiVersion,
+    title: typeof info?.title === 'string' ? info.title : null,
+    operations,
+    warnings: sourceDocument.security === undefined
+      ? []
+      : ['OpenAPI security is informational; gateway policies are authoritative'],
+  };
+}
+
+export async function inspectOpenApi(
+  openapiSource: string,
+): Promise<InspectedOpenApi> {
+  const { sourceDocument: _sourceDocument, ...inspection } =
+    await inspectOpenApiDocument(openapiSource);
+  return inspection;
+}
+
+export async function compileProxyBundle(
+  input: CompileProxyBundleInput,
+): Promise<CompiledProxyBundle> {
+  const inspection = await inspectOpenApiDocument(input.openapiSource);
+  const openapiDocument = inspection.sourceDocument;
+  const openapiVersion = inspection.openapiVersion;
 
   const gateway = parseDocument(input.gatewayConfigSource, 'invalid_gateway_config');
   if (gateway.apiVersion !== 'gateway.platform/v1') {
@@ -255,76 +330,56 @@ export async function compileProxyBundle(
     throw new ProxyBundleError('invalid_gateway_config', 'operations must be an object');
   }
 
-  const paths = resolved.paths;
-  if (!record(paths)) {
-    throw new ProxyBundleError('invalid_openapi', 'OpenAPI paths must be an object');
-  }
   const operations: CompiledProxyOperation[] = [];
-  const operationIds = new Set<string>();
-  for (const [path, pathItem] of Object.entries(paths)) {
-    if (!record(pathItem)) continue;
-    for (const method of HTTP_METHODS) {
-      const operation = pathItem[method];
-      if (!record(operation)) continue;
-      if (typeof operation.operationId !== 'string' || !operation.operationId.trim()) {
-        throw new ProxyBundleError(
-          'invalid_openapi',
-          `${method.toUpperCase()} ${path} requires operationId`,
-        );
-      }
-      const operationId = operation.operationId.trim();
-      if (operationIds.has(operationId)) {
-        throw new ProxyBundleError('invalid_openapi', `operationId ${operationId} is duplicated`);
-      }
-      operationIds.add(operationId);
-      const override = overrides[operationId] === undefined ? {} : overrides[operationId];
-      if (!record(override)) {
-        throw new ProxyBundleError(
-          'invalid_gateway_config',
-          `Configuration for ${operationId} must be an object`,
-        );
-      }
-      if (
-        override.mode !== undefined
-        && override.mode !== 'forward'
-        && override.mode !== 'local'
-      ) {
-        throw new ProxyBundleError(
-          'invalid_gateway_config',
-          `Operation ${operationId} mode must be forward or local`,
-        );
-      }
-      const mode = input.systemManaged && override.mode === 'local' ? 'local' : 'forward';
-      if (!input.systemManaged && override.mode !== undefined) {
-        throw new ProxyBundleError(
-          'invalid_gateway_config',
-          'Business proxy operations cannot override forward mode',
-        );
-      }
-      const targetPath = mode === 'local'
-        ? null
-        : typeof override.targetPath === 'string' ? override.targetPath : path;
-      if (targetPath) validateTargetPath(path, targetPath);
-      const policies = override.policies === undefined
-        ? defaultPolicies
-        : compilePolicies(override.policies, input.systemManaged === true);
-      const enabledTypes = policies.filter(policy => policy.enabled).map(policy => policy.type);
-      if (mode === 'local' && !enabledTypes.some(type =>
-        type === 'oauth-token' || type === 'jwks-endpoint')) {
-        throw new ProxyBundleError(
-          'invalid_gateway_config',
-          `Local operation ${operationId} requires a terminal policy`,
-        );
-      }
-      operations.push({
-        operationId,
-        method: method.toUpperCase() as HttpMethod,
-        mode,
-        path,
-        targetPath,
-        policies,
-      });
+  const operationIds = new Set(inspection.operations.map(operation => operation.operationId));
+  for (const { operationId, method, path } of inspection.operations) {
+    const override = overrides[operationId] === undefined ? {} : overrides[operationId];
+    if (!record(override)) {
+      throw new ProxyBundleError(
+        'invalid_gateway_config',
+        `Configuration for ${operationId} must be an object`,
+      );
     }
+    if (
+      override.mode !== undefined
+      && override.mode !== 'forward'
+      && override.mode !== 'local'
+    ) {
+      throw new ProxyBundleError(
+        'invalid_gateway_config',
+        `Operation ${operationId} mode must be forward or local`,
+      );
+    }
+    const mode = input.systemManaged && override.mode === 'local' ? 'local' : 'forward';
+    if (!input.systemManaged && override.mode !== undefined) {
+      throw new ProxyBundleError(
+        'invalid_gateway_config',
+        'Business proxy operations cannot override forward mode',
+      );
+    }
+    const targetPath = mode === 'local'
+      ? null
+      : typeof override.targetPath === 'string' ? override.targetPath : path;
+    if (targetPath) validateTargetPath(path, targetPath);
+    const policies = override.policies === undefined
+      ? defaultPolicies
+      : compilePolicies(override.policies, input.systemManaged === true);
+    const enabledTypes = policies.filter(policy => policy.enabled).map(policy => policy.type);
+    if (mode === 'local' && !enabledTypes.some(type =>
+      type === 'oauth-token' || type === 'jwks-endpoint')) {
+      throw new ProxyBundleError(
+        'invalid_gateway_config',
+        `Local operation ${operationId} requires a terminal policy`,
+      );
+    }
+    operations.push({
+      operationId,
+      method,
+      mode,
+      path,
+      targetPath,
+      policies,
+    });
   }
   for (const operationId of Object.keys(overrides)) {
     if (!operationIds.has(operationId)) {
@@ -334,10 +389,6 @@ export async function compileProxyBundle(
       );
     }
   }
-  if (operations.length === 0) {
-    throw new ProxyBundleError('invalid_openapi', 'OpenAPI document has no operations');
-  }
-
   const normalizedGateway = {
     apiVersion: 'gateway.platform/v1',
     basePath,
@@ -366,8 +417,6 @@ export async function compileProxyBundle(
     gatewayConfig: normalizedGateway,
     contentHash,
     operations,
-    warnings: openapiDocument.security === undefined
-      ? []
-      : ['OpenAPI security is informational; gateway policies are authoritative'],
+    warnings: inspection.warnings,
   };
 }
