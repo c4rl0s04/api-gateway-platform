@@ -3,7 +3,7 @@ title: How to Add a New Proxy
 type: guide
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-08-02
+last_verified: 2026-08-07
 tags:
   - type/guide
   - area/database
@@ -18,7 +18,7 @@ aliases:
 # How to Add a New Proxy
 
 > [!summary] At a glance
-> Create the logical proxy through Management API, import an immutable OpenAPI and Gateway YAML bundle, and then deploy that exact revision.
+> Create a fully configured logical proxy and immutable revision 1 atomically, then deliberately deploy that exact revision.
 
 ## Goal
 
@@ -31,26 +31,37 @@ revision in an environment without bypassing validation or promotion rules.
 - The caller has an OIDC token and `platformAdmin` or matching
   `organizationAdmin` membership.
 - The organization and destination environment exist.
-- An OpenAPI 3.0/3.1 document and Gateway YAML are ready.
+- An OpenAPI 3.0/3.1 document is ready. Gateway YAML is optional when using the
+  portal and required when calling configured creation directly.
 
 ## Steps
 
-1. Create the logical identity with
-   `POST /v1/organizations/:organizationId/proxies`.
-2. Import `openapi` and `gateway` as multipart files with
-   `POST /v1/proxies/:proxyId/revisions`.
-3. Review the returned revision number, hash, operations, and effective
-   policies.
-4. Deploy it with
+1. In the portal, open **Proxies → Create proxy** and complete Identity, API
+   definition, Routing & policies, and Review. The draft remains in React
+   memory only until the final command.
+2. For an API workflow, optionally inspect OpenAPI or validate a complete
+   bundle with `POST
+   /v1/organizations/:organizationId/proxy-configurations/validate`. Send
+   `openapi` and optional `gateway` multipart files.
+3. Create the configured proxy with `POST
+   /v1/organizations/:organizationId/proxies/configured`. Send the text field
+   `name` plus `openapi` and `gateway` files. A successful response contains the
+   proxy and immutable revision 1; a failure creates neither resource.
+4. Review the returned revision number, hash, operations, effective policies,
+   and warnings. No environment is deployed yet.
+5. Deploy it to QUAL with
    `POST /v1/proxies/:proxyId/revisions/:revisionNumber/deployments`.
-5. Poll `GET /v1/runtime-sync` until the deployment's returned version is
+6. Poll `GET /v1/runtime-sync` until the deployment's returned version is
    applied by the intended gateway.
-6. Promote the same revision through `qual`, `pprod`, and `prod` for the same
+7. Promote the same revision through `qual`, `pprod`, and `prod` for the same
    region.
 
 The complete request bodies and bundle format are in
 [[How to Import and Deploy a Proxy Revision]]. Seeds are reserved for the
 reproducible local baseline and are not the normal configuration interface.
+The older name-only proxy endpoint and separate revision-import endpoint remain
+available to compatible clients but are no longer used by the portal's creation
+flow.
 
 ## Verification
 
@@ -61,8 +72,10 @@ reproducible local baseline and are not the normal configuration interface.
 
 ## Troubleshooting or Rollback
 
-If promotion is rejected, confirm that the exact revision was deployed in the
-preceding stage for the same region. A failed import or deployment does not
+If validation fails, correct the step identified by the returned error; the
+portal preserves the in-memory draft for retry. If promotion is rejected,
+confirm that the exact revision was deployed in the preceding stage for the
+same region. A failed configured creation, import, or deployment does not
 change the active revision. Roll back by deploying an older revision number;
 this creates another deployment history record and is applied by hot reload.
 

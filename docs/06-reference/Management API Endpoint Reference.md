@@ -89,6 +89,8 @@ all grants in the same transaction. Use `active: false` instead of deletion.
 | Method | BFF path | Role | Purpose |
 | --- | --- | --- | --- |
 | `POST` | `/organizations/:organizationId/proxies` | Organization writer | Create logical proxy from `{ "name": string }`; `201` |
+| `POST` | `/organizations/:organizationId/proxy-configurations/validate` | Organization writer | Inspect OpenAPI and optionally validate a complete bundle without writes |
+| `POST` | `/organizations/:organizationId/proxies/configured` | Organization writer | Atomically create a logical proxy and immutable revision 1; `201` |
 | `GET` | `/proxies` | Any member | List visible proxies and active deployments |
 | `GET` | `/proxies/:proxyId` | Visible member | Read logical proxy |
 | `PATCH` | `/proxies/:proxyId` | Organization writer | Update `name` and/or `active` |
@@ -101,8 +103,21 @@ all grants in the same transaction. Use `active: false` instead of deletion.
 | `GET` | `/proxies/:proxyId/deployments` | Visible member | Read active and retired history |
 | `POST` | `/proxy-deployments/:deploymentId/retire` | Organization writer | Retire active deployment |
 
-Import uses `multipart/form-data` with exactly `openapi` and `gateway`, each at
-most 5 MiB. Deployment body is:
+Configuration validation uses `multipart/form-data` with required `openapi` and
+optional `gateway` files. It returns an OpenAPI summary and, when Gateway YAML
+is supplied, the normalized compiled configuration, warnings, and content hash.
+It performs no writes or audit events.
+
+Configured creation uses `multipart/form-data` with the text field `name` and
+exactly one `openapi` and `gateway` file. Both endpoints cap each source at 5
+MiB. Configured creation recompiles the bundle, then creates the proxy, revision
+1, operations, policies, and both audit events in one transaction. It returns
+`201 { "proxy": object, "revision": object }` and does not deploy or publish a
+runtime synchronization event. The name-only endpoint remains compatible for
+API clients.
+
+Legacy revision import uses `multipart/form-data` with exactly `openapi` and
+`gateway`, each at most 5 MiB. Deployment body is:
 
 ```json
 {

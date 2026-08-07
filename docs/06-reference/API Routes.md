@@ -68,6 +68,8 @@ The gateway intentionally does not expose a root `/health` route.
 | `GET/POST` | `/v1/organizations/:organizationId/products` | `200/201` | List or create products |
 | `GET/PATCH` | `/v1/products/:productId` | `200` | Read or update product configuration |
 | `POST` | `/v1/organizations/:organizationId/proxies` | `201` | Create a logical proxy identity |
+| `POST` | `/v1/organizations/:organizationId/proxy-configurations/validate` | `200` | Inspect OpenAPI or validate an OpenAPI/Gateway bundle without writes |
+| `POST` | `/v1/organizations/:organizationId/proxies/configured` | `201` | Atomically create a proxy and immutable revision 1 |
 | `GET` | `/v1/proxies` | `200` | Proxies visible to the actor |
 | `GET` | `/v1/proxies/:proxyId` | `200` | Proxy, latest revision, active deployments, products, and counts |
 | `PATCH` | `/v1/proxies/:proxyId` | `200` | Update logical proxy name or active state |

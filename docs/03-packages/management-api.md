@@ -22,8 +22,9 @@ aliases: []
 ## Responsibility
 
 The implemented responsibility includes organization and product lifecycle,
-logical proxy creation and metadata, atomic
-OpenAPI/gateway bundle import, immutable revision reads and source downloads,
+logical proxy creation and metadata, read-only bundle validation, atomic
+configured proxy plus revision-1 creation, OpenAPI/gateway bundle import,
+immutable revision reads and source downloads,
 revision deployment, retirement and rollback, application/credential/grant/JWK
 management, filtered audit reads, and PKI lifecycle.
 
@@ -44,7 +45,8 @@ management, filtered audit reads, and PKI lifecycle.
 - Updates products atomically, including removal of retired scopes from grants.
 - Exposes all environments while filtering proxy reads to the actor's visible
   organizations; platform admins can read the complete catalog.
-- Accepts exactly two multipart bundle files with 5 MiB limits.
+- Accepts OpenAPI-only inspection, optional complete-bundle validation, and
+  configured-creation multipart contracts with 5 MiB per-source limits.
 - Delegates revision numbering, compilation, promotion, activation, conflicts,
   history, and audit to database domain operations.
 - Prevents public mutation of system-managed proxies.

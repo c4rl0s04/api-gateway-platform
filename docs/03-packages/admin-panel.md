@@ -25,10 +25,10 @@ aliases: []
 
 ## Responsibility
 
-The package is the browser interface for organization, app, certificate
-authority, certificate, runtime status, and audit views. It also owns the
-pre-authentication session surface shown before the browser redirects to the
-identity provider.
+The package is the browser interface for organization, proxy creation and
+deployment, app, certificate authority, certificate, runtime status, and audit
+views. It also owns the pre-authentication session surface shown before the
+browser redirects to the identity provider.
 
 ## Boundaries
 
@@ -41,7 +41,8 @@ those credentials; the Keycloak login theme is a separate runtime resource.
 
 - `GET /api/auth/login`, callback, session, and logout.
 - `/api/management/[...path]` authenticated BFF.
-- Dashboard, applications, authorities, and certificates pages.
+- Dashboard, configured proxy creation, inventory/detail, applications,
+  authorities, and certificates pages.
 
 ## Runtime Flow
 
@@ -81,17 +82,18 @@ Compose serves the panel on host port `8080`. `MANAGEMENT_API_URL`,
 ## Tests
 
 Tests cover RFC 7636 S256 challenges, random URL-safe OIDC state, BFF token
-selection, session failure states, and the rendered retry action. Platform
-configuration tests verify the generated realm metadata and read-only Keycloak
-theme mount.
+selection, session failure states, proxy draft reduction and step validity,
+Gateway YAML hydration and serialization, policy/path constraints, multipart
+request formatting, error-to-step mapping, and the rendered retry action.
+Platform configuration tests verify the generated realm metadata and read-only
+Keycloak theme mount.
 
 ## Limitations
 
 - The session does not implement refresh tokens; users log in again after token
   expiry.
 - Automated browser tests are not yet part of the package suite.
-- The authenticated dashboard and navigation still use the previous interface
-  styling; the authentication tokens are the baseline for their future update.
+- Proxy drafts are intentionally not persisted across refreshes or navigation.
 
 ## Related Notes
 

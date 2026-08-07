@@ -144,6 +144,8 @@ The Home request path is horizontal across four equal stages on wide screens, be
 
 Proxy inventory uses a flat six-column operational row on wide screens, collapses lower-value counts at tablet widths, and becomes labeled stacked data below 760px. Proxy detail preserves the same visual order at every breakpoint: identity and runtime state, deployment path, immutable revision evidence, deployment history, then product exposure.
 
+Proxy creation is a dedicated four-step workspace rather than an inline inventory form. A narrow progress rail sits beside one uninterrupted work surface on desktop and becomes a horizontal step strip on compact screens. Routing uses a searchable two-pane operation editor; below 760px the operation selector stacks above the selected editor. Review facts, policies, overrides, validation notes, and normalized YAML remain flat and separated by rules.
+
 ## Elevation & Depth
 
 The system is flat by default. Depth comes from tonal surface changes, 1px dividers, and whitespace. Content sections and navigation do not use shadows. The only shadow is the modal elevation, a broad low-opacity warm-ink shadow used to preserve focus during an interruptive task.
@@ -188,6 +190,14 @@ Identity, Session, and Control plane form a three-node rail. OIDC is the only ac
 The inventory is a ruled operational register, not a table inside a card. Each row leads with proxy and organization identity, then route evidence, compact environment markers, revision/product counts, and state. Search and filters occupy one shallow control rail. Country and Stage are independent multi-select facets; Organization and State are single-select facets. Applied values remain visible as removable 4px-corner chips, and committed filter state is encoded in the URL. Runtime synchronization is shown above the register as a single live status line.
 
 Desktop facets open focused anchored overlays with draft-and-apply behavior for multi-selection. On compact screens, one Filters control reveals a flat inline sheet containing the same four facets; active chips remain outside the sheet so the current result context never disappears.
+
+### Proxy Creation
+
+Creation progresses through Identity, API definition, Routing & policies, and Review. Forward movement requires locally valid input and server validation at the API-definition and routing boundaries; backward movement preserves the in-memory draft. The flow never persists draft state, so cancel, refresh, close, and internal navigation surface an explicit discard warning.
+
+OpenAPI upload and paste share one source state. Optional Gateway YAML import hydrates the same guided controls, after which the portal owns canonical serialization and intentionally drops original comments and formatting. Policy rows expose enabled state, failure mode, type-specific configuration, and keyboard-operable ordering. The operation workspace defaults upstream targets to OpenAPI paths and makes inheritance explicit without wrapping either pane in a card.
+
+Each step enters once over 280ms with `cubic-bezier(0.23, 1, 0.32, 1)`, beginning at 0.72 opacity and moving 8px vertically. Button presses retain the shared 140ms tactile scale. Reduced motion collapses both behaviors to near-instant state changes.
 
 ### Deployment Path
 

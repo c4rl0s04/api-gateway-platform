@@ -27,7 +27,7 @@ Operators work across organization-scoped applications, proxy deployments, API p
 - The current admin login is OIDC with PKCE through Keycloak or a corporate identity provider.
 - JWT and mTLS login methods are planned and may be communicated as unavailable upcoming methods; they must not appear interactive.
 - Gateway routing, API key and OAuth security, direct mTLS, rate limiting, runtime reload, application security, PKI, and audit capabilities are implemented.
-- Proxy lifecycle management is available in the admin panel: organization-scoped creation, immutable revision import, staged deployment or rollback, activation, and retirement. API-product mutation remains incomplete and must not be presented as available.
+- Proxy lifecycle management is available in the admin panel: a guided flow atomically creates a logical proxy with validated revision 1, followed by deliberate staged deployment or rollback, activation, and retirement. The compatible name-only API remains available but is not exposed by the portal. API-product mutation remains incomplete and must not be presented as available.
 - Proxy state refreshes from the Management API without browser caching; inventory state polls while visible and deployment mutations expose runtime application progress.
 - The frontend is Next.js 14 with React 18 and TypeScript.
 
