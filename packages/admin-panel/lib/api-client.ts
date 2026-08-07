@@ -184,6 +184,13 @@ export interface RuntimeMutationResponse {
   runtimeSync: { version: number; state: 'queued' };
 }
 
+export type {
+  CompiledProxyConfiguration,
+  ConfiguredProxyResult,
+  OpenApiInspection,
+  ProxyConfigurationValidation,
+} from '@/lib/proxy-creation';
+
 export interface AppCredential {
   id: string;
   consumerKey: string;

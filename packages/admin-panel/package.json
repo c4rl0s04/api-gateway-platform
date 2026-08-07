@@ -13,7 +13,8 @@
     "lucide-react": "^0.468.0",
     "next": "^14.0.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "yaml": "^2.9.0"
   },
   "devDependencies": {
     "@types/node": "^20.8.7",
