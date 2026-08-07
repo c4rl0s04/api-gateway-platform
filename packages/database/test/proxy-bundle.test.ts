@@ -131,7 +131,20 @@ describe('proxy bundle compiler', () => {
           '    - type: api-key-auth\n    - type: mtls-auth',
         ),
       }),
-      /more than one authentication policy/,
+      (error: unknown) => error instanceof ProxyBundleError && error.code === 'invalid_gateway_config',
+    );
+  });
+
+  it('rejects business proxies missing an authentication policy', async () => {
+    await assert.rejects(
+      compileProxyBundle({
+        openapiSource: openapi(),
+        gatewayConfigSource: gateway.replace(
+          '    - type: api-key-auth',
+          '    - type: rate-limit\n      config:\n        limit: 10\n        windowSeconds: 60',
+        ),
+      }),
+      (error: unknown) => error instanceof ProxyBundleError && error.code === 'invalid_gateway_config',
     );
   });
 

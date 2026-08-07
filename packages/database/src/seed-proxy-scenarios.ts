@@ -195,7 +195,7 @@ export const PROXY_SEED_SCENARIOS: ProxySeedScenario[] = [
         defaults: [closedApiKey()],
         operations: [
           { operationId: 'ep-esb-health', method: 'get', path: '/health', targetPath: '/health', policies: [mtls] },
-          { operationId: 'ep-esb-status', method: 'get', path: '/status', targetPath: '/health', policies: [] },
+          { operationId: 'ep-esb-status', method: 'get', path: '/status', targetPath: '/health', policies: [closedApiKey()] },
           { operationId: 'ep-esb-accounts', method: 'get', path: '/accounts', targetPath: '/accounts' },
           { operationId: 'ep-esb-accounts-create', method: 'post', path: '/accounts', targetPath: '/accounts', policies: [bearer('banking:write'), rateLimit(10)] },
           { operationId: 'ep-esb-acc-id', method: 'get', path: '/accounts/{id}', targetPath: '/accounts/{id}', policies: [bearer('banking:read')] },
@@ -225,7 +225,7 @@ export const PROXY_SEED_SCENARIOS: ProxySeedScenario[] = [
         apiVersion: '2.0.0',
         basePath: '/us/banking/v2',
         operations: [
-          { operationId: 'ep-usb-ping', method: 'get', path: '/ping', targetPath: '/ping', policies: [] },
+          { operationId: 'ep-usb-ping', method: 'get', path: '/ping', targetPath: '/ping', policies: [closedApiKey()] },
           { operationId: 'ep-usb-cards', method: 'get', path: '/cards', targetPath: '/cards', policies: [closedApiKey()] },
           { operationId: 'ep-usb-card-id', method: 'get', path: '/cards/{id}', targetPath: '/cards/{id}', policies: [closedApiKey()] },
         ],
@@ -235,7 +235,7 @@ export const PROXY_SEED_SCENARIOS: ProxySeedScenario[] = [
         basePath: '/us/banking/v2',
         defaults: [closedApiKey('x-partner-key'), rateLimit(100, 300)],
         operations: [
-          { operationId: 'ep-usb-ping', method: 'get', path: '/ping', targetPath: '/ping', policies: [] },
+          { operationId: 'ep-usb-ping', method: 'get', path: '/ping', targetPath: '/ping', policies: [closedApiKey()] },
           { operationId: 'ep-usb-cards', method: 'get', path: '/cards', targetPath: '/cards' },
           { operationId: 'ep-usb-card-id', method: 'get', path: '/cards/{id}', targetPath: '/cards/{id}', policies: [bearer('banking:read')] },
         ],
@@ -253,7 +253,7 @@ export const PROXY_SEED_SCENARIOS: ProxySeedScenario[] = [
       basePath: '/uk/logistics/v1',
       defaults: [closedApiKey()],
       operations: [
-        { operationId: 'ep-ukl-health', method: 'get', path: '/health', targetPath: '/health', policies: [] },
+        { operationId: 'ep-ukl-health', method: 'get', path: '/health', targetPath: '/health', policies: [closedApiKey()] },
         { operationId: 'ep-ukl-shipments', method: 'get', path: '/shipments', targetPath: '/shipments' },
         { operationId: 'ep-ukl-ship-id', method: 'get', path: '/shipments/{id}', targetPath: '/shipments/{id}', policies: [bearer('logistics:read')] },
       ],
@@ -271,7 +271,7 @@ export const PROXY_SEED_SCENARIOS: ProxySeedScenario[] = [
         apiVersion: '1.0.0',
         basePath: '/fr/ecommerce/v1',
         operations: [
-          { operationId: 'ep-fre-ping', method: 'get', path: '/ping', targetPath: '/ping', policies: [] },
+          { operationId: 'ep-fre-ping', method: 'get', path: '/ping', targetPath: '/ping', policies: [closedApiKey()] },
           { operationId: 'ep-fre-products', method: 'get', path: '/products', targetPath: '/products', policies: [closedApiKey()] },
           { operationId: 'ep-fre-product-id', method: 'get', path: '/products/{id}', targetPath: '/products/{id}', policies: [closedApiKey()] },
         ],
@@ -281,7 +281,7 @@ export const PROXY_SEED_SCENARIOS: ProxySeedScenario[] = [
         basePath: '/fr/ecommerce/v1',
         defaults: [bearer('commerce:read')],
         operations: [
-          { operationId: 'ep-fre-ping', method: 'get', path: '/ping', targetPath: '/ping', policies: [] },
+          { operationId: 'ep-fre-ping', method: 'get', path: '/ping', targetPath: '/ping', policies: [closedApiKey()] },
           { operationId: 'ep-fre-products', method: 'get', path: '/products', targetPath: '/products' },
           { operationId: 'ep-fre-product-id', method: 'get', path: '/products/{id}', targetPath: '/products/{id}' },
         ],
@@ -300,8 +300,8 @@ export const PROXY_SEED_SCENARIOS: ProxySeedScenario[] = [
         apiVersion: '2.0.0',
         basePath: '/es/ecommerce/v2',
         operations: [
-          { operationId: 'ep-ese-health', method: 'get', path: '/health', targetPath: '/health', policies: [] },
-          { operationId: 'ep-ese-orders', method: 'get', path: '/orders', targetPath: '/orders', policies: [rateLimit(60, 60, 'open')] },
+          { operationId: 'ep-ese-health', method: 'get', path: '/health', targetPath: '/health', policies: [closedApiKey()] },
+          { operationId: 'ep-ese-orders', method: 'get', path: '/orders', targetPath: '/orders', policies: [closedApiKey(), rateLimit(60, 60, 'open')] },
           { operationId: 'ep-ese-order-id', method: 'get', path: '/orders/{id}', targetPath: '/orders/{id}', policies: [closedApiKey()] },
         ],
       },
@@ -310,7 +310,7 @@ export const PROXY_SEED_SCENARIOS: ProxySeedScenario[] = [
         basePath: '/es/ecommerce/v2',
         defaults: [bearer('commerce:read')],
         operations: [
-          { operationId: 'ep-ese-health', method: 'get', path: '/health', targetPath: '/health', policies: [] },
+          { operationId: 'ep-ese-health', method: 'get', path: '/health', targetPath: '/health', policies: [closedApiKey()] },
           { operationId: 'ep-ese-orders', method: 'get', path: '/orders', targetPath: '/orders' },
           { operationId: 'ep-ese-order-id', method: 'get', path: '/orders/{id}', targetPath: '/orders/{id}' },
         ],
@@ -328,7 +328,7 @@ export const PROXY_SEED_SCENARIOS: ProxySeedScenario[] = [
       basePath: '/de/healthcare/v1',
       defaults: [bearer('healthcare:read')],
       operations: [
-        { operationId: 'ep-deh-ping', method: 'get', path: '/ping', targetPath: '/ping', policies: [] },
+        { operationId: 'ep-deh-ping', method: 'get', path: '/ping', targetPath: '/ping', policies: [closedApiKey()] },
         { operationId: 'ep-deh-patients', method: 'get', path: '/patients', targetPath: '/patients' },
         { operationId: 'ep-deh-patient-id', method: 'get', path: '/patients/{id}', targetPath: '/patients/{id}' },
       ],
@@ -341,7 +341,7 @@ export const PROXY_SEED_SCENARIOS: ProxySeedScenario[] = [
       apiVersion: '1.0.0',
       basePath: '/us/identity/v1',
       operations: [
-        { operationId: 'ep-usi-health', method: 'get', path: '/health', targetPath: '/health', policies: [] },
+        { operationId: 'ep-usi-health', method: 'get', path: '/health', targetPath: '/health', policies: [closedApiKey()] },
         { operationId: 'ep-usi-users', method: 'get', path: '/users', targetPath: '/users', policies: [closedApiKey()] },
         { operationId: 'ep-usi-user-id', method: 'get', path: '/users/{id}', targetPath: '/users/{id}', policies: [bearer('identity:read')] },
       ],
@@ -355,7 +355,7 @@ export const PROXY_SEED_SCENARIOS: ProxySeedScenario[] = [
       basePath: '/jp/iot/v1',
       defaults: [bearer('iot:read'), rateLimit(120, 60, 'closed')],
       operations: [
-        { operationId: 'ep-jpi-ping', method: 'get', path: '/ping', targetPath: '/ping', policies: [] },
+        { operationId: 'ep-jpi-ping', method: 'get', path: '/ping', targetPath: '/ping', policies: [closedApiKey()] },
         { operationId: 'ep-jpi-devices', method: 'get', path: '/devices', targetPath: '/devices' },
         { operationId: 'ep-jpi-device-id', method: 'get', path: '/devices/{id}', targetPath: '/devices/{id}' },
       ],
@@ -368,9 +368,9 @@ export const PROXY_SEED_SCENARIOS: ProxySeedScenario[] = [
       apiVersion: '1.0.0',
       basePath: '/br/streaming/v1',
       operations: [
-        { operationId: 'ep-brs-health', method: 'get', path: '/health', targetPath: '/health', policies: [] },
-        { operationId: 'ep-brs-catalog', method: 'get', path: '/catalog', targetPath: '/catalog', policies: [rateLimit(200, 60, 'open')] },
-        { operationId: 'ep-brs-catalog-id', method: 'get', path: '/catalog/{id}', targetPath: '/catalog/{id}', policies: [{ ...rateLimit(20), enabled: false }] },
+        { operationId: 'ep-brs-health', method: 'get', path: '/health', targetPath: '/health', policies: [closedApiKey()] },
+        { operationId: 'ep-brs-catalog', method: 'get', path: '/catalog', targetPath: '/catalog', policies: [closedApiKey(), rateLimit(200, 60, 'open')] },
+        { operationId: 'ep-brs-catalog-id', method: 'get', path: '/catalog/{id}', targetPath: '/catalog/{id}', policies: [closedApiKey(), { ...rateLimit(20), enabled: false }] },
       ],
     }],
     deployments: [{ key: 'br-streaming-r1-qual', revision: 1, environmentId: environment('qual', 'br') }],
@@ -382,7 +382,7 @@ export const PROXY_SEED_SCENARIOS: ProxySeedScenario[] = [
       basePath: '/kr/gaming/v1',
       defaults: [closedApiKey(), rateLimit(30, 60, 'closed')],
       operations: [
-        { operationId: 'ep-krg-ping', method: 'get', path: '/ping', targetPath: '/ping', policies: [] },
+        { operationId: 'ep-krg-ping', method: 'get', path: '/ping', targetPath: '/ping', policies: [closedApiKey()] },
         { operationId: 'ep-krg-leaderboards', method: 'get', path: '/leaderboards', targetPath: '/leaderboards' },
         { operationId: 'ep-krg-leaderboard-id', method: 'get', path: '/leaderboards/{id}', targetPath: '/leaderboards/{id}' },
       ],

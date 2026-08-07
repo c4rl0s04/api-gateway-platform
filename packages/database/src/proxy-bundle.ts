@@ -193,11 +193,20 @@ function compilePolicies(
   });
   const authenticationCount = policies.filter(policy =>
     policy.enabled && AUTHENTICATION_POLICY_TYPES.has(policy.type)).length;
-  if (authenticationCount > 1) {
-    throw new ProxyBundleError(
-      'invalid_gateway_config',
-      'An operation cannot configure more than one authentication policy',
-    );
+  if (!systemManaged) {
+    if (authenticationCount !== 1) {
+      throw new ProxyBundleError(
+        'invalid_gateway_config',
+        'Business proxy operations must configure exactly one authentication policy',
+      );
+    }
+  } else {
+    if (authenticationCount > 1) {
+      throw new ProxyBundleError(
+        'invalid_gateway_config',
+        'An operation cannot configure more than one authentication policy',
+      );
+    }
   }
   return policies;
 }
