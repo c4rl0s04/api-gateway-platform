@@ -802,3 +802,17 @@ td { padding: 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
   from { opacity: .72; transform: translateY(-4px); clip-path: inset(4px 0 0); }
   to { opacity: 1; transform: translateY(0); clip-path: inset(0); }
 }
+
+/* Authentication Policy Cards */
+.auth-policy-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.auth-card { display: flex; flex-direction: column; gap: 12px; padding: 16px; border: 1px solid var(--line); border-radius: var(--radius-2); background: var(--surface); color: var(--ink); text-align: left; cursor: pointer; transition: all var(--fast) var(--ease-out); }
+.auth-card:hover { border-color: var(--line-strong); background: var(--surface-raised); transform: translateY(-1px); }
+.auth-card.is-selected { border-color: var(--red); background: var(--red-soft); box-shadow: 0 4px 12px color-mix(in srgb, var(--red) 12%, transparent); }
+.auth-card-icon { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%; background: var(--surface-subtle); color: var(--ink-soft); transition: all var(--fast) ease; }
+.auth-card.is-selected .auth-card-icon { background: var(--canvas); color: var(--red); }
+.auth-card-icon svg { width: 20px; height: 20px; }
+.auth-card-content { display: grid; gap: 4px; }
+.auth-card-content strong { font-size: 14px; font-weight: 650; }
+.auth-card-content small { color: var(--ink-soft); font-size: 12px; line-height: 1.4; }
+.auth-card.is-selected .auth-card-content small { color: var(--ink); }
+.auth-policy-config { padding-top: 24px; border-top: 1px solid var(--line); }

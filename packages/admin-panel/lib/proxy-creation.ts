@@ -99,7 +99,7 @@ export type ProxyCreationDraftAction =
   | { type: 'set-default-policies'; policies: EditablePolicy[] }
   | { type: 'set-operation'; operation: OpenApiOperationDraft };
 
-const AUTHENTICATION_POLICIES = new Set<BusinessPolicyType>([
+export const AUTHENTICATION_POLICIES = new Set<BusinessPolicyType>([
   'api-key-auth',
   'oauth-access-token',
   'mtls-auth',
@@ -311,8 +311,8 @@ export function validatePolicies(policies: EditablePolicy[]): DraftValidation {
   const errors: string[] = [];
   const authenticationCount = policies.filter(policy =>
     policy.enabled && AUTHENTICATION_POLICIES.has(policy.type)).length;
-  if (authenticationCount > 1) {
-    errors.push('Only one enabled authentication policy is allowed.');
+  if (authenticationCount !== 1) {
+    errors.push('Exactly one enabled authentication policy is required.');
   }
   for (const policy of policies) {
     if (policy.type === 'api-key-auth' && !policy.header?.trim()) {
@@ -414,7 +414,7 @@ export function emptyProxyCreationDraft(): ProxyCreationDraft {
     openapiTitle: null,
     warnings: [],
     basePath: '',
-    defaultPolicies: [],
+    defaultPolicies: [createEditablePolicy('api-key-auth', crypto.randomUUID())],
     operations: [],
   };
 }
