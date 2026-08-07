@@ -36,6 +36,39 @@ function multipart(files: Record<string, string>) {
   };
 }
 
+function configuredMultipart(name: string, files: Record<string, string>) {
+  const boundary = 'gateway-configured-test-boundary';
+  const field = [
+    `--${boundary}`,
+    'Content-Disposition: form-data; name="name"',
+    '',
+    name,
+  ].join('\r\n');
+  const fileParts = Object.entries(files).map(([fieldName, content]) => [
+    `--${boundary}`,
+    `Content-Disposition: form-data; name="${fieldName}"; filename="${fieldName}.yaml"`,
+    'Content-Type: application/yaml',
+    '',
+    content,
+  ].join('\r\n'));
+  const body = [field, ...fileParts].join('\r\n') + `\r\n--${boundary}--\r\n`;
+  return {
+    payload: Buffer.from(body),
+    headers: {
+      authorization: 'Bearer token',
+      'content-type': `multipart/form-data; boundary=${boundary}`,
+    },
+  };
+}
+
+const configuredOperations: Pick<
+  ProxyRevisionOperations,
+  'validateConfiguration' | 'createConfiguredProxy'
+> = {
+  validateConfiguration: async () => ({ openapi: {}, compiled: null }),
+  createConfiguredProxy: async () => ({ proxy: {}, revision: {} }),
+};
+
 function serverWith(revisions: ProxyRevisionOperations) {
   return buildServer({
     config,
@@ -59,6 +92,7 @@ describe('proxy revision management routes', () => {
   it('creates proxies and imports both bundle files', async () => {
     const calls: string[] = [];
     const revisions: ProxyRevisionOperations = {
+      ...configuredOperations,
       createProxy: async (organizationId, input) => {
         calls.push(`create:${organizationId}:${input.name}`);
         return { id: 'proxy-1' };
@@ -95,8 +129,75 @@ describe('proxy revision management routes', () => {
     await server.close();
   });
 
+  it('validates source and creates a configured proxy atomically', async () => {
+    const calls: unknown[] = [];
+    const revisions: ProxyRevisionOperations = {
+      ...configuredOperations,
+      createProxy: async () => ({}),
+      validateConfiguration: async (organizationId, input) => {
+        calls.push({ action: 'validate', organizationId, input });
+        return { openapi: { openapiVersion: '3.1.0' }, compiled: null };
+      },
+      createConfiguredProxy: async (organizationId, input) => {
+        calls.push({ action: 'create-configured', organizationId, input });
+        return {
+          proxy: { id: 'proxy-configured' },
+          revision: { revisionNumber: 1 },
+        };
+      },
+      updateProxy: async () => ({}),
+      importRevision: async () => ({}),
+      listRevisions: async () => [],
+      getRevision: async () => ({}),
+      getRevisionSource: async () => '',
+      deployRevision: async () => ({}),
+      retireDeployment: async () => ({}),
+    };
+    const server = serverWith(revisions);
+    const validated = await server.inject({
+      method: 'POST',
+      url: '/v1/organizations/org-a/proxy-configurations/validate',
+      ...multipart({ openapi: 'openapi: 3.1.0' }),
+    });
+    assert.equal(validated.statusCode, 200);
+    const created = await server.inject({
+      method: 'POST',
+      url: '/v1/organizations/org-a/proxies/configured',
+      ...configuredMultipart('Accounts API', {
+        openapi: 'openapi: 3.1.0',
+        gateway: 'apiVersion: gateway.platform/v1',
+      }),
+    });
+    assert.equal(created.statusCode, 201);
+    assert.deepEqual(created.json(), {
+      proxy: { id: 'proxy-configured' },
+      revision: { revisionNumber: 1 },
+    });
+    assert.deepEqual(calls, [
+      {
+        action: 'validate',
+        organizationId: 'org-a',
+        input: {
+          openapiSource: 'openapi: 3.1.0',
+          gatewayConfigSource: undefined,
+        },
+      },
+      {
+        action: 'create-configured',
+        organizationId: 'org-a',
+        input: {
+          name: 'Accounts API',
+          openapiSource: 'openapi: 3.1.0',
+          gatewayConfigSource: 'apiVersion: gateway.platform/v1',
+        },
+      },
+    ]);
+    await server.close();
+  });
+
   it('exposes revision metadata and original sources', async () => {
     const revisions: ProxyRevisionOperations = {
+      ...configuredOperations,
       createProxy: async () => ({}),
       updateProxy: async () => ({}),
       importRevision: async () => ({}),
@@ -123,6 +224,7 @@ describe('proxy revision management routes', () => {
   it('rejects incomplete multipart bundles before calling the service', async () => {
     let called = false;
     const revisions: ProxyRevisionOperations = {
+      ...configuredOperations,
       createProxy: async () => ({}),
       updateProxy: async () => ({}),
       importRevision: async () => {
@@ -150,6 +252,7 @@ describe('proxy revision management routes', () => {
   it('activates a revision and reports the queued runtime version', async () => {
     const calls: unknown[] = [];
     const revisions: ProxyRevisionOperations = {
+      ...configuredOperations,
       createProxy: async () => ({}),
       updateProxy: async () => ({}),
       importRevision: async () => ({}),
@@ -190,6 +293,7 @@ describe('proxy revision management routes', () => {
   it('updates only mutable logical proxy fields', async () => {
     const calls: unknown[] = [];
     const revisions: ProxyRevisionOperations = {
+      ...configuredOperations,
       createProxy: async () => ({}),
       updateProxy: async (proxyId, input) => {
         calls.push({ proxyId, input });
@@ -227,6 +331,7 @@ describe('proxy revision management routes', () => {
   it('retires a deployment and reports the queued runtime version', async () => {
     const calls: string[] = [];
     const revisions: ProxyRevisionOperations = {
+      ...configuredOperations,
       createProxy: async () => ({}),
       updateProxy: async () => ({}),
       importRevision: async () => ({}),

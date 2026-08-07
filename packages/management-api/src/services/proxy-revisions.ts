@@ -1,10 +1,13 @@
 import {
   AdminRole,
+  compileProxyBundle,
   createApiProxy,
+  createConfiguredApiProxy,
   deployProxyRevision,
   getProxyRevision,
   getProxyRevisionSource,
   importProxyRevision,
+  inspectOpenApi,
   listProxyRevisions,
   prisma,
   retireProxyDeployment,
@@ -27,6 +30,15 @@ export interface ImportRevisionInput {
   gatewayConfigSource: string;
 }
 
+export interface ValidateProxyConfigurationInput {
+  openapiSource: string;
+  gatewayConfigSource?: string;
+}
+
+export interface CreateConfiguredProxyInput extends ImportRevisionInput {
+  name: string;
+}
+
 export interface UpdateProxyInput {
   name?: string;
   active?: boolean;
@@ -41,6 +53,16 @@ export interface ProxyRevisionOperations {
   createProxy(
     organizationId: string,
     input: CreateProxyInput,
+    actor: AdminPrincipal,
+  ): Promise<unknown>;
+  validateConfiguration(
+    organizationId: string,
+    input: ValidateProxyConfigurationInput,
+    actor: AdminPrincipal,
+  ): Promise<unknown>;
+  createConfiguredProxy(
+    organizationId: string,
+    input: CreateConfiguredProxyInput,
     actor: AdminPrincipal,
   ): Promise<unknown>;
   updateProxy(
@@ -132,6 +154,65 @@ export class ProxyRevisionService implements ProxyRevisionOperations {
     return createApiProxy({
       organizationId,
       name: input.name,
+      actor: {
+        issuer: actor.issuer,
+        subject: actor.subject,
+        role: actorRole(actor, organizationId),
+      },
+    });
+  }
+
+  async validateConfiguration(
+    organizationId: string,
+    input: ValidateProxyConfigurationInput,
+    actor: AdminPrincipal,
+  ) {
+    if (!canManageOrganization(actor, organizationId)) {
+      throw forbidden('Organization administration access denied');
+    }
+    if (!input.gatewayConfigSource) {
+      return {
+        openapi: await inspectOpenApi(input.openapiSource),
+        compiled: null,
+      };
+    }
+    const bundle = await compileProxyBundle({
+      openapiSource: input.openapiSource,
+      gatewayConfigSource: input.gatewayConfigSource,
+      systemManaged: false,
+    });
+    return {
+      openapi: {
+        openapiVersion: bundle.openapiVersion,
+        title: bundle.openapiTitle,
+        operations: bundle.operations.map(operation => ({
+          operationId: operation.operationId,
+          method: operation.method,
+          path: operation.path,
+        })),
+        warnings: bundle.warnings,
+      },
+      compiled: {
+        basePath: bundle.basePath,
+        gatewayConfig: bundle.gatewayConfig,
+        contentHash: bundle.contentHash,
+        operations: bundle.operations,
+        warnings: bundle.warnings,
+      },
+    };
+  }
+
+  async createConfiguredProxy(
+    organizationId: string,
+    input: CreateConfiguredProxyInput,
+    actor: AdminPrincipal,
+  ) {
+    if (!canManageOrganization(actor, organizationId)) {
+      throw forbidden('Organization administration access denied');
+    }
+    return createConfiguredApiProxy({
+      organizationId,
+      ...input,
       actor: {
         issuer: actor.issuer,
         subject: actor.subject,

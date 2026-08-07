@@ -26,7 +26,14 @@ const deployRevisionSchema = z.object({
   upstreamBaseUrl: z.string().url().nullable().optional(),
 }).strict();
 
+class ProxyRequestError extends Error {
+  readonly code = 'invalid_request';
+}
+
 function sendDomainError(reply: FastifyReply, error: unknown) {
+  if (error instanceof ProxyRequestError) {
+    return reply.code(400).send({ error: error.code, message: error.message });
+  }
   if (error instanceof ProxyBundleError) {
     return reply.code(400).send({ error: error.code, message: error.message });
   }
@@ -56,35 +63,60 @@ function runtimeSyncResponse(value: unknown) {
   };
 }
 
-async function readBundleFiles(request: FastifyRequest) {
+async function readConfigurationParts(
+  request: FastifyRequest,
+  options: { requireGateway: boolean; allowName: boolean },
+) {
   const files = new Map<string, string>();
+  let name: string | undefined;
   for await (const part of request.parts({
-    limits: { files: 2, fields: 0, fileSize: MAX_BUNDLE_FILE_SIZE },
+    limits: {
+      files: 2,
+      fields: options.allowName ? 1 : 0,
+      fileSize: MAX_BUNDLE_FILE_SIZE,
+    },
   })) {
-    if (part.type !== 'file') continue;
+    if (part.type === 'field') {
+      if (!options.allowName || part.fieldname !== 'name' || name !== undefined) {
+        throw new ProxyRequestError(`Unexpected multipart field ${part.fieldname}`);
+      }
+      name = String(part.value);
+      continue;
+    }
     if (!['openapi', 'gateway'].includes(part.fieldname)) {
-      throw new ProxyBundleError(
-        'invalid_gateway_config',
-        `Unexpected multipart file field ${part.fieldname}`,
-      );
+      throw new ProxyRequestError(`Unexpected multipart file field ${part.fieldname}`);
     }
     if (files.has(part.fieldname)) {
-      throw new ProxyBundleError(
-        'invalid_gateway_config',
-        `Multipart field ${part.fieldname} must be provided once`,
-      );
+      throw new ProxyRequestError(`Multipart field ${part.fieldname} must be provided once`);
     }
     files.set(part.fieldname, (await part.toBuffer()).toString('utf8'));
   }
   const openapiSource = files.get('openapi');
   const gatewayConfigSource = files.get('gateway');
-  if (!openapiSource || !gatewayConfigSource) {
+  if (!openapiSource) {
     throw new ProxyBundleError(
-      'invalid_gateway_config',
-      'Multipart fields openapi and gateway are required',
+      'invalid_openapi',
+      'Multipart field openapi is required',
     );
   }
-  return { openapiSource, gatewayConfigSource };
+  if (options.requireGateway && !gatewayConfigSource) {
+    throw new ProxyBundleError(
+      'invalid_gateway_config',
+      'Multipart field gateway is required',
+    );
+  }
+  return { name, openapiSource, gatewayConfigSource };
+}
+
+async function readBundleFiles(request: FastifyRequest) {
+  const parts = await readConfigurationParts(request, {
+    requireGateway: true,
+    allowName: false,
+  });
+  return {
+    openapiSource: parts.openapiSource,
+    gatewayConfigSource: parts.gatewayConfigSource!,
+  };
 }
 
 export function registerProxyRevisionRoutes(
@@ -114,6 +146,60 @@ export function registerProxyRevisionRoutes(
       return sendDomainError(reply, error);
     }
   });
+
+  server.post<{ Params: { organizationId: string } }>(
+    '/v1/organizations/:organizationId/proxy-configurations/validate',
+    async (request, reply) => {
+      try {
+        const parts = await readConfigurationParts(request, {
+          requireGateway: false,
+          allowName: false,
+        });
+        return await revisions.validateConfiguration(
+          request.params.organizationId,
+          {
+            openapiSource: parts.openapiSource,
+            gatewayConfigSource: parts.gatewayConfigSource,
+          },
+          request.adminPrincipal,
+        );
+      } catch (error) {
+        return sendDomainError(reply, error);
+      }
+    },
+  );
+
+  server.post<{ Params: { organizationId: string } }>(
+    '/v1/organizations/:organizationId/proxies/configured',
+    async (request, reply) => {
+      try {
+        const parts = await readConfigurationParts(request, {
+          requireGateway: true,
+          allowName: true,
+        });
+        const parsed = createProxySchema.safeParse({ name: parts.name });
+        if (!parsed.success) {
+          return reply.code(400).send({
+            error: 'invalid_request',
+            message: 'Configured proxy creation request is invalid',
+            details: parsed.error.flatten(),
+          });
+        }
+        const configured = await revisions.createConfiguredProxy(
+          request.params.organizationId,
+          {
+            name: parsed.data.name,
+            openapiSource: parts.openapiSource,
+            gatewayConfigSource: parts.gatewayConfigSource!,
+          },
+          request.adminPrincipal,
+        );
+        return reply.code(201).send(configured);
+      } catch (error) {
+        return sendDomainError(reply, error);
+      }
+    },
+  );
 
   server.patch<{
     Params: { proxyId: string };

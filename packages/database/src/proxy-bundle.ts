@@ -65,6 +65,7 @@ export interface CompiledProxyOperation {
 export interface CompiledProxyBundle {
   basePath: string;
   openapiVersion: string;
+  openapiTitle: string | null;
   openapiSource: string;
   openapiDocument: Record<string, unknown>;
   gatewayConfigSource: string;
@@ -411,6 +412,7 @@ export async function compileProxyBundle(
   return {
     basePath,
     openapiVersion,
+    openapiTitle: inspection.title,
     openapiSource: input.openapiSource,
     openapiDocument,
     gatewayConfigSource: input.gatewayConfigSource,
