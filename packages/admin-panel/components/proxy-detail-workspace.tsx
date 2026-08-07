@@ -340,8 +340,8 @@ export function ProxyDetailWorkspace({
       {created && (
         <section className="created-proxy-notice" aria-live="polite">
           <div>
-            <strong>Proxy created with revision 1.</strong>
-            <span>No environments are deployed.</span>
+            <strong>Proxy created with revision 1. No environments are deployed.</strong>
+            <span>Deploy deliberately when the upstream is ready.</span>
           </div>
           {canManage && revisions.length > 0 && (
             <button
