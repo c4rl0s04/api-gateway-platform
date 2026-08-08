@@ -324,7 +324,12 @@ try {
     form.append('gateway', new Blob([JSON.stringify({
       apiVersion: 'gateway.platform/v1',
       basePath: revisionBasePath,
-      defaults: { policies: [] },
+      defaults: {
+        policies: [{
+          type: 'api-key-auth',
+          config: { header: 'x-api-key', failureMode: 'closed' },
+        }],
+      },
       operations: { [operationId]: { targetPath: '/health' } },
     })], { type: 'application/json' }), 'gateway.json');
     return platformManagement(`proxies/${managedProxy.id}/revisions`, {
@@ -350,7 +355,7 @@ try {
     '--output', '/dev/null', '--write-out', '%{http_code}',
     `${qualEsGatewayOrigin}${revisionBasePath}/revision-one`,
   ]);
-  if (revisionOneResponse.stdout !== '200') {
+  if (revisionOneResponse.stdout !== '401') {
     throw new Error('Gateway did not hot reload revision 1');
   }
 
@@ -360,7 +365,7 @@ try {
     '--output', '/dev/null', '--write-out', '%{http_code}',
     `${qualEsGatewayOrigin}${revisionBasePath}/revision-two`,
   ]);
-  if (revisionTwoResponse.stdout !== '200') {
+  if (revisionTwoResponse.stdout !== '401') {
     throw new Error('Gateway did not hot reload revision 2');
   }
 
@@ -373,7 +378,7 @@ try {
     `proxies/${managedProxy.id}/deployments`,
   );
   if (
-    rollbackResponse.stdout !== '200'
+    rollbackResponse.stdout !== '401'
     || deploymentHistory.length !== 3
     || deploymentHistory.filter(item => item.status === 'active').length !== 1
   ) {
