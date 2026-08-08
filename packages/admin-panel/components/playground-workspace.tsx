@@ -327,13 +327,13 @@ export function PlaygroundWorkspace() {
   }, [result]);
 
   const mtlsCurl = `${[
-    'curl --request',
-    selectedOperation?.method.toUpperCase() ?? 'GET',
-    `'${target}'`,
-    "--cacert '.local-secrets/pki/authorities/local-development/ca.crt'",
-    "--cert '<client.crt>'",
-    "--key '<client.key>'",
-  ].join(' \\\n+  ')}`;
+    'curl',
+    `  --request ${selectedOperation?.method.toUpperCase() ?? 'GET'}`,
+    `  '${target}'`,
+    "  --cacert '.local-secrets/pki/authorities/local-development/ca.crt'",
+    "  --cert '<client.crt>'",
+    "  --key '<client.key>'",
+  ].join(' \\\n')}`;
 
   return (
     <div className="playground-page">
@@ -524,8 +524,8 @@ export function PlaygroundWorkspace() {
                     className="copy-response-command"
                     type="button"
                     onClick={() => void copyCurl()}
-                    title="Copy generated cURL"
-                    aria-label="Copy generated cURL"
+                    title="Copy redacted cURL"
+                    aria-label="Copy redacted cURL"
                   >
                     {copied ? <Check /> : <Copy />}
                   </button>

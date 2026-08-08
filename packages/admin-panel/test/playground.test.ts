@@ -7,6 +7,7 @@ import type {
 } from '../lib/api-client.js';
 import {
   authenticationRequirement,
+  buildPlaygroundCurl,
   buildPlaygroundTarget,
   parsePlaygroundExecutionInput,
   PlaygroundValidationError,
@@ -115,6 +116,18 @@ describe('playground request validation', () => {
       target.toString(),
       'https://qual-es.gateway.localhost:8443/es/banking/v1/accounts/customer%2Faccount%201?expand=owner',
     );
+  });
+
+  it('builds a clean local cURL command with the development CA', () => {
+    const command = buildPlaygroundCurl({
+      method: 'get',
+      url: 'https://qual-kr.gateway.localhost:8443/kr/gaming/v1/leaderboards',
+      headers: { accept: 'application/json', 'x-api-key': 'secret-key' },
+    });
+    assert.match(command, /--cacert '.local-secrets\/pki\/authorities\/local-development\/ca\.crt'/);
+    assert.match(command, /x-api-key: <redacted>/);
+    assert.doesNotMatch(command, /\n\+/);
+    assert.doesNotMatch(command, /secret-key/);
   });
 
   it('rejects platform-controlled and injected headers', () => {

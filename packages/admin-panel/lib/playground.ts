@@ -3,6 +3,7 @@ import type { OperationPolicy, ProxyOperation } from '@/lib/api-client';
 export const PLAYGROUND_MAX_BODY_BYTES = 256 * 1024;
 export const PLAYGROUND_MAX_RESPONSE_BYTES = 1024 * 1024;
 export const PLAYGROUND_MAX_PARAMETERS = 20;
+export const LOCAL_GATEWAY_CA_CERT = '.local-secrets/pki/authorities/local-development/ca.crt';
 
 const headerNamePattern = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
 const blockedHeaders = new Set([
@@ -345,10 +346,15 @@ export function buildPlaygroundCurl(input: {
   headers: Record<string, string>;
   body?: string;
 }): string {
-  const parts = ['curl', '--request', input.method.toUpperCase(), shellQuote(input.url)];
-  for (const [name, value] of Object.entries(redactHeaders(input.headers))) {
-    parts.push('--header', shellQuote(`${name}: ${value}`));
+  const target = new URL(input.url);
+  const lines = ['curl'];
+  if (target.hostname.endsWith('.gateway.localhost')) {
+    lines.push(`  --cacert ${shellQuote(LOCAL_GATEWAY_CA_CERT)}`);
   }
-  if (input.body) parts.push('--data', shellQuote(input.body));
-  return parts.join(' \\\n+  ');
+  lines.push(`  --request ${input.method.toUpperCase()}`, `  ${shellQuote(input.url)}`);
+  for (const [name, value] of Object.entries(redactHeaders(input.headers))) {
+    lines.push(`  --header ${shellQuote(`${name}: ${value}`)}`);
+  }
+  if (input.body) lines.push(`  --data ${shellQuote(input.body)}`);
+  return lines.join(' \\\n');
 }
