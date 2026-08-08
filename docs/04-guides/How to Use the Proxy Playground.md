@@ -63,6 +63,10 @@ URL proxy.
   Inspector.
 - The request tab and generated cURL replace API keys, Bearer tokens, and
   authorization headers with `<redacted>`.
+- Copied local cURL commands include the project CA through `--cacert`. Replace
+  every `<redacted>` placeholder with the real credential before executing the
+  command; the playground never writes secrets to response history or the
+  clipboard.
 - OAuth Client Credentials and JWT Bearer modes report the token endpoint
   timing without returning the issued access token.
 - Gateway errors such as `401`, `403`, `404`, `405`, and `429` remain visible
