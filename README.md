@@ -7,6 +7,27 @@ mTLS, and rate-limit policies, and forwards HTTP traffic behind Envoy. Its
 OIDC-protected control plane manages organization certificate authorities,
 client certificate issuance, revocation, rotation, and audit state.
 
+## Tech Stack
+
+![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
+![Next.js](https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)
+![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)
+![Redis](https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white)
+![Envoy](https://img.shields.io/badge/Envoy-F83E7D?style=for-the-badge&logo=envoyproxy&logoColor=white)
+
+- **Core**: Node.js, TypeScript (npm workspaces)
+- **Frontend**: Next.js 14, React 18
+- **Data & Auth**: PostgreSQL, Redis, Keycloak (OIDC)
+- **Proxy**: Envoy
+
+## Prerequisites
+
+Before starting the project, ensure you have the following installed:
+- **Node.js**: `>=22.19.0`
+- **Docker** & **Docker Compose**
+
 ## Documentation
 
 Open [`docs/`](docs/README.md) as an Obsidian vault or browse it directly:
@@ -46,6 +67,18 @@ The detached variant returns control to the terminal. See
 for verification, data persistence, and troubleshooting.
 See [How to Manage the Local Platform Lifecycle](docs/04-guides/How%20to%20Manage%20the%20Local%20Platform%20Lifecycle.md)
 to resume retained containers without rerunning the seed setup.
+
+### Testing
+
+To run the unit tests across all workspaces:
+```bash
+npm run test
+```
+
+To run isolated platform integration tests (Envoy, Management API, etc):
+```bash
+npm run test:platform
+```
 
 - API ingress: `https://<stage>-<region>.gateway.localhost:8443`
 - Example QUAL ES ingress: `https://qual-es.gateway.localhost:8443`
