@@ -136,6 +136,17 @@ async function management(token, route, options = {}) {
   });
 }
 
+async function playground(token, input) {
+  return request(`${adminPanelBaseUrl}/api/playground`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${token}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(input),
+  });
+}
+
 async function waitForManagement(token, attempts = 40) {
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     try {
@@ -608,6 +619,41 @@ try {
       }),
     },
   );
+  const playgroundApiKey = await playground(await currentPlatformAccessToken(), {
+    proxyId: managedProxy.id,
+    deploymentId: authenticatedDeployment.id,
+    operationId: 'getWithApiKey',
+    pathParameters: {},
+    queryParameters: [],
+    headers: [],
+    authentication: {
+      type: 'apiKey',
+      value: managedRegistration.credential.consumerKey,
+    },
+  });
+  const playgroundOAuth = await playground(await currentPlatformAccessToken(), {
+    proxyId: managedProxy.id,
+    deploymentId: authenticatedDeployment.id,
+    operationId: 'getWithOAuth',
+    pathParameters: {},
+    queryParameters: [],
+    headers: [],
+    authentication: {
+      type: 'clientCredentials',
+      consumerKey: managedRegistration.credential.consumerKey,
+      consumerSecret: managedRegistration.consumerSecret,
+      scope: 'banking:read',
+    },
+  });
+  if (
+    playgroundApiKey.response.status !== 200
+    || playgroundApiKey.request.headers['x-api-key'] !== '<redacted>'
+    || playgroundOAuth.response.status !== 200
+    || playgroundOAuth.tokenExchange?.status !== 200
+    || JSON.stringify(playgroundOAuth).includes(managedRegistration.consumerSecret)
+  ) {
+    throw new Error('Playground did not execute and redact authenticated gateway requests');
+  }
   const managedApiKey = await gatewayCurl([
     '--header',
     `x-api-key: ${managedRegistration.credential.consumerKey}`,
