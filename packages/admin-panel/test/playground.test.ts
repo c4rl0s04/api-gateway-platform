@@ -18,6 +18,10 @@ import {
   type PlaygroundGatewayRequest,
   type PlaygroundGatewayResponse,
 } from '../lib/playground-service.js';
+import {
+  executePlayground as executePlaygroundApi,
+  PlaygroundApiError,
+} from '../lib/playground-api.js';
 
 const proxy = {
   id: 'proxy-banking',
@@ -229,5 +233,37 @@ describe('playground execution', () => {
       (error: unknown) => error instanceof PlaygroundValidationError
         && error.code === 'playground_mtls_requires_local_client',
     );
+  });
+});
+
+describe('playground browser API', () => {
+  it('posts JSON to the BFF and preserves stable errors', async t => {
+    const originalFetch = globalThis.fetch;
+    t.after(() => { globalThis.fetch = originalFetch; });
+    let requestInit: RequestInit | undefined;
+    globalThis.fetch = async (_input, init) => {
+      requestInit = init;
+      return new Response(JSON.stringify({ error: 'playground_deployment_not_active' }), {
+        status: 409,
+        headers: { 'content-type': 'application/json' },
+      });
+    };
+    await assert.rejects(
+      executePlaygroundApi({
+        proxyId: proxy.id,
+        deploymentId: deployment.id,
+        operationId: 'getAccount',
+        pathParameters: { id: '42' },
+        queryParameters: [],
+        headers: [],
+        authentication: { type: 'none' },
+      }),
+      (error: unknown) => error instanceof PlaygroundApiError
+        && error.status === 409
+        && error.code === 'playground_deployment_not_active',
+    );
+    assert.equal(requestInit?.method, 'POST');
+    assert.equal(new Headers(requestInit?.headers).get('content-type'), 'application/json');
+    assert.equal(requestInit?.cache, 'no-store');
   });
 });
