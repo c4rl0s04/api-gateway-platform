@@ -222,6 +222,12 @@ describe('playground request validation', () => {
       { name: 'expand', value: 'owner' },
       { name: 'limit', value: '5' },
     ]);
+    assert.deepEqual(parsePlaygroundTarget(
+      'https://qual-es.gateway.localhost:8443/es/banking/v1/accounts/{id}',
+      deployment.environment.publicOrigin,
+      '/es/banking/v1',
+      '/accounts/{id}',
+    ).pathParameters, { id: '' });
   });
 });
 

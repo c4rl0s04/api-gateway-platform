@@ -373,7 +373,8 @@ export function parsePlaygroundTarget(
   const match = target.pathname.match(matcher.pattern);
   const pathParameters = Object.fromEntries(matcher.parameterNames.map((name, index) => {
     try {
-      return [name, decodeURIComponent(match?.[index + 1] ?? '')];
+      const decoded = decodeURIComponent(match?.[index + 1] ?? '');
+      return [name, decoded === `{${name}}` ? '' : decoded];
     } catch {
       throw new PlaygroundValidationError(
         'invalid_playground_url',

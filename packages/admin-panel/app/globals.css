@@ -591,8 +591,12 @@ td { padding: 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
 .request-composer > header span, .response-inspector > header > div span { color: var(--ink-faint); font-size: 9px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; }
 .request-composer h2, .response-inspector h2 { margin: 0; font-size: 20px; font-weight: 620; letter-spacing: 0; }
 .revision-stamp { padding: 5px 7px; border: 1px solid var(--line); border-radius: var(--radius-1); font-family: var(--font-technical); }
-.request-target-bar { min-height: 72px; display: grid; grid-template-columns: 64px minmax(0, 1fr); align-items: center; gap: 16px; padding: 12px 24px; border-bottom: 1px solid var(--line); background: var(--surface-subtle); }
-.request-target-bar code { min-width: 0; overflow-x: auto; margin: 0; color: var(--ink); white-space: nowrap; }
+.request-target-bar { min-height: 72px; display: grid; grid-template-columns: 64px minmax(0, 1fr) 36px; align-items: center; gap: 12px; padding: 12px 24px; border-bottom: 1px solid var(--line); background: var(--surface-subtle); }
+.request-target-bar input { width: 100%; min-width: 0; height: 40px; padding: 0 10px; border: 1px solid transparent; border-radius: var(--radius-1); background: transparent; color: var(--ink); font: 10px/1.4 var(--font-technical); }
+.request-target-bar input:hover, .request-target-bar input:focus { border-color: var(--line-strong); background: var(--surface-raised); outline: 0; }
+.request-target-bar button { width: 36px; height: 36px; display: grid; place-items: center; padding: 0; border: 1px solid transparent; border-radius: var(--radius-1); background: transparent; color: var(--ink-faint); cursor: pointer; }
+.request-target-bar button svg { width: 15px; height: 15px; }
+.request-target-error { margin: 0; padding: 8px 24px; border-bottom: 1px solid var(--line); background: var(--danger-soft); color: var(--danger); font-size: 10px; line-height: 1.5; }
 .playground-form-section { padding: 24px; border-bottom: 1px solid var(--line); }
 .playground-form-section > header { min-height: 32px; display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 16px; }
 .playground-form-section h3 { margin: 0; font-size: 13px; font-weight: 650; }
@@ -641,12 +645,6 @@ td { padding: 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
 .copy-response-command { width: 36px; height: 36px; display: grid; place-items: center; margin-left: auto; padding: 0; border: 1px solid transparent; border-radius: var(--radius-1); background: transparent; color: var(--ink-soft); cursor: pointer; }
 .copy-response-command svg { width: 15px; height: 15px; }
 .response-output { flex: 1; overflow: auto; margin: 0; padding: 24px; color: var(--ink); font: 11px/1.7 var(--font-technical); white-space: pre-wrap; word-break: break-word; }
-.response-placeholder { min-height: 400px; display: grid; place-items: center; align-content: center; gap: 10px; padding: 32px; text-align: center; }
-.response-placeholder > svg { width: 28px; height: 28px; color: var(--red); }
-.response-placeholder h3, .response-placeholder p { margin: 0; }
-.response-placeholder h3 { font-size: 15px; }
-.response-placeholder p { max-width: 40ch; color: var(--ink-faint); font-size: 11px; line-height: 1.55; }
-
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes skeleton-pulse { from { opacity: .28; } to { opacity: .62; } }
 @keyframes sheet-enter { from { opacity: .72; transform: translateY(-8px); clip-path: inset(8px 0 0 0); } to { opacity: 1; transform: translateY(0); clip-path: inset(0); } }
@@ -668,7 +666,7 @@ td { padding: 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
   .active-filter-row > button:hover { border-color: var(--red-line); background: var(--red-soft); color: var(--red); }
   .creation-cancel-command:hover, .policy-row-actions button:hover { color: var(--red); background: var(--red-soft); }
   .creation-step-nav button:hover:not(:disabled), .operation-select-list > button:hover:not([aria-pressed='true']) { background: var(--surface-subtle); color: var(--ink); }
-  .parameter-row button:hover, .copy-response-command:hover { border-color: var(--line); background: var(--surface-subtle); color: var(--red); }
+  .parameter-row button:hover, .copy-response-command:hover, .request-target-bar button:hover { border-color: var(--line); background: var(--surface-raised); color: var(--red); }
   .parameter-add-command:hover { color: var(--red-hover); }
 }
 

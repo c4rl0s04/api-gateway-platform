@@ -9,9 +9,9 @@ import {
   FlaskConical,
   KeyRound,
   Plus,
+  RotateCcw,
   Send,
   ShieldCheck,
-  Terminal,
   Trash2,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -27,7 +27,9 @@ import {
 } from '@/lib/api-client';
 import {
   authenticationRequirement,
+  buildPlaygroundCurl,
   operationSupportsBody,
+  parsePlaygroundTarget,
   type PlaygroundAuthentication,
   type PlaygroundAuthenticationRequirement,
   type PlaygroundParameter,
@@ -38,7 +40,7 @@ import { environmentLabel } from '@/lib/proxy-control';
 import { CatalogCombobox, type CatalogOption } from '@/components/catalog-combobox';
 
 type OAuthMode = 'clientCredentials' | 'bearerToken' | 'jwtBearer';
-type ResponseView = 'body' | 'headers' | 'request';
+type ResponseView = 'preview' | 'body' | 'headers' | 'request';
 interface EditableParameter extends PlaygroundParameter { id: number }
 
 function pathParameterNames(path: string): string[] {
@@ -108,6 +110,8 @@ export function PlaygroundWorkspace() {
   const [query, setQuery] = useState<EditableParameter[]>([]);
   const [headers, setHeaders] = useState<EditableParameter[]>([]);
   const [body, setBody] = useState('');
+  const [manualTarget, setManualTarget] = useState('');
+  const [targetError, setTargetError] = useState('');
   const [oauthMode, setOauthMode] = useState<OAuthMode>('clientCredentials');
   const [credentialId, setCredentialId] = useState('');
   const [apiKey, setApiKey] = useState('');
@@ -117,7 +121,7 @@ export function PlaygroundWorkspace() {
   const [bearerToken, setBearerToken] = useState('');
   const [assertion, setAssertion] = useState('');
   const [result, setResult] = useState<PlaygroundExecutionResult | null>(null);
-  const [responseView, setResponseView] = useState<ResponseView>('body');
+  const [responseView, setResponseView] = useState<ResponseView>('preview');
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(true);
   const [executing, setExecuting] = useState(false);
@@ -145,10 +149,11 @@ export function PlaygroundWorkspace() {
     () => selectedOperation ? pathParameterNames(selectedOperation.path) : [],
     [selectedOperation],
   );
-  const target = useMemo(
+  const generatedTarget = useMemo(
     () => previewTarget(selectedDeployment, revision, selectedOperation, pathValues, query),
     [pathValues, query, revision, selectedDeployment, selectedOperation],
   );
+  const target = manualTarget || generatedTarget;
   const proxyOptions = useMemo<CatalogOption[]>(() => proxies.map(item => ({
     value: item.id,
     label: item.name,
@@ -247,11 +252,13 @@ export function PlaygroundWorkspace() {
     setQuery([]);
     setHeaders([]);
     setBody('');
+    setManualTarget('');
+    setTargetError('');
     setConsumerSecret('');
     setBearerToken('');
     setAssertion('');
     setResult(null);
-    setResponseView('body');
+    setResponseView('preview');
     if (requirement.type === 'oauth') {
       setScope(requirement.requiredScopes.join(' '));
       setOauthMode('clientCredentials');
@@ -275,7 +282,11 @@ export function PlaygroundWorkspace() {
 
   const addParameter = useCallback((kind: 'query' | 'headers') => {
     const next = { id: nextParameterId.current++, name: '', value: '' };
-    if (kind === 'query') setQuery(current => [...current, next]);
+    if (kind === 'query') {
+      setQuery(current => [...current, next]);
+      setManualTarget('');
+      setTargetError('');
+    }
     else setHeaders(current => [...current, next]);
   }, []);
 
@@ -287,14 +298,43 @@ export function PlaygroundWorkspace() {
   ) => {
     const update = (items: EditableParameter[]) => items.map(item =>
       item.id === id ? { ...item, [field]: value } : item);
-    if (kind === 'query') setQuery(update);
+    if (kind === 'query') {
+      setQuery(update);
+      setManualTarget('');
+      setTargetError('');
+    }
     else setHeaders(update);
   }, []);
 
   const removeParameter = useCallback((kind: 'query' | 'headers', id: number) => {
-    if (kind === 'query') setQuery(current => current.filter(item => item.id !== id));
+    if (kind === 'query') {
+      setQuery(current => current.filter(item => item.id !== id));
+      setManualTarget('');
+      setTargetError('');
+    }
     else setHeaders(current => current.filter(item => item.id !== id));
   }, []);
+
+  const applyEditedTarget = useCallback(() => {
+    if (!manualTarget || !selectedDeployment || !revision || !selectedOperation) return;
+    try {
+      const parsed = parsePlaygroundTarget(
+        manualTarget,
+        selectedDeployment.environment.publicOrigin,
+        revision.basePath,
+        selectedOperation.path,
+      );
+      setPathValues(parsed.pathParameters);
+      setQuery(parsed.queryParameters.map(parameter => ({
+        ...parameter,
+        id: nextParameterId.current++,
+      })));
+      setManualTarget('');
+      setTargetError('');
+    } catch (cause) {
+      setTargetError(cause instanceof Error ? cause.message : 'Request URL is not valid');
+    }
+  }, [manualTarget, revision, selectedDeployment, selectedOperation]);
 
   const authentication = useCallback((): PlaygroundAuthentication => {
     if (requirement.type === 'apiKey') return { type: 'apiKey', value: apiKey };
@@ -306,6 +346,7 @@ export function PlaygroundWorkspace() {
 
   const canExecute = Boolean(selectedOperation && selectedDeployment)
     && pathNames.every(name => pathValues[name])
+    && !targetError
     && requirement.type !== 'mtls'
     && requirement.type !== 'unsupported'
     && (requirement.type !== 'apiKey' || Boolean(apiKey))
@@ -316,6 +357,19 @@ export function PlaygroundWorkspace() {
 
   const runRequest = useCallback(async () => {
     if (!selectedOperation || !selectedDeployment || !canExecute) return;
+    if (manualTarget && revision) {
+      try {
+        parsePlaygroundTarget(
+          manualTarget,
+          selectedDeployment.environment.publicOrigin,
+          revision.basePath,
+          selectedOperation.path,
+        );
+      } catch (cause) {
+        setTargetError(cause instanceof Error ? cause.message : 'Request URL is not valid');
+        return;
+      }
+    }
     setExecuting(true);
     setError('');
     setResult(null);
@@ -327,6 +381,7 @@ export function PlaygroundWorkspace() {
         pathParameters: pathValues,
         queryParameters: query.filter(item => item.name).map(({ name, value }) => ({ name, value })),
         headers: headers.filter(item => item.name).map(({ name, value }) => ({ name, value })),
+        targetUrl: target,
         ...(body ? { body } : {}),
         authentication: authentication(),
       });
@@ -337,14 +392,44 @@ export function PlaygroundWorkspace() {
     } finally {
       setExecuting(false);
     }
-  }, [authentication, body, canExecute, deploymentId, headers, pathValues, proxyId, query, selectedDeployment, selectedOperation]);
+  }, [authentication, body, canExecute, headers, manualTarget, pathValues, proxyId, query, revision, selectedDeployment, selectedOperation, target]);
 
-  const copyCurl = useCallback(async () => {
-    if (!result) return;
-    await navigator.clipboard.writeText(result.request.curl);
+  const requestPreview = useMemo(() => {
+    if (!selectedOperation || !selectedDeployment) return 'Select an active operation';
+    const previewHeaders = Object.fromEntries(headers
+      .filter(item => item.name)
+      .map(item => [item.name.toLowerCase(), item.value]));
+    previewHeaders.accept ??= 'application/json';
+    if (body && operationSupportsBody(selectedOperation)) {
+      previewHeaders['content-type'] ??= 'application/json';
+    }
+    if (requirement.type === 'apiKey') {
+      previewHeaders[requirement.header.toLowerCase()] = '<redacted>';
+    } else if (requirement.type === 'oauth') {
+      previewHeaders.authorization = oauthMode === 'bearerToken'
+        ? 'Bearer <redacted>'
+        : 'Bearer <issued-access-token>';
+    }
+    try {
+      return buildPlaygroundCurl({
+        method: selectedOperation.method,
+        url: target,
+        headers: previewHeaders,
+        ...(body ? { body } : {}),
+      });
+    } catch {
+      return `${selectedOperation.method.toUpperCase()} ${target}\n\nComplete a valid absolute URL to preview the request.`;
+    }
+  }, [body, headers, oauthMode, requirement, selectedDeployment, selectedOperation, target]);
+
+  const copyDisplayedRequest = useCallback(async () => {
+    const value = responseView === 'request' && result
+      ? result.request.curl
+      : requestPreview;
+    await navigator.clipboard.writeText(value);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1400);
-  }, [result]);
+  }, [requestPreview, responseView, result]);
 
   const mtlsCurl = `${[
     'curl',
@@ -414,8 +499,29 @@ export function PlaygroundWorkspace() {
               <span className={`method method-${selectedOperation?.method ?? 'get'}`}>
                 {selectedOperation?.method.toUpperCase() ?? '—'}
               </span>
-              <code>{target}</code>
+              <input
+                aria-label="Request URL"
+                value={target}
+                onChange={event => {
+                  setManualTarget(event.target.value);
+                  setTargetError('');
+                }}
+                onBlur={applyEditedTarget}
+                spellCheck={false}
+              />
+              <button
+                type="button"
+                title="Restore generated URL"
+                aria-label="Restore generated URL"
+                onClick={() => {
+                  setManualTarget('');
+                  setTargetError('');
+                }}
+              >
+                <RotateCcw />
+              </button>
             </div>
+            {targetError && <p className="request-target-error" role="alert">{targetError}</p>}
 
             {pathNames.length > 0 && (
               <PlaygroundSection title="Path parameters" detail="Required by the selected route">
@@ -425,10 +531,14 @@ export function PlaygroundWorkspace() {
                       <span>{name}</span>
                       <input
                         value={pathValues[name] ?? ''}
-                        onChange={event => setPathValues(current => ({
-                          ...current,
-                          [name]: event.target.value,
-                        }))}
+                        onChange={event => {
+                          setPathValues(current => ({
+                            ...current,
+                            [name]: event.target.value,
+                          }));
+                          setManualTarget('');
+                          setTargetError('');
+                        }}
                         placeholder={`Value for {${name}}`}
                       />
                     </label>
@@ -510,7 +620,7 @@ export function PlaygroundWorkspace() {
 
           <section className="response-inspector" aria-labelledby="response-inspector-title">
             <header>
-              <div><span>Response</span><h2 id="response-inspector-title">Inspector</h2></div>
+              <div><span>Exchange</span><h2 id="response-inspector-title">Inspector</h2></div>
               {result && (
                 <span className={`response-status response-${methodTone(result.response.status)}`}>
                   {result.response.status} {result.response.statusText}
@@ -518,51 +628,45 @@ export function PlaygroundWorkspace() {
               )}
             </header>
 
-            {result ? (
-              <>
-                <div className="response-facts">
-                  <span><Clock3 /> {result.response.durationMs} ms</span>
-                  <span><Braces /> {new Blob([result.response.body]).size} bytes</span>
-                  {result.tokenExchange && <span><KeyRound /> Token {result.tokenExchange.durationMs} ms</span>}
-                  {result.response.truncated && <span>Body truncated</span>}
-                </div>
-                <div className="response-tabs" role="tablist" aria-label="Response detail">
-                  {(['body', 'headers', 'request'] as const).map(view => (
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={responseView === view}
-                      onClick={() => setResponseView(view)}
-                      key={view}
-                    >
-                      {view}
-                    </button>
-                  ))}
-                  <button
-                    className="copy-response-command"
-                    type="button"
-                    onClick={() => void copyCurl()}
-                    title="Copy redacted cURL"
-                    aria-label="Copy redacted cURL"
-                  >
-                    {copied ? <Check /> : <Copy />}
-                  </button>
-                </div>
-                <pre className="response-output">
-                  {responseView === 'body'
-                    ? prettyBody(result)
-                    : responseView === 'headers'
-                      ? JSON.stringify(result.response.headers, null, 2)
-                      : result.request.curl}
-                </pre>
-              </>
-            ) : (
-              <div className="response-placeholder">
-                <Terminal />
-                <h3>Ready for a request</h3>
-                <p>The gateway response, timing, headers and redacted request will appear here.</p>
+            {result && (
+              <div className="response-facts">
+                <span><Clock3 /> {result.response.durationMs} ms</span>
+                <span><Braces /> {new Blob([result.response.body]).size} bytes</span>
+                {result.tokenExchange && <span><KeyRound /> Token {result.tokenExchange.durationMs} ms</span>}
+                {result.response.truncated && <span>Body truncated</span>}
               </div>
             )}
+            <div className="response-tabs" role="tablist" aria-label="Request and response detail">
+              {(['preview', ...(result ? ['body', 'headers', 'request'] as const : [])] as ResponseView[]).map(view => (
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={responseView === view}
+                  onClick={() => setResponseView(view)}
+                  key={view}
+                >
+                  {view}
+                </button>
+              ))}
+              <button
+                className="copy-response-command"
+                type="button"
+                onClick={() => void copyDisplayedRequest()}
+                title="Copy displayed request"
+                aria-label="Copy displayed request"
+              >
+                {copied ? <Check /> : <Copy />}
+              </button>
+            </div>
+            <pre className="response-output">
+              {responseView === 'preview' || !result
+                ? requestPreview
+                : responseView === 'body'
+                  ? prettyBody(result)
+                  : responseView === 'headers'
+                    ? JSON.stringify(result.response.headers, null, 2)
+                    : result.request.curl}
+            </pre>
           </section>
         </div>
       )}
