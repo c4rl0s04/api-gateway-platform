@@ -563,7 +563,12 @@ try {
   authenticatedRevisionForm.append('gateway', new Blob([JSON.stringify({
     apiVersion: 'gateway.platform/v1',
     basePath: revisionBasePath,
-    defaults: { policies: [] },
+    defaults: {
+      policies: [{
+        type: 'api-key-auth',
+        config: { header: 'x-api-key', failureMode: 'closed' },
+      }],
+    },
     operations: {
       getWithApiKey: {
         targetPath: '/health',
