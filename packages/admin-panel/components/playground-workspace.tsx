@@ -99,6 +99,8 @@ function methodTone(status: number): string {
   return 'success';
 }
 
+const deploymentStageOrder = { qual: 0, pprod: 1, prod: 2 } as const;
+
 export function PlaygroundWorkspace() {
   const nextParameterId = useRef(1);
   const [proxies, setProxies] = useState<ApiProxySummary[]>([]);
@@ -168,13 +170,16 @@ export function PlaygroundWorkspace() {
     [pathValues, query, revision, selectedDeployment, selectedOperation],
   );
   const target = manualTarget || generatedTarget;
-  const proxyOptions = useMemo<CatalogOption[]>(() => proxies.map(item => ({
-    value: item.id,
-    label: item.name,
-    description: item.systemManaged ? 'Managed platform service' : item.organization.name,
-    group: item.systemManaged ? 'Platform services' : 'Business proxies',
-    keywords: [item.id, item.organization.name],
-  })), [proxies]);
+  const proxyOptions = useMemo<CatalogOption[]>(() => [...proxies]
+    .sort((left, right) => Number(left.systemManaged) - Number(right.systemManaged)
+      || left.name.localeCompare(right.name))
+    .map(item => ({
+      value: item.id,
+      label: item.name,
+      description: item.systemManaged ? 'Managed platform service' : item.organization.name,
+      group: item.systemManaged ? 'Platform services' : 'Business proxies',
+      keywords: [item.id, item.organization.name],
+    })), [proxies]);
   const deploymentOptions = useMemo<CatalogOption[]>(() => deployments.map(item => ({
     value: item.id,
     label: environmentLabel(item.environment),
@@ -257,8 +262,9 @@ export function PlaygroundWorkspace() {
     ]).then(([nextProxy, allDeployments]) => {
       const active = allDeployments
         .filter(deployment => deployment.status === 'active')
-        .sort((left, right) => left.environment.region.localeCompare(right.environment.region)
-          || left.environment.stage.localeCompare(right.environment.stage));
+        .sort((left, right) => deploymentStageOrder[left.environment.stage]
+          - deploymentStageOrder[right.environment.stage]
+          || left.environment.region.localeCompare(right.environment.region));
       setProxy(nextProxy);
       setDeployments(active);
       setDeploymentId(active[0]?.id ?? '');
