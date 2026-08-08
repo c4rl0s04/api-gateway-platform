@@ -130,7 +130,13 @@ function parameters(value: unknown, field: string): PlaygroundParameter[] {
 
 function authentication(value: unknown): PlaygroundAuthentication {
   const candidate = objectValue(value);
-  const type = candidate?.type;
+  if (!candidate) {
+    throw new PlaygroundValidationError(
+      'invalid_playground_request',
+      'authentication must be an object',
+    );
+  }
+  const type = candidate.type;
   if (type === 'none') return { type };
   if (type === 'apiKey') {
     return { type, value: requiredString(candidate.value, 'authentication.value') };

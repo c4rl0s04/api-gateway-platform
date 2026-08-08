@@ -69,33 +69,33 @@ async function exchangeAccessToken(
   publicOrigin: string,
   transport: PlaygroundTransport,
 ): Promise<{ token: string; status: number; durationMs: number }> {
-  if (!['clientCredentials', 'jwtBearer'].includes(input.authentication.type)) {
+  const authentication = input.authentication;
+  if (authentication.type !== 'clientCredentials' && authentication.type !== 'jwtBearer') {
     throw new PlaygroundValidationError(
       'playground_authentication_mismatch',
       'OAuth token exchange authentication is invalid',
       422,
     );
   }
-  const clientCredentials = input.authentication.type === 'clientCredentials';
   const headers: Record<string, string> = {
     'content-type': 'application/x-www-form-urlencoded',
     accept: 'application/json',
   };
-  if (clientCredentials) {
+  if (authentication.type === 'clientCredentials') {
     headers.authorization = `Basic ${Buffer.from(
-      `${input.authentication.consumerKey}:${input.authentication.consumerSecret}`,
+      `${authentication.consumerKey}:${authentication.consumerSecret}`,
       'utf8',
     ).toString('base64')}`;
   }
-  const body = clientCredentials
+  const body = authentication.type === 'clientCredentials'
     ? formBody({
         grant_type: 'client_credentials',
-        scope: input.authentication.scope,
+        scope: authentication.scope,
       })
     : formBody({
         grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-        assertion: input.authentication.assertion,
-        scope: input.authentication.scope,
+        assertion: authentication.assertion,
+        scope: authentication.scope,
       });
   const response = await transport.send({
     method: 'POST',
