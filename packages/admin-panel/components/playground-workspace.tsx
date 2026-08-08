@@ -35,6 +35,7 @@ import {
 import { executePlayground, PlaygroundApiError } from '@/lib/playground-api';
 import type { PlaygroundExecutionResult } from '@/lib/playground-service';
 import { environmentLabel } from '@/lib/proxy-control';
+import { CatalogCombobox, type CatalogOption } from '@/components/catalog-combobox';
 
 type OAuthMode = 'clientCredentials' | 'bearerToken' | 'jwtBearer';
 type ResponseView = 'body' | 'headers' | 'request';
@@ -148,13 +149,32 @@ export function PlaygroundWorkspace() {
     () => previewTarget(selectedDeployment, revision, selectedOperation, pathValues, query),
     [pathValues, query, revision, selectedDeployment, selectedOperation],
   );
+  const proxyOptions = useMemo<CatalogOption[]>(() => proxies.map(item => ({
+    value: item.id,
+    label: item.name,
+    description: item.systemManaged ? 'Managed platform service' : item.organization.name,
+    group: item.systemManaged ? 'Platform services' : 'Business proxies',
+    keywords: [item.id, item.organization.name],
+  })), [proxies]);
+  const deploymentOptions = useMemo<CatalogOption[]>(() => deployments.map(item => ({
+    value: item.id,
+    label: environmentLabel(item.environment),
+    description: `Revision ${item.revision.revisionNumber} · ${item.environment.publicOrigin}`,
+    keywords: [item.environment.id, item.environment.region, item.environment.stage],
+  })), [deployments]);
+  const operationOptions = useMemo<CatalogOption[]>(() => revision?.operations.map(operation => ({
+    value: operation.operationId,
+    label: `${operation.method.toUpperCase()} ${operation.path}`,
+    description: operation.operationId,
+    keywords: operation.policies.map(policy => policy.type),
+  })) ?? [], [revision]);
 
   useEffect(() => {
     managementFetch<ApiProxySummary[]>('proxies')
       .then(items => {
         const executable = items.filter(item => item.active
-          && !item.systemManaged
-          && item.deployments.length > 0);
+          && item.deployments.length > 0
+          && (!item.systemManaged || item.id === 'proxy-platform-oauth'));
         setProxies(executable);
         setProxyId(executable[0]?.id ?? '');
         setError('');
@@ -347,39 +367,37 @@ export function PlaygroundWorkspace() {
       </header>
 
       <section className="playground-selector" aria-label="Request target">
-        <label>
-          <span>Proxy</span>
-          <select value={proxyId} onChange={event => setProxyId(event.target.value)} disabled={loading}>
-            {proxies.map(item => <option value={item.id} key={item.id}>{item.name} · {item.organization.name}</option>)}
-          </select>
-        </label>
-        <label>
-          <span>Environment</span>
-          <select value={deploymentId} onChange={event => setDeploymentId(event.target.value)} disabled={loading}>
-            {deployments.map(item => (
-              <option value={item.id} key={item.id}>
-                {environmentLabel(item.environment)} · rev {item.revision.revisionNumber}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>Operation</span>
-          <select value={operationId} onChange={event => setOperationId(event.target.value)} disabled={loading}>
-            {revision?.operations.map(operation => (
-              <option value={operation.operationId} key={operation.id}>
-                {operation.method.toUpperCase()} · {operation.path}
-              </option>
-            ))}
-          </select>
-        </label>
+        <CatalogCombobox
+          label="Proxy"
+          value={proxyId}
+          options={proxyOptions}
+          onChange={setProxyId}
+          disabled={loading}
+          searchPlaceholder="Search proxy or organization"
+        />
+        <CatalogCombobox
+          label="Environment"
+          value={deploymentId}
+          options={deploymentOptions}
+          onChange={setDeploymentId}
+          disabled={loading || deploymentOptions.length === 0}
+          searchPlaceholder="Search stage or region"
+        />
+        <CatalogCombobox
+          label="Operation"
+          value={operationId}
+          options={operationOptions}
+          onChange={setOperationId}
+          disabled={loading || operationOptions.length === 0}
+          searchPlaceholder="Search method, path, or policy"
+        />
       </section>
 
       {error && <div className="playground-error" role="alert">{error}</div>}
       {!loading && proxies.length === 0 && (
         <div className="playground-empty">
           <FlaskConical />
-          <h2>No active business deployments</h2>
+          <h2>No active proxy deployments</h2>
           <p>Deploy an active proxy revision before composing a runtime request.</p>
         </div>
       )}
