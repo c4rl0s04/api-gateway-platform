@@ -65,6 +65,12 @@ function formBody(values: Record<string, string>): string {
   return body.toString();
 }
 
+function redactOauthTokenBody(value: string): string {
+  const body = new URLSearchParams(value);
+  if (body.has('assertion')) body.set('assertion', '<redacted>');
+  return body.toString();
+}
+
 function oauthTokenRequest(
   authentication: PlaygroundExecutionInput['authentication'],
   target: URL,
@@ -222,17 +228,18 @@ export async function executePlaygroundRequest(
     const tokenRequest = oauthTokenRequest(input.authentication, target);
     const response = await transport.send(tokenRequest);
     const redacted = redactHeaders(tokenRequest.headers);
+    const redactedBody = redactOauthTokenBody(tokenRequest.body ?? '');
     return {
       request: {
         method: tokenRequest.method,
         url: target.toString(),
         headers: redacted,
-        body: tokenRequest.body,
+        body: redactedBody,
         curl: buildPlaygroundCurl({
           method: tokenRequest.method,
           url: target.toString(),
           headers: redacted,
-          body: tokenRequest.body,
+          body: redactedBody,
         }),
       },
       response,

@@ -363,6 +363,41 @@ describe('playground execution', () => {
     assert.equal(result.response.body, '{"access_token":"manual-token"}');
     assert.doesNotMatch(JSON.stringify(result.request), /client-secret/);
   });
+
+  it('redacts JWT assertions from managed OAuth request diagnostics', async () => {
+    const managedProxy = { ...proxy, id: 'proxy-platform-oauth', systemManaged: true };
+    const managedDeployment = { ...deployment, proxyId: managedProxy.id };
+    const managedRevision = revision('oauth-token');
+    managedRevision.proxyId = managedProxy.id;
+    managedRevision.operations[0].mode = 'local';
+    managedRevision.operations[0].policies[0].config = {
+      grantTypes: ['urn:ietf:params:oauth:grant-type:jwt-bearer'],
+      allowedScopes: ['banking:read'],
+    };
+    const result = await executePlaygroundRequest({
+      proxyId: managedProxy.id,
+      deploymentId: managedDeployment.id,
+      operationId: 'getAccount',
+      pathParameters: { id: '42' },
+      queryParameters: [],
+      headers: [],
+      authentication: {
+        type: 'jwtBearer',
+        assertion: 'signed-client-assertion',
+        scope: 'banking:read',
+      },
+    }, {
+      async getProxy() { return managedProxy; },
+      async listDeployments() { return [managedDeployment]; },
+      async getRevision() { return managedRevision; },
+    }, {
+      async send() { return response({ body: '{"access_token":"issued-token"}' }); },
+    });
+
+    assert.doesNotMatch(result.request.body ?? '', /signed-client-assertion/);
+    assert.match(result.request.body ?? '', /%3Credacted%3E/);
+    assert.doesNotMatch(result.request.curl, /signed-client-assertion/);
+  });
 });
 
 describe('playground browser API', () => {
