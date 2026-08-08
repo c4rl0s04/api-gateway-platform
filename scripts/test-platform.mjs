@@ -631,7 +631,7 @@ try {
   );
   const playgroundApiKey = await playground(await currentPlatformAccessToken(), {
     proxyId: managedProxy.id,
-    deploymentId: authenticatedDeployment.id,
+    deploymentId: authenticatedDeployment.deployment.id,
     operationId: 'getWithApiKey',
     pathParameters: {},
     queryParameters: [],
@@ -643,7 +643,7 @@ try {
   });
   const playgroundOAuth = await playground(await currentPlatformAccessToken(), {
     proxyId: managedProxy.id,
-    deploymentId: authenticatedDeployment.id,
+    deploymentId: authenticatedDeployment.deployment.id,
     operationId: 'getWithOAuth',
     pathParameters: {},
     queryParameters: [],
