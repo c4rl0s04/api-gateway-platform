@@ -47,11 +47,18 @@ function bundle(basePath: string, operationId: string) {
       apiVersion: 'gateway.platform/v1',
       basePath,
       defaults: {
-        policies: [{
-          type: 'rate-limit',
-          enabled: true,
-          config: { limit: 100, windowSeconds: 60, failureMode: 'closed' },
-        }],
+        policies: [
+          {
+            type: 'api-key-auth',
+            enabled: true,
+            config: { header: 'x-api-key', failureMode: 'closed' },
+          },
+          {
+            type: 'rate-limit',
+            enabled: true,
+            config: { limit: 100, windowSeconds: 60, failureMode: 'closed' },
+          },
+        ],
       },
       operations: {
         [operationId]: { targetPath: '/backend/{id}' },
@@ -89,7 +96,7 @@ integration('proxy revision persistence', () => {
     assert.equal(configured.proxy.name, 'Configured accounts');
     assert.equal(configured.revision.revisionNumber, 1);
     assert.equal(configured.revision.operations.length, 1);
-    assert.equal(configured.revision.operations[0].policies.length, 1);
+    assert.equal(configured.revision.operations[0].policies.length, 2);
     assert.equal(
       await prisma.apiProxyRevision.count({
         where: { proxyId: configured.proxy.id },
