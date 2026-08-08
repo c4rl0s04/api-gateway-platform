@@ -43,7 +43,9 @@ export interface PlaygroundExecutionInput {
   pathParameters: Record<string, string>;
   queryParameters: PlaygroundParameter[];
   headers: PlaygroundParameter[];
+  targetUrl?: string;
   body?: string;
+  bodyMediaType?: string;
   authentication: PlaygroundAuthentication;
 }
 
@@ -51,6 +53,8 @@ export type PlaygroundAuthenticationRequirement =
   | { type: 'none' }
   | { type: 'apiKey'; header: string }
   | { type: 'oauth'; requiredScopes: string[] }
+  | { type: 'oauthToken'; grantTypes: string[]; allowedScopes: string[] }
+  | { type: 'jwks' }
   | { type: 'mtls' }
   | { type: 'unsupported'; policyType: string };
 
@@ -190,6 +194,8 @@ export function parsePlaygroundExecutionInput(value: unknown): PlaygroundExecuti
     ]),
   );
   const body = optionalString(candidate.body, 'body', PLAYGROUND_MAX_BODY_BYTES);
+  const targetUrl = optionalString(candidate.targetUrl, 'targetUrl', 4096).trim();
+  const bodyMediaType = optionalString(candidate.bodyMediaType, 'bodyMediaType', 120).trim();
   if (Buffer.byteLength(body, 'utf8') > PLAYGROUND_MAX_BODY_BYTES) {
     throw new PlaygroundValidationError(
       'playground_body_too_large',
@@ -204,7 +210,9 @@ export function parsePlaygroundExecutionInput(value: unknown): PlaygroundExecuti
     pathParameters,
     queryParameters: parameters(candidate.queryParameters, 'queryParameters'),
     headers: parameters(candidate.headers, 'headers'),
+    ...(targetUrl ? { targetUrl } : {}),
     ...(body ? { body } : {}),
+    ...(bodyMediaType ? { bodyMediaType } : {}),
     authentication: authentication(candidate.authentication),
   };
 }
@@ -212,16 +220,30 @@ export function parsePlaygroundExecutionInput(value: unknown): PlaygroundExecuti
 export function authenticationRequirement(
   policies: OperationPolicy[],
 ): PlaygroundAuthenticationRequirement {
-  const authenticationPolicy = policies
-    .filter(policy => policy.enabled)
+  const enabledPolicies = policies.filter(policy => policy.enabled);
+  const tokenPolicy = enabledPolicies.find(policy => policy.type === 'oauth-token');
+  if (tokenPolicy) {
+    return {
+      type: 'oauthToken',
+      grantTypes: Array.isArray(tokenPolicy.config.grantTypes)
+        ? tokenPolicy.config.grantTypes.filter(
+            (grant): grant is string => typeof grant === 'string',
+          )
+        : [],
+      allowedScopes: Array.isArray(tokenPolicy.config.allowedScopes)
+        ? tokenPolicy.config.allowedScopes.filter(
+            (scope): scope is string => typeof scope === 'string',
+          )
+        : [],
+    };
+  }
+  if (enabledPolicies.some(policy => policy.type === 'jwks-endpoint')) {
+    return { type: 'jwks' };
+  }
+  const authenticationPolicy = enabledPolicies
     .find(policy => ['api-key-auth', 'oauth-access-token', 'mtls-auth'].includes(policy.type));
   if (!authenticationPolicy) {
-    const unsupported = policies
-      .filter(policy => policy.enabled)
-      .find(policy => ['oauth-token', 'jwks-endpoint'].includes(policy.type));
-    return unsupported
-      ? { type: 'unsupported', policyType: unsupported.type }
-      : { type: 'none' };
+    return { type: 'none' };
   }
   if (authenticationPolicy.type === 'api-key-auth') {
     return {
@@ -254,6 +276,16 @@ export function assertAuthenticationCompatible(
       ? authenticationValue.type === 'apiKey'
       : requirement.type === 'oauth'
         ? ['bearerToken', 'clientCredentials', 'jwtBearer'].includes(authenticationValue.type)
+        : requirement.type === 'oauthToken'
+          ? (
+              authenticationValue.type === 'clientCredentials'
+              && requirement.grantTypes.includes('client_credentials')
+            ) || (
+              authenticationValue.type === 'jwtBearer'
+              && requirement.grantTypes.includes('urn:ietf:params:oauth:grant-type:jwt-bearer')
+            )
+          : requirement.type === 'jwks'
+            ? authenticationValue.type === 'none'
         : false;
   if (!valid) {
     throw new PlaygroundValidationError(
@@ -266,6 +298,56 @@ export function assertAuthenticationCompatible(
       422,
     );
   }
+}
+
+function escapeRegularExpression(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function operationPathPattern(basePath: string, operationPath: string): RegExp {
+  const path = `${basePath.replace(/\/$/, '')}/${operationPath.replace(/^\//, '')}`;
+  const source = path.split(/(\{[^}]+\})/g).map(part =>
+    /^\{[^}]+\}$/.test(part) ? '[^/]+' : escapeRegularExpression(part)).join('');
+  return new RegExp(`^${source}$`);
+}
+
+export function validatePlaygroundTarget(
+  value: string,
+  publicOrigin: string,
+  basePath: string,
+  operationPath: string,
+): URL {
+  let target: URL;
+  let deploymentOrigin: URL;
+  try {
+    target = new URL(value);
+    deploymentOrigin = new URL(publicOrigin);
+  } catch {
+    throw new PlaygroundValidationError(
+      'invalid_playground_url',
+      'Request URL must be an absolute URL',
+    );
+  }
+  if (
+    target.origin !== deploymentOrigin.origin
+    || target.username
+    || target.password
+    || target.hash
+  ) {
+    throw new PlaygroundValidationError(
+      'playground_url_not_allowed',
+      'Request URL must use the selected deployment origin',
+      422,
+    );
+  }
+  if (!operationPathPattern(basePath, operationPath).test(target.pathname)) {
+    throw new PlaygroundValidationError(
+      'playground_url_mismatch',
+      'Request URL does not match the selected operation',
+      422,
+    );
+  }
+  return target;
 }
 
 export function buildPlaygroundTarget(

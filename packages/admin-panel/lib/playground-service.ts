@@ -12,6 +12,7 @@ import {
   PlaygroundValidationError,
   redactHeaders,
   safeRequestHeaders,
+  validatePlaygroundTarget,
   type PlaygroundExecutionInput,
 } from '@/lib/playground';
 
@@ -64,16 +65,14 @@ function formBody(values: Record<string, string>): string {
   return body.toString();
 }
 
-async function exchangeAccessToken(
-  input: PlaygroundExecutionInput,
-  publicOrigin: string,
-  transport: PlaygroundTransport,
-): Promise<{ token: string; status: number; durationMs: number }> {
-  const authentication = input.authentication;
+function oauthTokenRequest(
+  authentication: PlaygroundExecutionInput['authentication'],
+  target: URL,
+): PlaygroundGatewayRequest {
   if (authentication.type !== 'clientCredentials' && authentication.type !== 'jwtBearer') {
     throw new PlaygroundValidationError(
       'playground_authentication_mismatch',
-      'OAuth token exchange authentication is invalid',
+      'OAuth token authentication is invalid',
       422,
     );
   }
@@ -87,22 +86,37 @@ async function exchangeAccessToken(
       'utf8',
     ).toString('base64')}`;
   }
-  const body = authentication.type === 'clientCredentials'
-    ? formBody({
-        grant_type: 'client_credentials',
-        scope: authentication.scope,
-      })
-    : formBody({
-        grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-        assertion: authentication.assertion,
-        scope: authentication.scope,
-      });
-  const response = await transport.send({
+  return {
     method: 'POST',
-    target: new URL('/oauth/token', publicOrigin),
+    target,
     headers,
-    body,
-  });
+    body: authentication.type === 'clientCredentials'
+      ? formBody({ grant_type: 'client_credentials', scope: authentication.scope })
+      : formBody({
+          grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+          assertion: authentication.assertion,
+          scope: authentication.scope,
+        }),
+  };
+}
+
+async function exchangeAccessToken(
+  input: PlaygroundExecutionInput,
+  publicOrigin: string,
+  transport: PlaygroundTransport,
+): Promise<{ token: string; status: number; durationMs: number }> {
+  const authentication = input.authentication;
+  if (authentication.type !== 'clientCredentials' && authentication.type !== 'jwtBearer') {
+    throw new PlaygroundValidationError(
+      'playground_authentication_mismatch',
+      'OAuth token exchange authentication is invalid',
+      422,
+    );
+  }
+  const response = await transport.send(oauthTokenRequest(
+    authentication,
+    new URL('/oauth/token', publicOrigin),
+  ));
   if (response.status < 200 || response.status >= 300) {
     throw new PlaygroundValidationError(
       'playground_token_exchange_failed',
@@ -142,10 +156,10 @@ export async function executePlaygroundRequest(
     catalog.getProxy(input.proxyId),
     catalog.listDeployments(input.proxyId),
   ]);
-  if (!proxy.active || proxy.systemManaged) {
+  if (!proxy.active) {
     throw new PlaygroundValidationError(
       'playground_proxy_not_available',
-      'Only active business proxies can be executed from the playground',
+      'Only active proxies can be executed from the playground',
       409,
     );
   }
@@ -172,19 +186,57 @@ export async function executePlaygroundRequest(
     );
   }
   const requirement = authenticationRequirement(operation.policies);
+  const allowedManagedOperation = proxy.id === 'proxy-platform-oauth'
+    && operation.mode === 'local'
+    && (requirement.type === 'oauthToken' || requirement.type === 'jwks');
+  if (proxy.systemManaged && !allowedManagedOperation) {
+    throw new PlaygroundValidationError(
+      'playground_proxy_not_available',
+      'This managed proxy operation is not available in the playground',
+      409,
+    );
+  }
   assertAuthenticationCompatible(requirement, input.authentication);
 
-  const target = buildPlaygroundTarget(
-    deployment.environment.publicOrigin,
-    revision.basePath,
-    operation.path,
-    input.pathParameters,
-    input.queryParameters,
-  );
+  const target = input.targetUrl
+    ? validatePlaygroundTarget(
+        input.targetUrl,
+        deployment.environment.publicOrigin,
+        revision.basePath,
+        operation.path,
+      )
+    : buildPlaygroundTarget(
+        deployment.environment.publicOrigin,
+        revision.basePath,
+        operation.path,
+        input.pathParameters,
+        input.queryParameters,
+      );
   const headers = safeRequestHeaders(input.headers);
   headers.accept ??= 'application/json';
   if (input.body && operationSupportsBody(operation)) {
-    headers['content-type'] ??= 'application/json';
+    headers['content-type'] ??= input.bodyMediaType || 'application/json';
+  }
+
+  if (requirement.type === 'oauthToken') {
+    const tokenRequest = oauthTokenRequest(input.authentication, target);
+    const response = await transport.send(tokenRequest);
+    const redacted = redactHeaders(tokenRequest.headers);
+    return {
+      request: {
+        method: tokenRequest.method,
+        url: target.toString(),
+        headers: redacted,
+        body: tokenRequest.body,
+        curl: buildPlaygroundCurl({
+          method: tokenRequest.method,
+          url: target.toString(),
+          headers: redacted,
+          body: tokenRequest.body,
+        }),
+      },
+      response,
+    };
   }
 
   let tokenExchange: PlaygroundExecutionResult['tokenExchange'];
@@ -192,10 +244,10 @@ export async function executePlaygroundRequest(
     headers[requirement.header.toLowerCase()] = input.authentication.value;
   } else if (input.authentication.type === 'bearerToken') {
     headers.authorization = `Bearer ${input.authentication.token}`;
-  } else if (
+  } else if (requirement.type === 'oauth' && (
     input.authentication.type === 'clientCredentials'
     || input.authentication.type === 'jwtBearer'
-  ) {
+  )) {
     const exchange = await exchangeAccessToken(
       input,
       deployment.environment.publicOrigin,

@@ -12,6 +12,7 @@ import {
   parsePlaygroundExecutionInput,
   PlaygroundValidationError,
   safeRequestHeaders,
+  validatePlaygroundTarget,
 } from '../lib/playground.js';
 import {
   executePlaygroundRequest,
@@ -68,6 +69,7 @@ function revision(policyType = 'api-key-auth'): ProxyRevisionDetail {
       mode: 'forward',
       path: '/accounts/{id}',
       targetPath: '/accounts/{id}',
+      requestBodies: [],
       policies: policyType ? [{
         id: 'policy-auth',
         type: policyType,
@@ -174,6 +176,38 @@ describe('playground request validation', () => {
       { type: 'oauth', requiredScopes: ['banking:read'] },
     );
   });
+
+  it('accepts only URLs for the selected deployment and operation', () => {
+    assert.equal(
+      validatePlaygroundTarget(
+        'https://qual-es.gateway.localhost:8443/es/banking/v1/accounts/42?expand=owner',
+        deployment.environment.publicOrigin,
+        '/es/banking/v1',
+        '/accounts/{id}',
+      ).search,
+      '?expand=owner',
+    );
+    assert.throws(
+      () => validatePlaygroundTarget(
+        'https://evil.example/es/banking/v1/accounts/42',
+        deployment.environment.publicOrigin,
+        '/es/banking/v1',
+        '/accounts/{id}',
+      ),
+      (error: unknown) => error instanceof PlaygroundValidationError
+        && error.code === 'playground_url_not_allowed',
+    );
+    assert.throws(
+      () => validatePlaygroundTarget(
+        'https://qual-es.gateway.localhost:8443/es/banking/v1/admin',
+        deployment.environment.publicOrigin,
+        '/es/banking/v1',
+        '/accounts/{id}',
+      ),
+      (error: unknown) => error instanceof PlaygroundValidationError
+        && error.code === 'playground_url_mismatch',
+    );
+  });
 });
 
 describe('playground execution', () => {
@@ -246,6 +280,67 @@ describe('playground execution', () => {
       (error: unknown) => error instanceof PlaygroundValidationError
         && error.code === 'playground_mtls_requires_local_client',
     );
+  });
+
+  it('executes the managed OAuth token operation directly', async () => {
+    const managedProxy = { ...proxy, id: 'proxy-platform-oauth', systemManaged: true };
+    const managedDeployment = {
+      ...deployment,
+      proxyId: managedProxy.id,
+      revision: { ...deployment.revision, basePath: '/oauth' },
+    };
+    const managedRevision: ProxyRevisionDetail = {
+      ...revision(),
+      proxyId: managedProxy.id,
+      basePath: '/oauth',
+      operations: [{
+        ...revision().operations[0],
+        operationId: 'issueToken',
+        method: 'post',
+        mode: 'local',
+        path: '/token',
+        targetPath: null,
+        policies: [{
+          id: 'oauth-token',
+          type: 'oauth-token',
+          enabled: true,
+          order: 1,
+          config: {
+            grantTypes: ['client_credentials'],
+            allowedScopes: ['banking:read'],
+          },
+        }],
+      }],
+    };
+    const requests: PlaygroundGatewayRequest[] = [];
+    const result = await executePlaygroundRequest({
+      proxyId: managedProxy.id,
+      deploymentId: managedDeployment.id,
+      operationId: 'issueToken',
+      pathParameters: {},
+      queryParameters: [],
+      headers: [],
+      authentication: {
+        type: 'clientCredentials',
+        consumerKey: 'client-key',
+        consumerSecret: 'client-secret',
+        scope: 'banking:read',
+      },
+    }, {
+      async getProxy() { return managedProxy; },
+      async listDeployments() { return [managedDeployment]; },
+      async getRevision() { return managedRevision; },
+    }, {
+      async send(request) {
+        requests.push(request);
+        return response({ body: '{"access_token":"manual-token"}' });
+      },
+    });
+    assert.equal(requests.length, 1);
+    assert.match(requests[0].headers.authorization, /^Basic /);
+    assert.equal(requests[0].body, 'grant_type=client_credentials&scope=banking%3Aread');
+    assert.equal(result.response.body, '{"access_token":"manual-token"}');
+    assert.doesNotMatch(JSON.stringify(result.request), /client-secret/);
   });
 });
 

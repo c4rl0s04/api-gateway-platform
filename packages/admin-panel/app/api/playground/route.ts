@@ -75,7 +75,9 @@ export async function POST(request: NextRequest) {
       managementCatalog(token),
       createPlaygroundTransport(),
     );
-    return NextResponse.json(result);
+    return NextResponse.json(result, {
+      headers: { 'cache-control': 'no-store' },
+    });
   } catch (error) {
     if (error instanceof PlaygroundValidationError) {
       return NextResponse.json(
