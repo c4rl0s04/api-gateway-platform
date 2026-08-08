@@ -51,4 +51,29 @@ describe('development proxy seed catalog', () => {
       esBanking.revisions[1].operations,
     );
   });
+
+  it('publishes request body examples for the OAuth and banking POST operations', () => {
+    const oauth = PROXY_SEED_SCENARIOS.find(
+      scenario => scenario.proxyId === 'proxy-platform-oauth',
+    )!;
+    const banking = PROXY_SEED_SCENARIOS.find(
+      scenario => scenario.proxyId === 'proxy-es-banking',
+    )!;
+    const oauthSource = JSON.parse(
+      buildSeedRevisionSources(oauth.proxyId, oauth.revisions[0]).openapiSource,
+    );
+    const bankingSource = JSON.parse(
+      buildSeedRevisionSources(banking.proxyId, banking.revisions[1]).openapiSource,
+    );
+
+    assert.equal(
+      oauthSource.paths['/token'].post.requestBody.required,
+      true,
+    );
+    assert.equal(
+      bankingSource.paths['/accounts'].post.requestBody
+        .content['application/json'].examples['Savings account'].value.currency,
+      'EUR',
+    );
+  });
 });

@@ -18,6 +18,7 @@ export interface SeedOperation {
   path: string;
   targetPath?: string;
   mode?: 'local';
+  requestBody?: Record<string, unknown>;
   /** Undefined inherits revision defaults; [] explicitly makes the operation public. */
   policies?: SeedPolicy[];
 }
@@ -62,6 +63,7 @@ export function buildSeedRevisionSources(
     paths[operation.path][operation.method] = {
       operationId: operation.operationId,
       parameters: pathParameters(operation.path),
+      ...(operation.requestBody ? { requestBody: operation.requestBody } : {}),
       responses: { '200': { description: 'Development seed response' } },
     };
   }
@@ -135,6 +137,24 @@ export const PROXY_SEED_SCENARIOS: ProxySeedScenario[] = [
           method: 'post',
           path: '/token',
           mode: 'local',
+          requestBody: {
+            required: true,
+            content: {
+              'application/x-www-form-urlencoded': {
+                schema: {
+                  type: 'object',
+                  required: ['grant_type'],
+                  properties: {
+                    grant_type: {
+                      type: 'string',
+                      enum: ['client_credentials'],
+                    },
+                    scope: { type: 'string', example: 'banking:read' },
+                  },
+                },
+              },
+            },
+          },
           policies: [
             rateLimit(30),
             {
@@ -197,7 +217,48 @@ export const PROXY_SEED_SCENARIOS: ProxySeedScenario[] = [
           { operationId: 'ep-esb-health', method: 'get', path: '/health', targetPath: '/health', policies: [mtls] },
           { operationId: 'ep-esb-status', method: 'get', path: '/status', targetPath: '/health', policies: [closedApiKey()] },
           { operationId: 'ep-esb-accounts', method: 'get', path: '/accounts', targetPath: '/accounts' },
-          { operationId: 'ep-esb-accounts-create', method: 'post', path: '/accounts', targetPath: '/accounts', policies: [bearer('banking:write'), rateLimit(10)] },
+          {
+            operationId: 'ep-esb-accounts-create',
+            method: 'post',
+            path: '/accounts',
+            targetPath: '/accounts',
+            requestBody: {
+              required: true,
+              content: {
+                'application/json': {
+                  examples: {
+                    'Savings account': {
+                      value: {
+                        customerId: 'customer-1042',
+                        accountType: 'savings',
+                        currency: 'EUR',
+                        initialDeposit: 250,
+                      },
+                    },
+                    'Current account': {
+                      value: {
+                        customerId: 'customer-2048',
+                        accountType: 'current',
+                        currency: 'EUR',
+                        initialDeposit: 0,
+                      },
+                    },
+                  },
+                  schema: {
+                    type: 'object',
+                    required: ['customerId', 'accountType', 'currency'],
+                    properties: {
+                      customerId: { type: 'string' },
+                      accountType: { type: 'string', enum: ['savings', 'current'] },
+                      currency: { type: 'string', enum: ['EUR', 'USD', 'GBP'] },
+                      initialDeposit: { type: 'number', minimum: 0 },
+                    },
+                  },
+                },
+              },
+            },
+            policies: [bearer('banking:write'), rateLimit(10)],
+          },
           { operationId: 'ep-esb-acc-id', method: 'get', path: '/accounts/{id}', targetPath: '/accounts/{id}', policies: [bearer('banking:read')] },
           { operationId: 'ep-esb-summary', method: 'get', path: '/accounts-summary', targetPath: '/accounts', policies: [closedApiKey(), rateLimit(20)] },
         ],
