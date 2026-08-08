@@ -608,6 +608,13 @@ td { padding: 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
 .playground-field input, .playground-field select, .playground-field textarea, .parameter-row input { width: 100%; min-width: 0; min-height: 40px; padding: 8px 10px; border: 1px solid var(--line-strong); border-radius: var(--radius-1); background: var(--surface-raised); color: var(--ink); font-size: 12px; }
 .playground-field textarea { resize: vertical; font: 11px/1.6 var(--font-technical); }
 .playground-body-field { grid-column: 1 / -1; }
+.body-example-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 40px; align-items: end; gap: 16px; margin-bottom: 16px; }
+.body-example-toolbar .catalog-combobox { min-height: 56px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: var(--radius-1); }
+.body-example-toolbar .catalog-combobox-trigger { min-height: 36px; }
+.body-example-reset { width: 40px; height: 40px; display: grid; place-items: center; padding: 0; border: 1px solid var(--line-strong); border-radius: var(--radius-1); background: transparent; color: var(--ink-faint); cursor: pointer; }
+.body-example-reset:disabled { opacity: .35; cursor: not-allowed; }
+.body-example-reset svg { width: 15px; height: 15px; }
+.body-validation-error { margin: 8px 0 0; color: var(--danger); font-size: 10px; line-height: 1.5; }
 .parameter-editor { display: grid; gap: 8px; }
 .parameter-editor > p { margin: 0; color: var(--ink-faint); font-size: 11px; }
 .parameter-row { display: grid; grid-template-columns: minmax(120px, .75fr) minmax(160px, 1.25fr) 40px; gap: 8px; }
@@ -666,7 +673,7 @@ td { padding: 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
   .active-filter-row > button:hover { border-color: var(--red-line); background: var(--red-soft); color: var(--red); }
   .creation-cancel-command:hover, .policy-row-actions button:hover { color: var(--red); background: var(--red-soft); }
   .creation-step-nav button:hover:not(:disabled), .operation-select-list > button:hover:not([aria-pressed='true']) { background: var(--surface-subtle); color: var(--ink); }
-  .parameter-row button:hover, .copy-response-command:hover, .request-target-bar button:hover { border-color: var(--line); background: var(--surface-raised); color: var(--red); }
+  .parameter-row button:hover, .copy-response-command:hover, .request-target-bar button:hover, .body-example-reset:hover:not(:disabled) { border-color: var(--line); background: var(--surface-raised); color: var(--red); }
   .parameter-add-command:hover { color: var(--red-hover); }
 }
 
@@ -872,6 +879,9 @@ td { padding: 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
   .response-inspector { position: static; height: auto; min-height: 560px; border-top: 1px solid var(--line-strong); }
   .playground-field-grid { grid-template-columns: 1fr; }
   .playground-body-field { grid-column: auto; }
+  .body-example-toolbar { grid-template-columns: minmax(0, 1fr) 40px; }
+  .body-example-toolbar .catalog-combobox:nth-child(2) { grid-column: 1; }
+  .body-example-reset { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
   .playground-execute-row { align-items: flex-start; flex-direction: column; }
   .playground-send { width: 100%; }
 }

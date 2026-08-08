@@ -110,6 +110,10 @@ export function PlaygroundWorkspace() {
   const [query, setQuery] = useState<EditableParameter[]>([]);
   const [headers, setHeaders] = useState<EditableParameter[]>([]);
   const [body, setBody] = useState('');
+  const [bodyMediaType, setBodyMediaType] = useState('application/json');
+  const [bodyExampleName, setBodyExampleName] = useState('');
+  const [bodyDirty, setBodyDirty] = useState(false);
+  const [bodyError, setBodyError] = useState('');
   const [manualTarget, setManualTarget] = useState('');
   const [targetError, setTargetError] = useState('');
   const [oauthMode, setOauthMode] = useState<OAuthMode>('clientCredentials');
@@ -173,6 +177,30 @@ export function PlaygroundWorkspace() {
     description: operation.operationId,
     keywords: operation.policies.map(policy => policy.type),
   })) ?? [], [revision]);
+  const selectedRequestBody = useMemo(
+    () => selectedOperation?.requestBodies.find(item => item.mediaType === bodyMediaType)
+      ?? selectedOperation?.requestBodies[0]
+      ?? null,
+    [bodyMediaType, selectedOperation],
+  );
+  const selectedBodyExample = useMemo(
+    () => selectedRequestBody?.examples.find(example => example.name === bodyExampleName)
+      ?? selectedRequestBody?.examples[0]
+      ?? null,
+    [bodyExampleName, selectedRequestBody],
+  );
+  const bodyMediaOptions = useMemo<CatalogOption[]>(() =>
+    selectedOperation?.requestBodies.map(item => ({
+      value: item.mediaType,
+      label: item.mediaType,
+      description: item.required ? 'Required by OpenAPI' : 'Optional body',
+    })) ?? [], [selectedOperation]);
+  const bodyExampleOptions = useMemo<CatalogOption[]>(() =>
+    selectedRequestBody?.examples.map(example => ({
+      value: example.name,
+      label: example.name,
+      description: example.source === 'explicit' ? 'OpenAPI example' : 'Generated from schema',
+    })) ?? [], [selectedRequestBody]);
 
   useEffect(() => {
     managementFetch<ApiProxySummary[]>('proxies')
@@ -251,7 +279,13 @@ export function PlaygroundWorkspace() {
     setPathValues(Object.fromEntries(pathNames.map(name => [name, ''])));
     setQuery([]);
     setHeaders([]);
-    setBody('');
+    const firstRequestBody = selectedOperation?.requestBodies[0];
+    const firstExample = firstRequestBody?.examples[0];
+    setBody(firstExample?.body ?? '');
+    setBodyMediaType(firstRequestBody?.mediaType ?? 'application/json');
+    setBodyExampleName(firstExample?.name ?? '');
+    setBodyDirty(false);
+    setBodyError('');
     setManualTarget('');
     setTargetError('');
     setConsumerSecret('');
@@ -265,7 +299,39 @@ export function PlaygroundWorkspace() {
     } else {
       setScope('');
     }
-  }, [operationId, pathNames.join('|'), requirement.type]);
+  }, [operationId, pathNames.join('|'), requirement.type, selectedOperation]);
+
+  const validateBody = useCallback((value: string, mediaType: string) => {
+    if (!value || !mediaType.toLowerCase().includes('json')) {
+      setBodyError('');
+      return;
+    }
+    try {
+      JSON.parse(value);
+      setBodyError('');
+    } catch {
+      setBodyError('Body must contain valid JSON for the selected media type.');
+    }
+  }, []);
+
+  const selectBodyMediaType = useCallback((mediaType: string) => {
+    const requestBody = selectedOperation?.requestBodies.find(item => item.mediaType === mediaType);
+    const example = requestBody?.examples[0];
+    setBodyMediaType(mediaType);
+    setBodyExampleName(example?.name ?? '');
+    setBody(example?.body ?? '');
+    setBodyDirty(false);
+    setBodyError('');
+  }, [selectedOperation]);
+
+  const selectBodyExample = useCallback((name: string) => {
+    const example = selectedRequestBody?.examples.find(item => item.name === name);
+    if (!example) return;
+    setBodyExampleName(name);
+    setBody(example.body);
+    setBodyDirty(false);
+    setBodyError('');
+  }, [selectedRequestBody]);
 
   useEffect(() => {
     const selected = credentials.find(credential => credential.id === credentialId);
@@ -347,6 +413,8 @@ export function PlaygroundWorkspace() {
   const canExecute = Boolean(selectedOperation && selectedDeployment)
     && pathNames.every(name => pathValues[name])
     && !targetError
+    && !bodyError
+    && (!selectedRequestBody?.required || Boolean(body))
     && requirement.type !== 'mtls'
     && requirement.type !== 'unsupported'
     && (requirement.type !== 'apiKey' || Boolean(apiKey))
@@ -383,6 +451,7 @@ export function PlaygroundWorkspace() {
         headers: headers.filter(item => item.name).map(({ name, value }) => ({ name, value })),
         targetUrl: target,
         ...(body ? { body } : {}),
+        ...(body ? { bodyMediaType } : {}),
         authentication: authentication(),
       });
       setResult(nextResult);
@@ -392,7 +461,7 @@ export function PlaygroundWorkspace() {
     } finally {
       setExecuting(false);
     }
-  }, [authentication, body, canExecute, headers, manualTarget, pathValues, proxyId, query, revision, selectedDeployment, selectedOperation, target]);
+  }, [authentication, body, bodyMediaType, canExecute, headers, manualTarget, pathValues, proxyId, query, revision, selectedDeployment, selectedOperation, target]);
 
   const requestPreview = useMemo(() => {
     if (!selectedOperation || !selectedDeployment) return 'Select an active operation';
@@ -401,7 +470,7 @@ export function PlaygroundWorkspace() {
       .map(item => [item.name.toLowerCase(), item.value]));
     previewHeaders.accept ??= 'application/json';
     if (body && operationSupportsBody(selectedOperation)) {
-      previewHeaders['content-type'] ??= 'application/json';
+      previewHeaders['content-type'] ??= bodyMediaType;
     }
     if (requirement.type === 'apiKey') {
       previewHeaders[requirement.header.toLowerCase()] = '<redacted>';
@@ -420,7 +489,7 @@ export function PlaygroundWorkspace() {
     } catch {
       return `${selectedOperation.method.toUpperCase()} ${target}\n\nComplete a valid absolute URL to preview the request.`;
     }
-  }, [body, headers, oauthMode, requirement, selectedDeployment, selectedOperation, target]);
+  }, [body, bodyMediaType, headers, oauthMode, requirement, selectedDeployment, selectedOperation, target]);
 
   const copyDisplayedRequest = useCallback(async () => {
     const value = responseView === 'request' && result
@@ -565,18 +634,58 @@ export function PlaygroundWorkspace() {
               onRemove={id => removeParameter('headers', id)}
             />
 
-            {selectedOperation && operationSupportsBody(selectedOperation) && (
-              <PlaygroundSection title="Body" detail="Sent without schema validation">
+            {selectedOperation && operationSupportsBody(selectedOperation) && requirement.type !== 'oauthToken' && (
+              <PlaygroundSection
+                title="Body"
+                detail={selectedRequestBody
+                  ? `${selectedRequestBody.required ? 'Required' : 'Optional'} · OpenAPI contract`
+                  : 'Freeform · no OpenAPI request body'}
+              >
+                {bodyMediaOptions.length > 0 && (
+                  <div className="body-example-toolbar">
+                    <CatalogCombobox
+                      label="Media type"
+                      value={bodyMediaType}
+                      options={bodyMediaOptions}
+                      onChange={selectBodyMediaType}
+                      searchPlaceholder="Search media type"
+                    />
+                    {bodyExampleOptions.length > 0 && (
+                      <CatalogCombobox
+                        label="Example"
+                        value={bodyExampleName}
+                        options={bodyExampleOptions}
+                        onChange={selectBodyExample}
+                        searchPlaceholder="Search example"
+                      />
+                    )}
+                    <button
+                      className="body-example-reset"
+                      type="button"
+                      onClick={() => selectedBodyExample && selectBodyExample(selectedBodyExample.name)}
+                      disabled={!selectedBodyExample || !bodyDirty}
+                      title="Restore selected example"
+                      aria-label="Restore selected body example"
+                    >
+                      <RotateCcw />
+                    </button>
+                  </div>
+                )}
                 <label className="playground-field playground-body-field">
                   <span className="sr-only">Request body</span>
                   <textarea
                     value={body}
-                    onChange={event => setBody(event.target.value)}
+                    onChange={event => {
+                      setBody(event.target.value);
+                      setBodyDirty(true);
+                      validateBody(event.target.value, bodyMediaType);
+                    }}
                     placeholder={'{\n  "example": true\n}'}
                     rows={8}
                     spellCheck={false}
                   />
                 </label>
+                {bodyError && <p className="body-validation-error" role="alert">{bodyError}</p>}
               </PlaygroundSection>
             )}
 
