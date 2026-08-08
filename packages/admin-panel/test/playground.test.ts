@@ -10,6 +10,7 @@ import {
   buildPlaygroundCurl,
   buildPlaygroundTarget,
   parsePlaygroundExecutionInput,
+  parsePlaygroundTarget,
   PlaygroundValidationError,
   safeRequestHeaders,
   validatePlaygroundTarget,
@@ -207,6 +208,20 @@ describe('playground request validation', () => {
       (error: unknown) => error instanceof PlaygroundValidationError
         && error.code === 'playground_url_mismatch',
     );
+  });
+
+  it('extracts path and query parameters from an edited URL', () => {
+    const parsed = parsePlaygroundTarget(
+      'https://qual-es.gateway.localhost:8443/es/banking/v1/accounts/customer%201?expand=owner&limit=5',
+      deployment.environment.publicOrigin,
+      '/es/banking/v1',
+      '/accounts/{id}',
+    );
+    assert.deepEqual(parsed.pathParameters, { id: 'customer 1' });
+    assert.deepEqual(parsed.queryParameters, [
+      { name: 'expand', value: 'owner' },
+      { name: 'limit', value: '5' },
+    ]);
   });
 });
 

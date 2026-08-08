@@ -304,11 +304,19 @@ function escapeRegularExpression(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-function operationPathPattern(basePath: string, operationPath: string): RegExp {
+function operationPathMatcher(
+  basePath: string,
+  operationPath: string,
+): { pattern: RegExp; parameterNames: string[] } {
   const path = `${basePath.replace(/\/$/, '')}/${operationPath.replace(/^\//, '')}`;
-  const source = path.split(/(\{[^}]+\})/g).map(part =>
-    /^\{[^}]+\}$/.test(part) ? '[^/]+' : escapeRegularExpression(part)).join('');
-  return new RegExp(`^${source}$`);
+  const parameterNames: string[] = [];
+  const source = path.split(/(\{[^}]+\})/g).map(part => {
+    const match = part.match(/^\{([^}]+)\}$/);
+    if (!match) return escapeRegularExpression(part);
+    parameterNames.push(match[1]);
+    return '([^/]+)';
+  }).join('');
+  return { pattern: new RegExp(`^${source}$`), parameterNames };
 }
 
 export function validatePlaygroundTarget(
@@ -340,7 +348,7 @@ export function validatePlaygroundTarget(
       422,
     );
   }
-  if (!operationPathPattern(basePath, operationPath).test(target.pathname)) {
+  if (!operationPathMatcher(basePath, operationPath).pattern.test(target.pathname)) {
     throw new PlaygroundValidationError(
       'playground_url_mismatch',
       'Request URL does not match the selected operation',
@@ -348,6 +356,39 @@ export function validatePlaygroundTarget(
     );
   }
   return target;
+}
+
+export function parsePlaygroundTarget(
+  value: string,
+  publicOrigin: string,
+  basePath: string,
+  operationPath: string,
+): {
+  target: URL;
+  pathParameters: Record<string, string>;
+  queryParameters: PlaygroundParameter[];
+} {
+  const target = validatePlaygroundTarget(value, publicOrigin, basePath, operationPath);
+  const matcher = operationPathMatcher(basePath, operationPath);
+  const match = target.pathname.match(matcher.pattern);
+  const pathParameters = Object.fromEntries(matcher.parameterNames.map((name, index) => {
+    try {
+      return [name, decodeURIComponent(match?.[index + 1] ?? '')];
+    } catch {
+      throw new PlaygroundValidationError(
+        'invalid_playground_url',
+        `Path parameter ${name} is not valid URL encoding`,
+      );
+    }
+  }));
+  return {
+    target,
+    pathParameters,
+    queryParameters: [...target.searchParams.entries()].map(([name, parameterValue]) => ({
+      name,
+      value: parameterValue,
+    })),
+  };
 }
 
 export function buildPlaygroundTarget(
