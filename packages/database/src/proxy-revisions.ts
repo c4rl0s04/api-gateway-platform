@@ -8,6 +8,7 @@ import { prisma } from './client.js';
 import { compileProxyBundle } from './proxy-bundle.js';
 import type { CompiledProxyBundle } from './proxy-bundle.js';
 import { recordGatewayConfigChange } from './gateway-config-changes.js';
+import { requestBodiesForOperation } from './openapi-request-bodies.js';
 
 export interface ProxyMutationActor {
   issuer: string;
@@ -77,6 +78,7 @@ const revisionSelection = {
   revisionNumber: true,
   basePath: true,
   openapiVersion: true,
+  openapiDocument: true,
   contentHash: true,
   createdAt: true,
   operations: {
@@ -420,11 +422,24 @@ export function listProxyRevisions(proxyId: string) {
   });
 }
 
-export function getProxyRevision(proxyId: string, revisionNumber: number) {
-  return prisma.apiProxyRevision.findUnique({
+export async function getProxyRevision(proxyId: string, revisionNumber: number) {
+  const revision = await prisma.apiProxyRevision.findUnique({
     where: { proxyId_revisionNumber: { proxyId, revisionNumber } },
     select: revisionSelection,
   });
+  if (!revision) return null;
+  const { openapiDocument, ...detail } = revision;
+  return {
+    ...detail,
+    operations: detail.operations.map(operation => ({
+      ...operation,
+      requestBodies: requestBodiesForOperation(
+        openapiDocument,
+        operation.method,
+        operation.path,
+      ),
+    })),
+  };
 }
 
 export function getProxyRevisionSource(

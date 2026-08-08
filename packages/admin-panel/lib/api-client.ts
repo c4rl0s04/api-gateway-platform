@@ -138,6 +138,15 @@ export interface ProxyOperation {
   path: string;
   targetPath: string | null;
   policies: OperationPolicy[];
+  requestBodies: Array<{
+    required: boolean;
+    mediaType: string;
+    examples: Array<{
+      name: string;
+      body: string;
+      source: 'explicit' | 'schema';
+    }>;
+  }>;
 }
 
 export interface ProxyRevisionDetail extends ProxyRevisionSummary {

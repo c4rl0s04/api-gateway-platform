@@ -26,6 +26,12 @@ export type {
   OpenApiOperationSummary,
   ProxyBundleErrorCode,
 } from './proxy-bundle.js';
+export { requestBodiesForOperation } from './openapi-request-bodies.js';
+export type {
+  OpenApiRequestBody,
+  OpenApiRequestExample,
+  RequestExampleSource,
+} from './openapi-request-bodies.js';
 export {
   createApiProxy,
   createConfiguredApiProxy,
