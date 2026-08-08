@@ -85,6 +85,8 @@ services:
     environment:
       OIDC_ISSUER: ${PLATFORM_KEYCLOAK_URL:?Missing isolated Keycloak URL}/realms/api-gateway
       OIDC_CALLBACK_URL: ${PLATFORM_ADMIN_PANEL_URL:?Missing isolated Admin Panel URL}/api/auth/callback
+    volumes: !override
+      - ${PLATFORM_SECRETS_DIR:?Missing isolated secrets directory}:/run/platform-secrets:ro
     ports: !override
       - "${PLATFORM_ADMIN_PANEL_PORT:-18080}:8080"
 

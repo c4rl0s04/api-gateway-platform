@@ -167,6 +167,11 @@ services:
       OIDC_INTERNAL_BASE_URL: http://keycloak:8080
       OIDC_CLIENT_ID: admin-panel
       OIDC_CALLBACK_URL: http://localhost:8080/api/auth/callback
+      PLAYGROUND_ENVOY_URL: https://envoy:8443
+      PLAYGROUND_CA_CERT_FILE: /run/platform-secrets/pki/authorities/local-development/ca.crt
+      PLAYGROUND_REQUEST_TIMEOUT_MS: "10000"
+    volumes:
+      - ./.local-secrets:/run/platform-secrets:ro
     ports:
       - "8080:8080"
     depends_on:
