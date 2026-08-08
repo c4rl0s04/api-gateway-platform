@@ -603,6 +603,8 @@ td { padding: 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
 .playground-form-section > header span { max-width: 54%; line-height: 1.45; text-align: right; }
 .playground-form-section > header span code { display: inline; margin: 0; color: inherit; font-size: inherit; }
 .playground-field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.playground-field-grid > .catalog-combobox, .oauth-editor > .catalog-combobox { min-height: 56px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: var(--radius-1); }
+.playground-field-grid > .catalog-combobox .catalog-combobox-trigger, .oauth-editor > .catalog-combobox .catalog-combobox-trigger { min-height: 36px; }
 .playground-field { min-width: 0; display: grid; gap: 7px; }
 .playground-field > span { color: var(--ink-soft); font-size: 11px; font-weight: 620; }
 .playground-field input, .playground-field select, .playground-field textarea, .parameter-row input { width: 100%; min-width: 0; min-height: 40px; padding: 8px 10px; border: 1px solid var(--line-strong); border-radius: var(--radius-1); background: var(--surface-raised); color: var(--ink); font-size: 12px; }
@@ -624,8 +626,9 @@ td { padding: 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
 .authentication-none { min-height: 48px; display: flex; align-items: center; gap: 10px; color: var(--success); font-size: 12px; }
 .authentication-none svg { width: 18px; height: 18px; }
 .oauth-editor { display: grid; gap: 20px; }
-.oauth-mode-switch { width: 100%; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--line-strong); border-radius: var(--radius-1); }
+.oauth-mode-switch { width: 100%; display: flex; border: 1px solid var(--line-strong); border-radius: var(--radius-1); }
 .oauth-mode-switch button { min-height: 40px; padding: 0 8px; border: 0; border-right: 1px solid var(--line-strong); background: transparent; color: var(--ink-soft); font-size: 11px; font-weight: 620; cursor: pointer; }
+.oauth-mode-switch button { flex: 1; }
 .oauth-mode-switch button:last-child { border-right: 0; }
 .oauth-mode-switch button[aria-pressed='true'] { background: var(--red-soft); color: var(--red); }
 .playground-secret-note { margin: 0; color: var(--ink-faint); font-size: 10px; line-height: 1.5; }
@@ -646,6 +649,7 @@ td { padding: 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
 .response-facts { min-height: 48px; display: flex; align-items: center; flex-wrap: wrap; gap: 16px; padding: 8px 20px; border-bottom: 1px solid var(--line); color: var(--ink-soft); font-family: var(--font-technical); font-size: 9px; }
 .response-facts span { display: inline-flex; align-items: center; gap: 6px; }
 .response-facts svg { width: 13px; height: 13px; color: var(--red); }
+.response-facts button { min-height: 30px; display: inline-flex; align-items: center; gap: 6px; margin-left: auto; padding: 0 8px; border: 1px solid var(--line); border-radius: var(--radius-1); background: transparent; color: var(--red); font-size: 9px; font-weight: 650; cursor: pointer; }
 .response-tabs { min-height: 48px; display: flex; align-items: center; padding: 0 12px; border-bottom: 1px solid var(--line); }
 .response-tabs > button:not(.copy-response-command) { align-self: stretch; padding: 0 12px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--ink-faint); font-size: 10px; font-weight: 650; text-transform: capitalize; cursor: pointer; }
 .response-tabs > button[aria-selected='true'] { border-bottom-color: var(--red); color: var(--red); }
@@ -908,6 +912,7 @@ td { padding: 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
   .parameter-row input:nth-child(2) { grid-column: 1; }
   .parameter-row button { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
   .oauth-mode-switch { grid-template-columns: 1fr; }
+  .oauth-mode-switch { flex-direction: column; }
   .oauth-mode-switch button { border-right: 0; border-bottom: 1px solid var(--line-strong); }
   .oauth-mode-switch button:last-child { border-bottom: 0; }
   .response-facts { gap: 10px; }

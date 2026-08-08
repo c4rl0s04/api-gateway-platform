@@ -21,6 +21,7 @@ import {
   type ApiProxySummary,
   type AppCredential,
   type DeveloperApp,
+  type Organization,
   type ProxyDeployment,
   type ProxyOperation,
   type ProxyRevisionDetail,
@@ -50,13 +51,15 @@ function pathParameterNames(path: string): string[] {
 function activeCredentials(
   apps: DeveloperApp[],
   productIds: Set<string>,
+  allowAnyProduct = false,
 ): Array<AppCredential & { appName: string }> {
   return apps.flatMap(app => app.status === 'approved'
     ? app.credentials
         .filter(credential => credential.status === 'approved'
           && (!credential.expiresAt || new Date(credential.expiresAt) > new Date())
           && credential.productGrants.some(grant =>
-            grant.status === 'approved' && productIds.has(grant.product.id)))
+            grant.status === 'approved'
+            && (allowAnyProduct || productIds.has(grant.product.id))))
         .map(credential => ({ ...credential, appName: app.name }))
     : []);
 }
@@ -106,6 +109,8 @@ export function PlaygroundWorkspace() {
   const [revision, setRevision] = useState<ProxyRevisionDetail | null>(null);
   const [operationId, setOperationId] = useState('');
   const [apps, setApps] = useState<DeveloperApp[]>([]);
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [credentialOrganizationId, setCredentialOrganizationId] = useState('');
   const [pathValues, setPathValues] = useState<Record<string, string>>({});
   const [query, setQuery] = useState<EditableParameter[]>([]);
   const [headers, setHeaders] = useState<EditableParameter[]>([]);
@@ -127,6 +132,7 @@ export function PlaygroundWorkspace() {
   const [result, setResult] = useState<PlaygroundExecutionResult | null>(null);
   const [responseView, setResponseView] = useState<ResponseView>('preview');
   const [copied, setCopied] = useState(false);
+  const [tokenCopied, setTokenCopied] = useState(false);
   const [loading, setLoading] = useState(true);
   const [executing, setExecuting] = useState(false);
   const [error, setError] = useState('');
@@ -146,7 +152,11 @@ export function PlaygroundWorkspace() {
     [selectedOperation],
   );
   const credentials = useMemo(
-    () => activeCredentials(apps, new Set(proxy?.products.map(product => product.id) ?? [])),
+    () => activeCredentials(
+      apps,
+      new Set(proxy?.products.map(product => product.id) ?? []),
+      proxy?.systemManaged,
+    ),
     [apps, proxy],
   );
   const pathNames = useMemo(
@@ -177,6 +187,11 @@ export function PlaygroundWorkspace() {
     description: operation.operationId,
     keywords: operation.policies.map(policy => policy.type),
   })) ?? [], [revision]);
+  const organizationOptions = useMemo<CatalogOption[]>(() => organizations.map(organization => ({
+    value: organization.id,
+    label: organization.name,
+    description: organization.id,
+  })), [organizations]);
   const selectedRequestBody = useMemo(
     () => selectedOperation?.requestBodies.find(item => item.mediaType === bodyMediaType)
       ?? selectedOperation?.requestBodies[0]
@@ -203,12 +218,16 @@ export function PlaygroundWorkspace() {
     })) ?? [], [selectedRequestBody]);
 
   useEffect(() => {
-    managementFetch<ApiProxySummary[]>('proxies')
-      .then(items => {
+    Promise.all([
+      managementFetch<ApiProxySummary[]>('proxies'),
+      managementFetch<Organization[]>('organizations'),
+    ])
+      .then(([items, nextOrganizations]) => {
         const executable = items.filter(item => item.active
           && item.deployments.length > 0
           && (!item.systemManaged || item.id === 'proxy-platform-oauth'));
         setProxies(executable);
+        setOrganizations(nextOrganizations);
         setProxyId(executable[0]?.id ?? '');
         setError('');
       })
@@ -235,7 +254,7 @@ export function PlaygroundWorkspace() {
       managementFetch<ProxyDeployment[]>(`proxies/${proxyId}/deployments`, {
         signal: controller.signal,
       }),
-    ]).then(async ([nextProxy, allDeployments]) => {
+    ]).then(([nextProxy, allDeployments]) => {
       const active = allDeployments
         .filter(deployment => deployment.status === 'active')
         .sort((left, right) => left.environment.region.localeCompare(right.environment.region)
@@ -244,15 +263,43 @@ export function PlaygroundWorkspace() {
       setDeployments(active);
       setDeploymentId(active[0]?.id ?? '');
       setResult(null);
-      return managementFetch<DeveloperApp[]>(
-        `organizations/${nextProxy.organizationId}/apps`,
-        { signal: controller.signal },
-      );
-    }).then(setApps).catch(cause => {
+    }).catch(cause => {
       if (cause.name !== 'AbortError') setError(cause.message);
     }).finally(() => setLoading(false));
     return () => controller.abort();
   }, [proxyId]);
+
+  useEffect(() => {
+    if (!proxy) {
+      setCredentialOrganizationId('');
+      return;
+    }
+    if (!proxy.systemManaged) {
+      setCredentialOrganizationId(proxy.organizationId);
+      return;
+    }
+    setCredentialOrganizationId(current =>
+      organizations.some(organization => organization.id === current)
+        ? current
+        : organizations.find(organization => organization.id !== proxy.organizationId)?.id
+          ?? organizations[0]?.id
+          ?? '');
+  }, [organizations, proxy]);
+
+  useEffect(() => {
+    if (!credentialOrganizationId) {
+      setApps([]);
+      return;
+    }
+    const controller = new AbortController();
+    managementFetch<DeveloperApp[]>(
+      `organizations/${credentialOrganizationId}/apps`,
+      { signal: controller.signal },
+    ).then(setApps).catch(cause => {
+      if (cause.name !== 'AbortError') setError(cause.message);
+    });
+    return () => controller.abort();
+  }, [credentialOrganizationId]);
 
   useEffect(() => {
     if (!selectedDeployment || !proxyId) {
@@ -296,6 +343,11 @@ export function PlaygroundWorkspace() {
     if (requirement.type === 'oauth') {
       setScope(requirement.requiredScopes.join(' '));
       setOauthMode('clientCredentials');
+    } else if (requirement.type === 'oauthToken') {
+      setScope('');
+      setOauthMode(requirement.grantTypes.includes('client_credentials')
+        ? 'clientCredentials'
+        : 'jwtBearer');
     } else {
       setScope('');
     }
@@ -338,11 +390,19 @@ export function PlaygroundWorkspace() {
     if (!selected) return;
     setApiKey(selected.consumerKey);
     setConsumerKey(selected.consumerKey);
-  }, [credentialId, credentials]);
+    if (requirement.type === 'oauthToken') {
+      const allowed = new Set(requirement.allowedScopes);
+      const grantScopes = selected.productGrants
+        .filter(grant => grant.status === 'approved')
+        .flatMap(grant => grant.scopes)
+        .filter(scopeName => allowed.size === 0 || allowed.has(scopeName));
+      setScope([...new Set(grantScopes)].join(' '));
+    }
+  }, [credentialId, credentials, requirement]);
 
   useEffect(() => {
-    if (!credentials.some(credential => credential.id === credentialId)) {
-      setCredentialId(credentials[0]?.id ?? '');
+    if (credentialId && !credentials.some(credential => credential.id === credentialId)) {
+      setCredentialId('');
     }
   }, [credentialId, credentials]);
 
@@ -404,7 +464,7 @@ export function PlaygroundWorkspace() {
 
   const authentication = useCallback((): PlaygroundAuthentication => {
     if (requirement.type === 'apiKey') return { type: 'apiKey', value: apiKey };
-    if (requirement.type !== 'oauth') return { type: 'none' };
+    if (requirement.type !== 'oauth' && requirement.type !== 'oauthToken') return { type: 'none' };
     if (oauthMode === 'bearerToken') return { type: 'bearerToken', token: bearerToken };
     if (oauthMode === 'jwtBearer') return { type: 'jwtBearer', assertion, scope };
     return { type: 'clientCredentials', consumerKey, consumerSecret, scope };
@@ -414,11 +474,11 @@ export function PlaygroundWorkspace() {
     && pathNames.every(name => pathValues[name])
     && !targetError
     && !bodyError
-    && (!selectedRequestBody?.required || Boolean(body))
+    && (requirement.type === 'oauthToken' || !selectedRequestBody?.required || Boolean(body))
     && requirement.type !== 'mtls'
     && requirement.type !== 'unsupported'
     && (requirement.type !== 'apiKey' || Boolean(apiKey))
-    && (requirement.type !== 'oauth'
+    && (requirement.type !== 'oauth' && requirement.type !== 'oauthToken'
       || (oauthMode === 'bearerToken' && Boolean(bearerToken))
       || (oauthMode === 'jwtBearer' && Boolean(assertion))
       || (oauthMode === 'clientCredentials' && Boolean(consumerKey && consumerSecret)));
@@ -469,7 +529,20 @@ export function PlaygroundWorkspace() {
       .filter(item => item.name)
       .map(item => [item.name.toLowerCase(), item.value]));
     previewHeaders.accept ??= 'application/json';
-    if (body && operationSupportsBody(selectedOperation)) {
+    let previewBody = body;
+    if (requirement.type === 'oauthToken') {
+      previewHeaders['content-type'] = 'application/x-www-form-urlencoded';
+      const tokenForm = new URLSearchParams();
+      if (oauthMode === 'clientCredentials') {
+        tokenForm.set('grant_type', 'client_credentials');
+        previewHeaders.authorization = 'Basic <redacted>';
+      } else {
+        tokenForm.set('grant_type', 'urn:ietf:params:oauth:grant-type:jwt-bearer');
+        tokenForm.set('assertion', '<redacted>');
+      }
+      if (scope) tokenForm.set('scope', scope);
+      previewBody = tokenForm.toString();
+    } else if (body && operationSupportsBody(selectedOperation)) {
       previewHeaders['content-type'] ??= bodyMediaType;
     }
     if (requirement.type === 'apiKey') {
@@ -484,12 +557,29 @@ export function PlaygroundWorkspace() {
         method: selectedOperation.method,
         url: target,
         headers: previewHeaders,
-        ...(body ? { body } : {}),
+        ...(previewBody ? { body: previewBody } : {}),
       });
     } catch {
       return `${selectedOperation.method.toUpperCase()} ${target}\n\nComplete a valid absolute URL to preview the request.`;
     }
-  }, [body, bodyMediaType, headers, oauthMode, requirement, selectedDeployment, selectedOperation, target]);
+  }, [body, bodyMediaType, headers, oauthMode, requirement, scope, selectedDeployment, selectedOperation, target]);
+
+  const issuedAccessToken = useMemo(() => {
+    if (requirement.type !== 'oauthToken' || !result?.response.body) return '';
+    try {
+      const payload = JSON.parse(result.response.body) as { access_token?: unknown };
+      return typeof payload.access_token === 'string' ? payload.access_token : '';
+    } catch {
+      return '';
+    }
+  }, [requirement.type, result]);
+
+  const copyAccessToken = useCallback(async () => {
+    if (!issuedAccessToken) return;
+    await navigator.clipboard.writeText(issuedAccessToken);
+    setTokenCopied(true);
+    window.setTimeout(() => setTokenCopied(false), 1400);
+  }, [issuedAccessToken]);
 
   const copyDisplayedRequest = useCallback(async () => {
     const value = responseView === 'request' && result
@@ -693,6 +783,9 @@ export function PlaygroundWorkspace() {
               <AuthenticationEditor
                 requirement={requirement}
                 credentials={credentials}
+                organizationOptions={organizationOptions}
+                credentialOrganizationId={credentialOrganizationId}
+                onCredentialOrganizationChange={setCredentialOrganizationId}
                 credentialId={credentialId}
                 onCredentialChange={setCredentialId}
                 apiKey={apiKey}
@@ -743,6 +836,12 @@ export function PlaygroundWorkspace() {
                 <span><Braces /> {new Blob([result.response.body]).size} bytes</span>
                 {result.tokenExchange && <span><KeyRound /> Token {result.tokenExchange.durationMs} ms</span>}
                 {result.response.truncated && <span>Body truncated</span>}
+                {issuedAccessToken && (
+                  <button type="button" onClick={() => void copyAccessToken()}>
+                    {tokenCopied ? <Check /> : <Copy />}
+                    {tokenCopied ? 'Token copied' : 'Copy access token'}
+                  </button>
+                )}
               </div>
             )}
             <div className="response-tabs" role="tablist" aria-label="Request and response detail">
@@ -856,6 +955,8 @@ function RequirementLabel({ requirement }: { requirement: PlaygroundAuthenticati
   if (requirement.type === 'oauth') {
     return <>OAuth access token{requirement.requiredScopes.length > 0 ? ` · ${requirement.requiredScopes.join(' ')}` : ''}</>;
   }
+  if (requirement.type === 'oauthToken') return <>OAuth token issuance</>;
+  if (requirement.type === 'jwks') return <>Public signing keys</>;
   if (requirement.type === 'mtls') return <>Client certificate required</>;
   if (requirement.type === 'unsupported') return <>{requirement.policyType} is not executable here</>;
   return <>No authentication policy</>;
@@ -864,6 +965,9 @@ function RequirementLabel({ requirement }: { requirement: PlaygroundAuthenticati
 function AuthenticationEditor({
   requirement,
   credentials,
+  organizationOptions,
+  credentialOrganizationId,
+  onCredentialOrganizationChange,
   credentialId,
   onCredentialChange,
   apiKey,
@@ -884,6 +988,9 @@ function AuthenticationEditor({
 }: {
   requirement: PlaygroundAuthenticationRequirement;
   credentials: Array<AppCredential & { appName: string }>;
+  organizationOptions: CatalogOption[];
+  credentialOrganizationId: string;
+  onCredentialOrganizationChange(value: string): void;
   credentialId: string;
   onCredentialChange(value: string): void;
   apiKey: string;
@@ -905,6 +1012,9 @@ function AuthenticationEditor({
   if (requirement.type === 'none') {
     return <div className="authentication-none"><ShieldCheck /> This operation can be called without client authentication.</div>;
   }
+  if (requirement.type === 'jwks') {
+    return <div className="authentication-none"><KeyRound /> This endpoint publishes the gateway public signing keys.</div>;
+  }
   if (requirement.type === 'mtls') {
     return (
       <div className="mtls-playground-callout">
@@ -921,17 +1031,21 @@ function AuthenticationEditor({
     return <div className="authentication-none">This system operation is not available in the business proxy playground.</div>;
   }
   const credentialOptions = (
-    <label className="playground-field">
-      <span>Application credential</span>
-      <select value={credentialId} onChange={event => onCredentialChange(event.target.value)}>
-        <option value="">Enter manually</option>
-        {credentials.map(credential => (
-          <option value={credential.id} key={credential.id}>
-            {credential.appName} · {credential.consumerKey}
-          </option>
-        ))}
-      </select>
-    </label>
+    <CatalogCombobox
+      label="Application credential"
+      value={credentialId}
+      options={[
+        { value: '', label: 'Enter manually', description: 'Do not use a saved consumer key' },
+        ...credentials.map(credential => ({
+          value: credential.id,
+          label: credential.appName,
+          description: credential.consumerKey,
+          keywords: [credential.id],
+        })),
+      ]}
+      onChange={onCredentialChange}
+      searchPlaceholder="Search app or consumer key"
+    />
   );
   if (requirement.type === 'apiKey') {
     return (
@@ -944,12 +1058,26 @@ function AuthenticationEditor({
       </div>
     );
   }
+  const allowsClientCredentials = requirement.type === 'oauth'
+    || requirement.grantTypes.includes('client_credentials');
+  const allowsJwtBearer = requirement.type === 'oauth'
+    || requirement.grantTypes.includes('urn:ietf:params:oauth:grant-type:jwt-bearer');
+  const allowsAccessToken = requirement.type === 'oauth';
   return (
     <div className="oauth-editor">
+      {requirement.type === 'oauthToken' && (
+        <CatalogCombobox
+          label="Credential organization"
+          value={credentialOrganizationId}
+          options={organizationOptions}
+          onChange={onCredentialOrganizationChange}
+          searchPlaceholder="Search organization"
+        />
+      )}
       <div className="oauth-mode-switch" aria-label="OAuth credential mode">
-        <button type="button" aria-pressed={oauthMode === 'clientCredentials'} onClick={() => onOauthModeChange('clientCredentials')}>Client credentials</button>
-        <button type="button" aria-pressed={oauthMode === 'bearerToken'} onClick={() => onOauthModeChange('bearerToken')}>Access token</button>
-        <button type="button" aria-pressed={oauthMode === 'jwtBearer'} onClick={() => onOauthModeChange('jwtBearer')}>JWT assertion</button>
+        {allowsClientCredentials && <button type="button" aria-pressed={oauthMode === 'clientCredentials'} onClick={() => onOauthModeChange('clientCredentials')}>Client credentials</button>}
+        {allowsAccessToken && <button type="button" aria-pressed={oauthMode === 'bearerToken'} onClick={() => onOauthModeChange('bearerToken')}>Access token</button>}
+        {allowsJwtBearer && <button type="button" aria-pressed={oauthMode === 'jwtBearer'} onClick={() => onOauthModeChange('jwtBearer')}>JWT assertion</button>}
       </div>
       {oauthMode === 'clientCredentials' && (
         <div className="playground-field-grid">
@@ -964,11 +1092,16 @@ function AuthenticationEditor({
       )}
       {oauthMode === 'jwtBearer' && (
         <div className="playground-field-grid">
+          {credentialOptions}
           <label className="playground-field playground-body-field"><span>Signed JWT assertion</span><textarea rows={5} value={assertion} onChange={event => onAssertionChange(event.target.value)} spellCheck={false} /></label>
           <label className="playground-field"><span>Scope</span><input value={scope} onChange={event => onScopeChange(event.target.value)} /></label>
         </div>
       )}
-      <p className="playground-secret-note">Secrets and tokens are used for this request only and are never returned in the response.</p>
+      <p className="playground-secret-note">
+        {requirement.type === 'oauthToken'
+          ? 'Credential material is used for this exchange only. A successful access token remains visible so it can be tested manually.'
+          : 'Secrets and tokens are used for this request only and are never returned in diagnostics.'}
+      </p>
     </div>
   );
 }

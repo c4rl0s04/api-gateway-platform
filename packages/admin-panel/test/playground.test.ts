@@ -176,6 +176,23 @@ describe('playground request validation', () => {
       authenticationRequirement(revision('oauth-access-token').operations[0].policies),
       { type: 'oauth', requiredScopes: ['banking:read'] },
     );
+    const tokenRevision = revision('oauth-token');
+    tokenRevision.operations[0].policies[0].config = {
+      grantTypes: ['client_credentials'],
+      allowedScopes: ['banking:read'],
+    };
+    assert.deepEqual(
+      authenticationRequirement(tokenRevision.operations[0].policies),
+      {
+        type: 'oauthToken',
+        grantTypes: ['client_credentials'],
+        allowedScopes: ['banking:read'],
+      },
+    );
+    assert.deepEqual(
+      authenticationRequirement(revision('jwks-endpoint').operations[0].policies),
+      { type: 'jwks' },
+    );
   });
 
   it('accepts only URLs for the selected deployment and operation', () => {
