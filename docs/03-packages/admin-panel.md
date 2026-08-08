@@ -57,11 +57,15 @@ the short-lived access token in an HttpOnly cookie. Client components call the
 BFF for reads and mutations.
 
 The playground reads proxy metadata through the Management API BFF. Its
-dedicated server route revalidates the active deployment and operation, derives
-the target hostname and path, and sends the request to Envoy over the internal
-network. It supports API key, existing Bearer tokens, Client Credentials, and
-JWT Bearer assertions. mTLS remains a local-client flow and produces a safe
-cURL command because private client keys must never enter the browser or BFF.
+dedicated server route revalidates the active deployment and operation, checks
+any edited URL against that deployment origin and operation path, and sends the
+request to Envoy over the internal network. OpenAPI request bodies provide
+media types and editable examples, while a live redacted cURL shows the request
+before execution. It supports API key, existing Bearer tokens, automatic
+Client Credentials and JWT Bearer exchanges, and direct execution of the
+managed OAuth token and JWKS operations. mTLS remains a local-client flow and
+produces a safe cURL command because private client keys must never enter the
+browser or BFF.
 
 ## Authentication Interface
 
@@ -96,8 +100,9 @@ Compose serves the panel on host port `8080`. `MANAGEMENT_API_URL`,
 Tests cover RFC 7636 S256 challenges, random URL-safe OIDC state, BFF token
 selection, session failure states, proxy draft reduction and step validity,
 Gateway YAML hydration and serialization, policy/path constraints, multipart
-request formatting, playground destination constraints and redaction,
-error-to-step mapping, and the rendered retry action.
+request formatting, playground destination constraints, OpenAPI request
+examples, managed OAuth execution and redaction, error-to-step mapping, and
+the rendered retry action.
 Platform configuration tests verify the generated realm metadata and read-only
 Keycloak theme mount.
 

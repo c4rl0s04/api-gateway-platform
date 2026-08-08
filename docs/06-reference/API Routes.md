@@ -122,11 +122,14 @@ A `viewer` has read-only access.
 | `POST` | `/api/playground` | `200` | Validate and execute a configured operation through Envoy |
 
 `POST /api/playground` requires the same OIDC session cookie or explicit Bearer
-token as the Management BFF. It accepts configuration IDs and request inputs,
-not a destination URL. The server re-reads the selected proxy, deployment, and
-revision before deriving the target. Only active non-system proxies and active
-deployments can execute. API keys, assertions, secrets, and issued access
-tokens are omitted or redacted from the response.
+token as the Management BFF. It accepts configuration IDs, request inputs, and
+an optional edited target URL. The server re-reads the selected proxy,
+deployment, and revision; the URL must retain the deployment origin and match
+the selected operation path. Active business proxies can execute, while
+system-managed execution is restricted to the `platform-oauth` token and JWKS
+operations. API keys, assertions, secrets, and automatically exchanged tokens
+are omitted or redacted. A token returned by direct `/oauth/token` execution is
+preserved because it is the requested operation response.
 
 For exact request bodies, role boundaries, response fields, filters, and stable
 errors, use [[Management API Endpoint Reference]].

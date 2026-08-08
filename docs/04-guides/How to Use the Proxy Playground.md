@@ -13,13 +13,14 @@ sources:
   - packages/admin-panel/app/api/playground/route.ts
   - packages/admin-panel/lib/playground-service.ts
   - packages/admin-panel/lib/playground-transport.ts
+  - packages/database/src/openapi-request-bodies.ts
 aliases: []
 ---
 
 # How to Use the Proxy Playground
 
 > [!summary] At a glance
-> Use the authenticated Admin Panel to compose and execute requests against active business proxy deployments without manually discovering routes or authentication requirements.
+> Use the authenticated Admin Panel to compose and execute requests against active proxy deployments without manually discovering routes or authentication requirements.
 
 ## Goal
 
@@ -37,10 +38,17 @@ material, execute it through Envoy and the gateway, and inspect the response.
 ## Steps
 
 1. Open `Playground` from the Admin Panel navigation.
-2. Select an active business proxy, environment deployment, and operation.
-3. Fill every path parameter. Add query parameters, headers, or a request body
-   when required by the selected operation.
-4. Complete the authorization section derived from the operation policy:
+2. Search for and select an active proxy, environment deployment, and
+   operation. `Platform OAuth` is grouped separately from business proxies.
+3. Fill every path parameter and add query parameters or safe custom headers.
+   The request URL updates immediately. It can also be edited directly; after
+   focus leaves the field, the playground extracts path and query values back
+   into the composer. The origin and selected operation cannot be changed.
+4. For operations with an OpenAPI `requestBody`, select a media type and an
+   explicit or schema-generated example. Edit the populated body values as
+   needed. JSON is checked locally before the request can be sent. Operations
+   without a declared request body remain freeform.
+5. Complete the authorization section derived from the operation policy:
    - API key: select an eligible application credential or enter a key.
    - Client Credentials: select a credential, enter its current one-time secret,
      and review the requested scopes.
@@ -48,27 +56,49 @@ material, execute it through Envoy and the gateway, and inspect the response.
    - JWT assertion: provide a client-signed JWT Bearer assertion and scopes.
    - mTLS: use the generated local cURL command with the client certificate and
      private key files; the browser and BFF do not receive the private key.
-5. Select `Send request` and inspect the body, response headers, redacted
+6. Review the live, redacted cURL in the Inspector before sending. Select
+   `Send request`, then inspect the body, response headers, exact redacted
    request, timing, response size, and OAuth exchange timing when present.
 
+### Obtain an access token manually
+
+1. Select `Platform OAuth`, the target environment, and `POST /token`.
+2. Select the organization that owns the application credential.
+3. Choose Client Credentials or JWT assertion, according to the grants exposed
+   by the endpoint policy.
+4. Provide the one-time consumer secret or signed assertion, review scopes,
+   and send the request.
+5. Inspect the OAuth response or use `Copy access token`, then select a business
+   endpoint protected by `oauth-access-token` and paste it in `Access token`
+   mode.
+
+The token endpoint response intentionally exposes the newly issued access
+token to the authenticated operator. Consumer secrets and JWT assertions are
+still redacted from request diagnostics and are never persisted by the panel.
+
 The BFF accepts only a proxy, active deployment, and operation known to the
-Management API. It derives the public gateway origin and path from that
-configuration, then connects to Envoy over the internal Compose network with
-the public hostname as TLS SNI and `Host`. It cannot be used as an arbitrary
-URL proxy.
+Management API. An optional edited URL must retain the selected deployment
+origin and match the operation path. The BFF then connects to Envoy over the
+internal Compose network with the public hostname as TLS SNI and `Host`; it
+cannot be used as an arbitrary URL proxy. System-managed execution is limited
+to the token and JWKS operations of `proxy-platform-oauth`.
 
 ## Verification
 
 - A successful seeded API-key or OAuth banking request returns `200` in the
   Inspector.
+- The Preview tab changes before execution as URL, headers, body, and
+  authorization mode change.
 - The request tab and generated cURL replace API keys, Bearer tokens, and
   authorization headers with `<redacted>`.
 - Copied local cURL commands include the project CA through `--cacert`. Replace
   every `<redacted>` placeholder with the real credential before executing the
   command; the playground never writes secrets to response history or the
   clipboard.
-- OAuth Client Credentials and JWT Bearer modes report the token endpoint
-  timing without returning the issued access token.
+- Automatic OAuth Client Credentials and JWT Bearer modes on business APIs
+  report token endpoint timing without returning the intermediate token.
+- Direct `Platform OAuth` execution returns the access token because obtaining
+  it for manual testing is the purpose of that selected operation.
 - Gateway errors such as `401`, `403`, `404`, `405`, and `429` remain visible
   with their response body and safe headers.
 
@@ -77,8 +107,10 @@ Requests are limited to 256 KiB, responses to 1 MiB, and query/header lists to
 
 ## Troubleshooting or Rollback
 
-- An empty proxy list means no active, non-system business proxy is visible to
-  the signed-in actor.
+- An empty proxy list means no executable active deployment is visible to the
+  signed-in actor.
+- `playground_url_not_allowed` means an edited URL changed the deployment
+  origin. `playground_url_mismatch` means it changed the selected route.
 - `playground_deployment_not_active` means the selected deployment changed
   after the page loaded; refresh and select the current deployment.
 - `playground_authentication_mismatch` means the submitted mode does not match

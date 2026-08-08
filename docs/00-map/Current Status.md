@@ -42,7 +42,7 @@ aliases: []
 | Rate limiting | Implemented | Fixed-window Redis counter with atomic Lua execution |
 | Application security management | Implemented | App lifecycle, customizable consumer keys, explicit or cloned credentials, one-time secret rotation, desired-state grants, RSA public keys, and certificates |
 | Management API | Implemented | Organization/product/proxy/app security lifecycle, audit, runtime synchronization status, and PKI; memberships, environment writes, and deletes remain out of scope |
-| Admin panel | Partial | OIDC login, proxy creation/inventory, PKI workflows, and policy-aware proxy playground are implemented; product mutation UI is not |
+| Admin panel | Partial | OIDC login, proxy creation/inventory, PKI workflows, and a policy-aware proxy playground with managed OAuth, OpenAPI body examples, editable constrained URLs, and live request preview are implemented; product mutation UI is not |
 | Configuration hot reload | Implemented | Transactional outbox, Redis Pub/Sub, atomic snapshots, periodic reconciliation, and per-instance status |
 | Metrics and dashboards | Planned | Prometheus and Grafana containers exist; gateway metrics are not exposed |
 
