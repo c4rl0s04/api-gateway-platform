@@ -3,7 +3,7 @@ title: Current Status
 type: map
 doc_status: current
 implementation_status: partial
-last_verified: 2026-08-02
+last_verified: 2026-08-08
 tags:
   - type/map
   - area/project
@@ -42,7 +42,7 @@ aliases: []
 | Rate limiting | Implemented | Fixed-window Redis counter with atomic Lua execution |
 | Application security management | Implemented | App lifecycle, customizable consumer keys, explicit or cloned credentials, one-time secret rotation, desired-state grants, RSA public keys, and certificates |
 | Management API | Implemented | Organization/product/proxy/app security lifecycle, audit, runtime synchronization status, and PKI; memberships, environment writes, and deletes remain out of scope |
-| Admin panel | Partial | OIDC login and PKI workflows are implemented; proxy/product mutation is not |
+| Admin panel | Partial | OIDC login, proxy creation/inventory, PKI workflows, and policy-aware proxy playground are implemented; product mutation UI is not |
 | Configuration hot reload | Implemented | Transactional outbox, Redis Pub/Sub, atomic snapshots, periodic reconciliation, and per-instance status |
 | Metrics and dashboards | Planned | Prometheus and Grafana containers exist; gateway metrics are not exposed |
 

@@ -3,7 +3,7 @@ title: Documentation Index
 type: map
 doc_status: current
 implementation_status: not-applicable
-last_verified: 2026-08-07
+last_verified: 2026-08-08
 tags:
   - type/map
   - area/project
@@ -24,8 +24,8 @@ aliases: []
 | Note | Documentation | Implementation | Verified |
 | --- | --- | --- | --- |
 | [[Documentation Home\|API Gateway Platform]] | current | partial | 2026-08-06 |
-| [[00-map/Control Plane\|Control Plane]] | current | not-applicable | 2026-08-02 |
-| [[00-map/Current Status\|Current Status]] | current | partial | 2026-08-02 |
+| [[00-map/Control Plane\|Control Plane]] | current | not-applicable | 2026-08-08 |
+| [[00-map/Current Status\|Current Status]] | current | partial | 2026-08-08 |
 | [[00-map/Data Plane\|Data Plane]] | current | not-applicable | 2026-08-02 |
 | [[00-map/Decision Records\|Decision Records]] | current | not-applicable | 2026-08-02 |
 | [[00-map/Development\|Development]] | current | not-applicable | 2026-08-06 |
@@ -66,7 +66,7 @@ aliases: []
 
 | Note | Documentation | Implementation | Verified |
 | --- | --- | --- | --- |
-| [[03-packages/admin-panel\|admin-panel]] | current | partial | 2026-08-06 |
+| [[03-packages/admin-panel\|admin-panel]] | current | partial | 2026-08-08 |
 | [[03-packages/database\|database]] | current | implemented | 2026-08-02 |
 | [[03-packages/gateway-core\|gateway-core]] | current | implemented | 2026-08-02 |
 | [[03-packages/management-api\|management-api]] | current | implemented | 2026-08-02 |
@@ -87,6 +87,7 @@ aliases: []
 | [[04-guides/How to Start the Project\|How to Start the Project]] | current | implemented | 2026-08-06 |
 | [[04-guides/How to Use Prisma Studio\|How to Use Prisma Studio]] | current | implemented | 2026-08-06 |
 | [[04-guides/How to Use the Management API with Postman\|How to Use the Management API with Postman]] | current | implemented | 2026-08-02 |
+| [[04-guides/How to Use the Proxy Playground\|How to Use the Proxy Playground]] | current | implemented | 2026-08-08 |
 
 ## Decisions
 
@@ -104,10 +105,10 @@ aliases: []
 
 | Note | Documentation | Implementation | Verified |
 | --- | --- | --- | --- |
-| [[06-reference/API Routes\|API Routes]] | current | implemented | 2026-08-02 |
+| [[06-reference/API Routes\|API Routes]] | current | implemented | 2026-08-08 |
 | [[06-reference/Command Reference\|Command Reference]] | current | implemented | 2026-08-06 |
 | [[06-reference/Database Schema\|Database Schema]] | current | implemented | 2026-08-02 |
-| [[06-reference/Environment Variables\|Environment Variables]] | current | implemented | 2026-08-02 |
+| [[06-reference/Environment Variables\|Environment Variables]] | current | implemented | 2026-08-08 |
 | [[06-reference/Management API Endpoint Reference\|Management API Endpoint Reference]] | current | implemented | 2026-08-02 |
 | [[06-reference/policies/README\|Policy Reference Index]] | current | partial | 2026-07-27 |
 | [[06-reference/Policy Types\|Policy Types]] | current | partial | 2026-07-27 |

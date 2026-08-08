@@ -3,7 +3,7 @@ title: API Routes
 type: reference
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-08-02
+last_verified: 2026-08-08
 tags:
   - type/reference
   - area/project
@@ -17,6 +17,7 @@ sources:
   - packages/management-api/src/routes/proxies.routes.ts
   - packages/management-api/src/routes/proxy-revisions.routes.ts
   - packages/management-api/src/routes/runtime-sync.routes.ts
+  - packages/admin-panel/app/api/playground/route.ts
 aliases: []
 ---
 
@@ -113,6 +114,20 @@ database membership. CA mutations require `platformAdmin`; certificate and
 proxy mutations require `platformAdmin` or the matching `organizationAdmin`.
 A `viewer` has read-only access.
 
+### admin-panel BFF
+
+| Method | Path | Success | Purpose |
+| --- | --- | --- | --- |
+| Any | `/api/management/*` | Management response | Authenticated browser/Postman bridge to internal `/v1/*` routes |
+| `POST` | `/api/playground` | `200` | Validate and execute a configured operation through Envoy |
+
+`POST /api/playground` requires the same OIDC session cookie or explicit Bearer
+token as the Management BFF. It accepts configuration IDs and request inputs,
+not a destination URL. The server re-reads the selected proxy, deployment, and
+revision before deriving the target. Only active non-system proxies and active
+deployments can execute. API keys, assertions, secrets, and issued access
+tokens are omitted or redacted from the response.
+
 For exact request bodies, role boundaries, response fields, filters, and stable
 errors, use [[Management API Endpoint Reference]].
 
@@ -175,5 +190,6 @@ Bearer token to `http://localhost:8080/api/management/*`.
 - [[Management API]]
 - [[Management API Endpoint Reference]]
 - [[How to Use the Management API with Postman]]
+- [[How to Use the Proxy Playground]]
 - [[How to Import and Deploy a Proxy Revision]]
 - [[Debug Gateway 404]]

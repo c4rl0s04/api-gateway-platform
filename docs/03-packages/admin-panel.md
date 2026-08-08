@@ -3,7 +3,7 @@ title: admin-panel
 type: package
 doc_status: current
 implementation_status: partial
-last_verified: 2026-08-06
+last_verified: 2026-08-08
 tags:
   - type/package
   - area/admin-panel
@@ -12,7 +12,9 @@ sources:
   - packages/admin-panel/app
   - packages/admin-panel/components/access-screen.tsx
   - packages/admin-panel/components/session-shell.tsx
+  - packages/admin-panel/components/playground-workspace.tsx
   - packages/admin-panel/lib/api-client.ts
+  - packages/admin-panel/lib/playground-service.ts
   - infra/keycloak/themes/api-gateway/login
   - scripts/dev-local.sh
 aliases: []
@@ -26,9 +28,9 @@ aliases: []
 ## Responsibility
 
 The package is the browser interface for organization, proxy creation and
-deployment, app, certificate authority, certificate, runtime status, and audit
-views. It also owns the pre-authentication session surface shown before the
-browser redirects to the identity provider.
+deployment, app, certificate authority, certificate, runtime status, audit,
+and policy-aware proxy testing. It also owns the pre-authentication session
+surface shown before the browser redirects to the identity provider.
 
 ## Boundaries
 
@@ -41,8 +43,9 @@ those credentials; the Keycloak login theme is a separate runtime resource.
 
 - `GET /api/auth/login`, callback, session, and logout.
 - `/api/management/[...path]` authenticated BFF.
+- `POST /api/playground` constrained gateway execution BFF.
 - Dashboard, configured proxy creation, inventory/detail, applications,
-  authorities, and certificates pages.
+  authorities, certificates, and proxy playground pages.
 
 ## Runtime Flow
 
@@ -52,6 +55,13 @@ network failures expose an inline retry state. The sign-in command redirects to
 Keycloak. PKCE state and verifier are HttpOnly cookies; callback exchange stores
 the short-lived access token in an HttpOnly cookie. Client components call the
 BFF for reads and mutations.
+
+The playground reads proxy metadata through the Management API BFF. Its
+dedicated server route revalidates the active deployment and operation, derives
+the target hostname and path, and sends the request to Envoy over the internal
+network. It supports API key, existing Bearer tokens, Client Credentials, and
+JWT Bearer assertions. mTLS remains a local-client flow and produces a safe
+cURL command because private client keys must never enter the browser or BFF.
 
 ## Authentication Interface
 
@@ -77,14 +87,17 @@ theme through `loginTheme: api-gateway` and displays the product name through
 
 Compose serves the panel on host port `8080`. `MANAGEMENT_API_URL`,
 `OIDC_ISSUER`, `OIDC_INTERNAL_BASE_URL`, `OIDC_CLIENT_ID`, and
-`OIDC_CALLBACK_URL` configure its server-side integrations.
+`OIDC_CALLBACK_URL` configure its control-plane integrations.
+`PLAYGROUND_ENVOY_URL`, `PLAYGROUND_CA_CERT_FILE`, and
+`PLAYGROUND_REQUEST_TIMEOUT_MS` configure trusted data-plane execution.
 
 ## Tests
 
 Tests cover RFC 7636 S256 challenges, random URL-safe OIDC state, BFF token
 selection, session failure states, proxy draft reduction and step validity,
 Gateway YAML hydration and serialization, policy/path constraints, multipart
-request formatting, error-to-step mapping, and the rendered retry action.
+request formatting, playground destination constraints and redaction,
+error-to-step mapping, and the rendered retry action.
 Platform configuration tests verify the generated realm metadata and read-only
 Keycloak theme mount.
 
@@ -100,4 +113,5 @@ Keycloak theme mount.
 - [[Control Plane Flow]]
 - [[Authentication and Authorization]]
 - [[Management API]]
+- [[How to Use the Proxy Playground]]
 - [[Ports]]

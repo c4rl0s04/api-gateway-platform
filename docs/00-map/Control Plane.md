@@ -3,7 +3,7 @@ title: Control Plane
 type: map
 doc_status: current
 implementation_status: not-applicable
-last_verified: 2026-08-02
+last_verified: 2026-08-08
 tags:
   - type/map
   - area/management-api
@@ -42,6 +42,7 @@ Admin Panel BFF.
 ## Guides
 
 - [[How to Use the Management API with Postman]]
+- [[How to Use the Proxy Playground]]
 - [[How to Add a New Proxy]]
 - [[How to Import and Deploy a Proxy Revision]]
 

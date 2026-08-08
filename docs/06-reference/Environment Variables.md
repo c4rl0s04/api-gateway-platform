@@ -3,7 +3,7 @@ title: Environment Variables
 type: reference
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-08-02
+last_verified: 2026-08-08
 tags:
   - type/reference
   - area/operations
@@ -99,6 +99,14 @@ outbox dispatcher retries publication after reconnecting.
 | `OIDC_INTERNAL_BASE_URL` | `http://localhost:8081` | Server-side token endpoint base |
 | `OIDC_CLIENT_ID` | `admin-panel` | Public PKCE client |
 | `OIDC_CALLBACK_URL` | `http://localhost:8080/api/auth/callback` | Exact callback |
+| `PLAYGROUND_ENVOY_URL` | `https://localhost:8443` | Server-side Envoy connection origin; Compose uses `https://envoy:8443` |
+| `PLAYGROUND_CA_CERT_FILE` | `.local-secrets/pki/authorities/local-development/ca.crt` | CA used to verify the Envoy server certificate |
+| `PLAYGROUND_REQUEST_TIMEOUT_MS` | `10000` | Outbound execution timeout in milliseconds |
+
+The playground still uses each deployment's `publicOrigin` as the authoritative
+request URL, TLS server name, and `Host` header. `PLAYGROUND_ENVOY_URL` only
+selects the trusted network address used by the Admin Panel container to reach
+that Envoy listener.
 
 ## Authoritative Example
 
