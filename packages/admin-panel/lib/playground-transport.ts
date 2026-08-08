@@ -10,7 +10,7 @@ import type {
 } from '@/lib/playground-service';
 import { PLAYGROUND_MAX_RESPONSE_BYTES } from '@/lib/playground';
 
-const responseHeaderBlocklist = new Set(['set-cookie', 'www-authenticate']);
+const responseHeaderBlocklist = new Set(['set-cookie']);
 
 function configuredTimeout(): number {
   const value = Number(process.env.PLAYGROUND_REQUEST_TIMEOUT_MS ?? 10_000);
