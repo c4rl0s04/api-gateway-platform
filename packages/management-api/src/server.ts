@@ -25,6 +25,8 @@ import { registerRuntimeSyncRoutes } from './routes/runtime-sync.routes.js';
 import type { RuntimeSyncOperations } from './services/runtime-sync.js';
 import { registerLabWorkspaceRoutes } from './routes/lab-workspaces.routes.js';
 import type { LabWorkspaceOperations } from './services/lab-workspaces.js';
+import { registerLabUpstreamRoutes } from './routes/lab-upstreams.routes.js';
+import type { LabUpstreamOperations } from './services/lab-upstreams.js';
 
 export interface ManagementServerOptions {
   config: ManagementEnv;
@@ -41,6 +43,7 @@ export interface ManagementServerOptions {
   proxyRevisions?: ProxyRevisionOperations;
   runtimeSync?: RuntimeSyncOperations;
   labWorkspaces?: LabWorkspaceOperations;
+  labUpstreams?: LabUpstreamOperations;
 }
 
 export function buildServer(options: ManagementServerOptions): FastifyInstance {
@@ -121,6 +124,9 @@ export function buildServer(options: ManagementServerOptions): FastifyInstance {
   }
   if (options.labWorkspaces) {
     registerLabWorkspaceRoutes(server, options.labWorkspaces);
+  }
+  if (options.labUpstreams) {
+    registerLabUpstreamRoutes(server, options.labUpstreams);
   }
   return server;
 }

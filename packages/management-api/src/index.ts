@@ -12,6 +12,7 @@ import { createGatewayConfigPublisher } from './runtime-sync/publisher.js';
 import { createRuntimeSyncService } from './services/runtime-sync.js';
 import { expireDueLabWorkspaces } from '@api-gateway/database';
 import { LabWorkspaceService } from './services/lab-workspaces.js';
+import { LabUpstreamService } from './services/lab-upstreams.js';
 
 void (async () => {
   const config = loadEnv();
@@ -36,6 +37,7 @@ void (async () => {
     proxyRevisions: new ProxyRevisionService(publisher),
     runtimeSync,
     labWorkspaces: new LabWorkspaceService(),
+    labUpstreams: new LabUpstreamService(),
   });
   const labExpirationWorker = setInterval(() => {
     void expireDueLabWorkspaces().catch(error => {
