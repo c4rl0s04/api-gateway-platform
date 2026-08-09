@@ -17,6 +17,7 @@ import {
 import {
   canManageOrganization,
   canReadOrganization,
+  expectedOrganizationKind,
   isPlatformAdmin,
   type AdminPrincipal,
 } from '../auth/authorization.js';
@@ -187,11 +188,28 @@ const appSelection = {
   },
 };
 
+async function requireApplicationOrganization(
+  organizationId: string,
+  actor: AdminPrincipal,
+  code?: 'app_not_found' | 'credential_not_found' | 'public_key_not_found',
+): Promise<void> {
+  const organization = await prisma.organization.findFirst({
+    where: { id: organizationId, kind: expectedOrganizationKind(actor) },
+    select: { id: true },
+  });
+  if (organization) return;
+  if (code) {
+    throw new ApplicationManagementError(code, 'Application resource does not exist');
+  }
+  throw Object.assign(new Error('Organization does not exist'), { statusCode: 404 });
+}
+
 export class ApplicationService implements ApplicationOperations {
   async list(organizationId: string, actor: AdminPrincipal) {
     if (!canReadOrganization(actor, organizationId)) {
       throw forbidden('Organization access denied');
     }
+    await requireApplicationOrganization(organizationId, actor);
     return prisma.developerApp.findMany({
       where: { organizationId },
       orderBy: { name: 'asc' },
@@ -209,6 +227,7 @@ export class ApplicationService implements ApplicationOperations {
         statusCode: 404,
       });
     }
+    await requireApplicationOrganization(app.organizationId, actor, 'app_not_found');
     if (!canReadOrganization(actor, app.organizationId)) {
       throw forbidden('Organization access denied');
     }
@@ -223,6 +242,7 @@ export class ApplicationService implements ApplicationOperations {
     if (!canManageOrganization(actor, organizationId)) {
       throw forbidden('Organization administration access denied');
     }
+    await requireApplicationOrganization(organizationId, actor);
     return registerDeveloperApplication({
       organizationId,
       name: input.name,
@@ -251,6 +271,7 @@ export class ApplicationService implements ApplicationOperations {
         'Developer application does not exist',
       );
     }
+    await requireApplicationOrganization(app.organizationId, actor, 'app_not_found');
     if (!canManageOrganization(actor, app.organizationId)) {
       throw forbidden('Organization administration access denied');
     }
@@ -280,6 +301,7 @@ export class ApplicationService implements ApplicationOperations {
         'Developer application does not exist',
       );
     }
+    await requireApplicationOrganization(app.organizationId, actor, 'app_not_found');
     if (!canManageOrganization(actor, app.organizationId)) {
       throw forbidden('Organization administration access denied');
     }
@@ -355,6 +377,11 @@ export class ApplicationService implements ApplicationOperations {
         'Application credential does not exist',
       );
     }
+    await requireApplicationOrganization(
+      credential.app.organizationId,
+      actor,
+      'credential_not_found',
+    );
     if (!canReadOrganization(actor, credential.app.organizationId)) {
       throw forbidden('Organization access denied');
     }
@@ -377,6 +404,7 @@ export class ApplicationService implements ApplicationOperations {
       );
     }
     const organizationId = credential.app.organizationId;
+    await requireApplicationOrganization(organizationId, actor, 'credential_not_found');
     if (!canManageOrganization(actor, organizationId)) {
       throw forbidden('Organization administration access denied');
     }
@@ -403,6 +431,7 @@ export class ApplicationService implements ApplicationOperations {
       );
     }
     const organizationId = credential.app.organizationId;
+    await requireApplicationOrganization(organizationId, actor, 'credential_not_found');
     if (!canManageOrganization(actor, organizationId)) {
       throw forbidden('Organization administration access denied');
     }
@@ -432,6 +461,7 @@ export class ApplicationService implements ApplicationOperations {
       );
     }
     const organizationId = credential.app.organizationId;
+    await requireApplicationOrganization(organizationId, actor, 'credential_not_found');
     if (!canManageOrganization(actor, organizationId)) {
       throw forbidden('Organization administration access denied');
     }
@@ -457,6 +487,11 @@ export class ApplicationService implements ApplicationOperations {
         'Application credential does not exist',
       );
     }
+    await requireApplicationOrganization(
+      credential.app.organizationId,
+      actor,
+      'credential_not_found',
+    );
     if (!canReadOrganization(actor, credential.app.organizationId)) {
       throw forbidden('Organization access denied');
     }
@@ -494,6 +529,7 @@ export class ApplicationService implements ApplicationOperations {
       );
     }
     const organizationId = credential.app.organizationId;
+    await requireApplicationOrganization(organizationId, actor, 'credential_not_found');
     if (!canManageOrganization(actor, organizationId)) {
       throw forbidden('Organization administration access denied');
     }
@@ -522,6 +558,7 @@ export class ApplicationService implements ApplicationOperations {
       );
     }
     const organizationId = publicKey.credential.app.organizationId;
+    await requireApplicationOrganization(organizationId, actor, 'public_key_not_found');
     if (!canManageOrganization(actor, organizationId)) {
       throw forbidden('Organization administration access denied');
     }

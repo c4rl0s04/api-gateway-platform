@@ -1,6 +1,7 @@
 import { prisma } from '@api-gateway/database';
 import {
   canReadOrganization,
+  expectedOrganizationKind,
   isPlatformAdmin,
   type AdminPrincipal,
 } from '../auth/authorization.js';
@@ -32,6 +33,7 @@ export class AuditService implements AuditOperations {
         .map(membership => membership.organizationId!))];
     const events = await prisma.auditEvent.findMany({
       where: {
+        organization: { kind: expectedOrganizationKind(actor) },
         organizationId: query.organizationId
           ? query.organizationId
           : visibleOrganizationIds

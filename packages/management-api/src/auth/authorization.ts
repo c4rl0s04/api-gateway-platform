@@ -1,4 +1,4 @@
-import type { AdminRole } from '@api-gateway/database';
+import { OrganizationKind, type AdminRole } from '@api-gateway/database';
 
 export interface AdminMembershipRecord {
   id: string;
@@ -37,4 +37,12 @@ export function canManageOrganization(
     membership.active
     && membership.organizationId === organizationId
     && membership.role === 'organizationAdmin');
+}
+
+export function expectedOrganizationKind(
+  principal: AdminPrincipal,
+): OrganizationKind {
+  return principal.context === 'lab'
+    ? OrganizationKind.lab
+    : OrganizationKind.standard;
 }

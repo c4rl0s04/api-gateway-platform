@@ -2,6 +2,7 @@ import { AdminRole, prisma } from '@api-gateway/database';
 import {
   canManageOrganization,
   canReadOrganization,
+  expectedOrganizationKind,
   isPlatformAdmin,
   type AdminPrincipal,
 } from '../auth/authorization.js';
@@ -115,6 +116,13 @@ export class ProductService implements ProductOperations {
     if (!canReadOrganization(actor, organizationId)) {
       throw new ManagementError('forbidden', 403, 'Organization access denied');
     }
+    const organization = await prisma.organization.findFirst({
+      where: { id: organizationId, kind: expectedOrganizationKind(actor) },
+      select: { id: true },
+    });
+    if (!organization) {
+      throw new ManagementError('organization_not_found', 404, 'Organization does not exist');
+    }
     return prisma.apiProduct.findMany({
       where: { organizationId },
       orderBy: { name: 'asc' },
@@ -128,6 +136,13 @@ export class ProductService implements ProductOperations {
       select: productSelection,
     });
     if (!product) {
+      throw new ManagementError('product_not_found', 404, 'API product does not exist');
+    }
+    const organization = await prisma.organization.findFirst({
+      where: { id: product.organizationId, kind: expectedOrganizationKind(actor) },
+      select: { id: true },
+    });
+    if (!organization) {
       throw new ManagementError('product_not_found', 404, 'API product does not exist');
     }
     if (!canReadOrganization(actor, product.organizationId)) {
@@ -154,9 +169,9 @@ export class ProductService implements ProductOperations {
     return prisma.$transaction(async transaction => {
       const organization = await transaction.organization.findUnique({
         where: { id: organizationId },
-        select: { id: true },
+        select: { id: true, kind: true },
       });
-      if (!organization) {
+      if (!organization || organization.kind !== expectedOrganizationKind(actor)) {
         throw new ManagementError(
           'organization_not_found',
           404,
@@ -214,6 +229,16 @@ export class ProductService implements ProductOperations {
         },
       });
       if (!current) {
+        throw new ManagementError('product_not_found', 404, 'API product does not exist');
+      }
+      const organization = await transaction.organization.findFirst({
+        where: {
+          id: current.organizationId,
+          kind: expectedOrganizationKind(actor),
+        },
+        select: { id: true },
+      });
+      if (!organization) {
         throw new ManagementError('product_not_found', 404, 'API product does not exist');
       }
       if (!canManageOrganization(actor, current.organizationId)) {
