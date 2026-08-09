@@ -18,6 +18,7 @@ import { LabProductService } from './services/lab-products.js';
 import { LabApplicationService } from './services/lab-applications.js';
 import { LabAuditService } from './services/lab-audit.js';
 import { LabCertificateService } from './services/lab-certificates.js';
+import { LabExampleService } from './services/lab-example.js';
 
 void (async () => {
   const config = loadEnv();
@@ -35,6 +36,16 @@ void (async () => {
   const products = new ProductService();
   const applications = new ApplicationService();
   const audit = new AuditService();
+  const labUpstreams = new LabUpstreamService();
+  const labProxies = new LabProxyService(gatewayCatalog, proxyRevisions);
+  const labProducts = new LabProductService(products);
+  const labApplications = new LabApplicationService(applications);
+  const labExample = new LabExampleService(
+    labUpstreams,
+    labProxies,
+    labProducts,
+    labApplications,
+  );
   const server = buildServer({
     config,
     organizations: new OrganizationService(),
@@ -46,11 +57,11 @@ void (async () => {
     gatewayCatalog,
     proxyRevisions,
     runtimeSync,
-    labWorkspaces: new LabWorkspaceService(certificateAuthorities),
-    labUpstreams: new LabUpstreamService(),
-    labProxies: new LabProxyService(gatewayCatalog, proxyRevisions),
-    labProducts: new LabProductService(products),
-    labApplications: new LabApplicationService(applications),
+    labWorkspaces: new LabWorkspaceService(certificateAuthorities, labExample),
+    labUpstreams,
+    labProxies,
+    labProducts,
+    labApplications,
     labAudit: new LabAuditService(audit),
     labCertificates: new LabCertificateService(certificates),
   });

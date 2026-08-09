@@ -7,6 +7,7 @@ import {
   type LabPrincipal,
 } from '@api-gateway/database';
 import type { AdminPrincipal } from '../auth/authorization.js';
+import type { LabExampleProvisioner } from './lab-example.js';
 
 export interface LabAuthorityProvisioner {
   createManaged(
@@ -29,7 +30,10 @@ export interface LabWorkspaceOperations {
 }
 
 export class LabWorkspaceService implements LabWorkspaceOperations {
-  constructor(private readonly authorities?: LabAuthorityProvisioner) {}
+  constructor(
+    private readonly authorities?: LabAuthorityProvisioner,
+    private readonly example?: LabExampleProvisioner,
+  ) {}
 
   async create(principal: LabPrincipal) {
     const result = await createPersonalLabWorkspace(principal);
@@ -42,7 +46,8 @@ export class LabWorkspaceService implements LabWorkspaceOperations {
         validityDays: 2,
       }, actor) as { id: string };
       await this.authorities.setStatus(authority.id, 'active', actor);
-      return result;
+      const sample = await this.example?.provision(principal);
+      return sample ? { ...result, sample } : result;
     } catch (error) {
       await revokePersonalLabWorkspace(principal).catch(() => undefined);
       await this.authorities.publishRuntimeTrust().catch(() => undefined);
@@ -54,8 +59,16 @@ export class LabWorkspaceService implements LabWorkspaceOperations {
     return getPersonalLabWorkspace(principal);
   }
 
-  reset(principal: LabPrincipal) {
-    return resetPersonalLabWorkspace(principal);
+  async reset(principal: LabPrincipal) {
+    const workspace = await resetPersonalLabWorkspace(principal);
+    try {
+      const sample = await this.example?.provision(principal);
+      return sample ? { workspace, sample } : workspace;
+    } catch (error) {
+      await revokePersonalLabWorkspace(principal).catch(() => undefined);
+      await this.authorities?.publishRuntimeTrust().catch(() => undefined);
+      throw error;
+    }
   }
 
   async revoke(principal: LabPrincipal) {
