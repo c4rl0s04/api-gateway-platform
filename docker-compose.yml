@@ -80,6 +80,26 @@ services:
       timeout: 3s
       retries: 20
 
+  lab-egress:
+    <<: *platform-app
+    command: ["node", "packages/lab-egress/dist/index.js"]
+    environment:
+      HOST: 0.0.0.0
+      PORT: 3010
+      DATABASE_URL: postgresql://postgres:password@postgres:5432/apigw?schema=public
+    depends_on:
+      database-setup:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://localhost:3010/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
   gateway:
     <<: *platform-app
     command: ["node", "packages/gateway-core/dist/index.js"]
@@ -100,6 +120,8 @@ services:
       database-setup:
         condition: service_completed_successfully
       mock-backend:
+        condition: service_healthy
+      lab-egress:
         condition: service_healthy
       redis:
         condition: service_healthy
