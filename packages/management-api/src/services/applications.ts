@@ -44,7 +44,7 @@ export type CreateCredentialInput =
     }
   | {
       sourceCredentialId: string;
-      purpose?: 'playground';
+      purpose?: 'playground' | 'lab';
       expiresAt?: Date;
       products?: never;
     };
@@ -294,7 +294,9 @@ export class ApplicationService implements ApplicationOperations {
           sourceCredentialId: input.sourceCredentialId,
           purpose: input.purpose === 'playground'
             ? CredentialPurpose.playground
-            : CredentialPurpose.standard,
+            : input.purpose === 'lab'
+              ? CredentialPurpose.lab
+              : CredentialPurpose.standard,
           expiresAt: input.expiresAt,
           actor: mutationActor,
         })
