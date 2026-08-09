@@ -5,11 +5,42 @@ import type {
   AdminMembershipRecord,
   AdminPrincipal,
 } from './authorization.js';
+import type { LabPrincipal } from '@api-gateway/database';
 
 declare module 'fastify' {
   interface FastifyRequest {
     adminPrincipal: AdminPrincipal;
+    labPrincipal: LabPrincipal;
   }
+}
+
+export function createLabAuthenticationHook(verifier: OidcVerifier) {
+  return async function authenticateLab(
+    request: FastifyRequest,
+    reply: FastifyReply,
+  ): Promise<void> {
+    const authorization = request.headers.authorization;
+    if (!authorization?.startsWith('Bearer ')) {
+      await reply.code(401).send({
+        error: 'unauthorized',
+        message: 'A Bearer access token is required',
+      });
+      return;
+    }
+    try {
+      const identity = await verifier.verify(authorization.slice(7));
+      request.labPrincipal = {
+        issuer: identity.issuer,
+        subject: identity.subject,
+      };
+    } catch (error) {
+      request.log.warn({ err: error }, 'Lab OIDC authentication rejected');
+      await reply.code(401).send({
+        error: 'unauthorized',
+        message: 'The access token is invalid or expired',
+      });
+    }
+  };
 }
 
 export interface MembershipStore {

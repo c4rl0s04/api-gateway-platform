@@ -1,6 +1,6 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import multipart from '@fastify/multipart';
-import { createAuthenticationHook, prismaMembershipStore, type MembershipStore } from './auth/middleware.js';
+import { createAuthenticationHook, createLabAuthenticationHook, prismaMembershipStore, type MembershipStore } from './auth/middleware.js';
 import { createOidcVerifier, type OidcVerifier } from './auth/oidc.js';
 import { loadEnv, type ManagementEnv } from './config/env.js';
 import { prisma } from './db/client.js';
@@ -23,6 +23,8 @@ import { registerAuditRoutes } from './routes/audit.routes.js';
 import type { AuditOperations } from './services/audit.js';
 import { registerRuntimeSyncRoutes } from './routes/runtime-sync.routes.js';
 import type { RuntimeSyncOperations } from './services/runtime-sync.js';
+import { registerLabWorkspaceRoutes } from './routes/lab-workspaces.routes.js';
+import type { LabWorkspaceOperations } from './services/lab-workspaces.js';
 
 export interface ManagementServerOptions {
   config: ManagementEnv;
@@ -38,6 +40,7 @@ export interface ManagementServerOptions {
   gatewayCatalog?: GatewayCatalogOperations;
   proxyRevisions?: ProxyRevisionOperations;
   runtimeSync?: RuntimeSyncOperations;
+  labWorkspaces?: LabWorkspaceOperations;
 }
 
 export function buildServer(options: ManagementServerOptions): FastifyInstance {
@@ -67,6 +70,10 @@ export function buildServer(options: ManagementServerOptions): FastifyInstance {
       )(request, reply);
     },
   );
+  server.addHook('preHandler', async (request, reply) => {
+    if (!request.url.startsWith('/lab/v1')) return;
+    await createLabAuthenticationHook(verifier)(request, reply);
+  });
 
   server.get('/live', async () => ({ status: 'ok' }));
   server.get('/ready', async (_request, reply) => {
@@ -111,6 +118,9 @@ export function buildServer(options: ManagementServerOptions): FastifyInstance {
   }
   if (options.runtimeSync) {
     registerRuntimeSyncRoutes(server, options.runtimeSync);
+  }
+  if (options.labWorkspaces) {
+    registerLabWorkspaceRoutes(server, options.labWorkspaces);
   }
   return server;
 }

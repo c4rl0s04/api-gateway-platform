@@ -10,6 +10,8 @@ import { ProductService } from './services/products.js';
 import { AuditService } from './services/audit.js';
 import { createGatewayConfigPublisher } from './runtime-sync/publisher.js';
 import { createRuntimeSyncService } from './services/runtime-sync.js';
+import { expireDueLabWorkspaces } from '@api-gateway/database';
+import { LabWorkspaceService } from './services/lab-workspaces.js';
 
 void (async () => {
   const config = loadEnv();
@@ -33,8 +35,16 @@ void (async () => {
     gatewayCatalog: new GatewayCatalogService(),
     proxyRevisions: new ProxyRevisionService(publisher),
     runtimeSync,
+    labWorkspaces: new LabWorkspaceService(),
   });
+  const labExpirationWorker = setInterval(() => {
+    void expireDueLabWorkspaces().catch(error => {
+      server.log.error({ err: error }, 'Lab workspace expiration sweep failed');
+    });
+  }, 60_000);
+  labExpirationWorker.unref();
   server.addHook('onClose', async () => {
+    clearInterval(labExpirationWorker);
     await Promise.all([publisher.close(), runtimeSync.close()]);
   });
   try {
