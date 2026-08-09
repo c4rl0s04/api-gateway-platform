@@ -14,6 +14,7 @@ import { expireDueLabWorkspaces } from '@api-gateway/database';
 import { LabWorkspaceService } from './services/lab-workspaces.js';
 import { LabUpstreamService } from './services/lab-upstreams.js';
 import { LabProxyService } from './services/lab-proxies.js';
+import { LabProductService } from './services/lab-products.js';
 
 void (async () => {
   const config = loadEnv();
@@ -28,10 +29,11 @@ void (async () => {
   publisher.start();
   const gatewayCatalog = new GatewayCatalogService();
   const proxyRevisions = new ProxyRevisionService(publisher);
+  const products = new ProductService();
   const server = buildServer({
     config,
     organizations: new OrganizationService(),
-    products: new ProductService(),
+    products,
     audit: new AuditService(),
     applications: new ApplicationService(),
     certificateAuthorities,
@@ -42,6 +44,7 @@ void (async () => {
     labWorkspaces: new LabWorkspaceService(),
     labUpstreams: new LabUpstreamService(),
     labProxies: new LabProxyService(gatewayCatalog, proxyRevisions),
+    labProducts: new LabProductService(products),
   });
   const labExpirationWorker = setInterval(() => {
     void expireDueLabWorkspaces().catch(error => {

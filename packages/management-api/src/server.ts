@@ -29,6 +29,8 @@ import { registerLabUpstreamRoutes } from './routes/lab-upstreams.routes.js';
 import type { LabUpstreamOperations } from './services/lab-upstreams.js';
 import { registerLabProxyRoutes } from './routes/lab-proxies.routes.js';
 import type { LabProxyOperations } from './services/lab-proxies.js';
+import { registerLabProductRoutes } from './routes/lab-products.routes.js';
+import type { LabProductOperations } from './services/lab-products.js';
 
 export interface ManagementServerOptions {
   config: ManagementEnv;
@@ -47,6 +49,7 @@ export interface ManagementServerOptions {
   labWorkspaces?: LabWorkspaceOperations;
   labUpstreams?: LabUpstreamOperations;
   labProxies?: LabProxyOperations;
+  labProducts?: LabProductOperations;
 }
 
 export function buildServer(options: ManagementServerOptions): FastifyInstance {
@@ -133,6 +136,9 @@ export function buildServer(options: ManagementServerOptions): FastifyInstance {
   }
   if (options.labProxies) {
     registerLabProxyRoutes(server, options.labProxies);
+  }
+  if (options.labProducts) {
+    registerLabProductRoutes(server, options.labProducts);
   }
   return server;
 }
