@@ -1,5 +1,13 @@
 export type { ProxyConfig, EndpointConfig } from './types/common';
 export {
+  DEVELOPER_TOKEN_GRANT_TYPE,
+  developerTokenRequestSchema,
+} from './auth/developer-tokens';
+export type {
+  DeveloperTokenRequest,
+  DeveloperTokenResponse,
+} from './auth/developer-tokens';
+export {
   DEPLOYMENT_REGIONS,
   DEPLOYMENT_STAGES,
   canDeployToStage,
