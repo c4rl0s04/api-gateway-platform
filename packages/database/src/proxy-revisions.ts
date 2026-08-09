@@ -10,7 +10,7 @@ import type { CompiledProxyBundle } from './proxy-bundle.js';
 import { recordGatewayConfigChange } from './gateway-config-changes.js';
 import { requestBodiesForOperation } from './openapi-request-bodies.js';
 
-const REVISION_IMPORT_TRANSACTION_TIMEOUT_MS = 30_000;
+const REVISION_PERSISTENCE_TRANSACTION_TIMEOUT_MS = 30_000;
 
 export interface ProxyMutationActor {
   issuer: string;
@@ -287,7 +287,7 @@ export async function createConfiguredApiProxy(
     };
   }, {
     isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
-    timeout: REVISION_IMPORT_TRANSACTION_TIMEOUT_MS,
+    timeout: REVISION_PERSISTENCE_TRANSACTION_TIMEOUT_MS,
   });
 }
 
@@ -405,7 +405,10 @@ export async function importProxyRevision(input: ImportProxyRevisionInput) {
       actor: input.actor,
     });
     return created;
-  }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
+  }, {
+    isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
+    timeout: REVISION_PERSISTENCE_TRANSACTION_TIMEOUT_MS,
+  });
 
   return { ...revision, warnings: bundle.warnings };
 }
