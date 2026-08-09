@@ -17,6 +17,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LabApiError, labFetch } from '@/lib/lab-api';
 import { LabQuickPlayground } from '@/components/lab-quick-playground';
 import { LabAdvancedWorkspace } from '@/components/lab-advanced-workspace';
+import { LabProxyInspector } from '@/components/lab-proxy-inspector';
+import type { ApiProxySummary } from '@/lib/api-client';
 
 interface LabWorkspaceRecord {
   id: string;
@@ -26,14 +28,6 @@ interface LabWorkspaceRecord {
   createdAt: string;
   organization: { id: string; name: string; kind: 'lab' };
   _count: { deployments: number; upstreams: number };
-}
-
-interface LabProxy {
-  id: string;
-  name: string;
-  active: boolean;
-  revisions: Array<{ revisionNumber: number; basePath: string }>;
-  deployments: Array<{ id: string; environmentId: string; status: string }>;
 }
 
 interface LabProduct {
@@ -78,7 +72,7 @@ interface LabBootstrapResponse {
 }
 
 interface Inventory {
-  proxies: LabProxy[];
+  proxies: ApiProxySummary[];
   products: LabProduct[];
   apps: LabApplication[];
   upstreams: LabUpstream[];
@@ -103,7 +97,7 @@ export function PersonalLabWorkspace() {
 
   const loadInventory = useCallback(async () => {
     const [proxies, products, apps, upstreams] = await Promise.all([
-      labFetch<LabProxy[]>('proxies'),
+      labFetch<ApiProxySummary[]>('proxies'),
       labFetch<LabProduct[]>('products'),
       labFetch<LabApplication[]>('apps'),
       labFetch<LabUpstream[]>('upstreams'),
@@ -246,6 +240,12 @@ export function PersonalLabWorkspace() {
         applications={inventory.apps}
         consumerSecret={consumerSecret}
         onConsumerSecret={setConsumerSecret}
+      />
+
+      <LabProxyInspector
+        hostname={workspace.hostname}
+        proxies={inventory.proxies}
+        upstreams={inventory.upstreams}
       />
 
       <LabAdvancedWorkspace
