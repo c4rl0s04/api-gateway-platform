@@ -1134,6 +1134,17 @@ td { padding: 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
 .lab-mtls-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .lab-mtls-actions select { flex: 1 1 180px; }
 .lab-mtls-actions > code { margin: 0; color: var(--ink-soft); }
+.lab-mtls-identity-state { min-height: 54px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 12px; border: 1px solid var(--line); background: var(--canvas); }
+.lab-mtls-identity-state > div { min-width: 0; display: flex; align-items: center; gap: 9px; }
+.lab-mtls-identity-state > div:first-child { flex-wrap: wrap; }
+.lab-mtls-identity-state strong { font-size: 9px; }
+.lab-mtls-identity-state code, .lab-mtls-identity-state time { margin: 0; color: var(--ink-faint); font: 8px/1 var(--font-technical); }
+.lab-mtls-identity-state[data-status="active"] strong { color: var(--success); }
+.lab-mtls-identity-state[data-status="expired"] strong, .lab-mtls-identity-state[data-status="revoked"] strong { color: var(--danger); }
+.lab-mtls-identity-state button { min-height: 32px; display: inline-flex; align-items: center; gap: 6px; padding: 0 9px; border: 1px solid var(--line); border-radius: var(--radius-1); background: transparent; color: var(--ink-soft); font-size: 9px; font-weight: 650; cursor: pointer; transition: color var(--fast) ease, border-color var(--fast) ease, background var(--fast) ease, transform var(--fast) var(--ease-out); }
+.lab-mtls-identity-state button svg { width: 12px; height: 12px; }
+.lab-mtls-identity-state button:active { transform: scale(.97); }
+.lab-mtls-identity-state button:first-child { border-color: var(--red-line); color: var(--danger); }
 .lab-response-panel { display: grid; grid-template-rows: auto minmax(300px, 1fr); background: var(--canvas); }
 .lab-response-panel > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--line); color: var(--ink-faint); font-size: 9px; letter-spacing: .04em; text-transform: uppercase; }
 .lab-response-panel > header strong { color: var(--success); font-family: var(--font-technical); font-size: 10px; }
@@ -1302,6 +1313,8 @@ td { padding: 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
   .lab-mtls-workflow > ol { grid-template-columns: 1fr; gap: 8px; }
   .lab-mtls-workflow > ol > svg { margin-left: 5px; transform: rotate(90deg); }
   .lab-mtls-actions > button { width: 100%; }
+  .lab-mtls-identity-state, .lab-mtls-identity-state > div { align-items: stretch; flex-direction: column; }
+  .lab-mtls-identity-state button { justify-content: center; }
   .lab-proxy-register-list { grid-template-columns: 1fr; }
   .lab-proxy-register-list > button { border-right: 0; }
   .lab-proxy-evidence { padding: 20px 18px 24px; }

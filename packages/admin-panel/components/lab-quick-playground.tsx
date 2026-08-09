@@ -9,11 +9,16 @@ import {
   KeyRound,
   LoaderCircle,
   Play,
+  Plus,
   RefreshCw,
+  RotateCcw,
   ShieldCheck,
+  ShieldX,
+  Trash2,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type {
+  CertificateRecord,
   ProxyDeployment,
   ProxyOperation,
   ProxyRevisionDetail,
@@ -32,6 +37,7 @@ import {
 import { executeLabPlayground, PlaygroundApiError } from '@/lib/playground-api';
 import type { PlaygroundExecutionResult } from '@/lib/playground-service';
 import { useLocalAgent } from '@/lib/use-local-agent';
+import { certificateState, createMtlsIdentityName } from '@/lib/mtls-identity-lifecycle';
 
 interface LabProxyOption {
   id: string;
@@ -110,6 +116,7 @@ export function LabQuickPlayground({
   const [oauthMode, setOauthMode] = useState<OAuthMode>('clientCredentials');
   const [browserIdentity, setBrowserIdentity] = useState<BrowserJwtIdentity | null>(null);
   const [localIdentityId, setLocalIdentityId] = useState('');
+  const [certificates, setCertificates] = useState<CertificateRecord[]>([]);
   const [result, setResult] = useState<PlaygroundExecutionResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
@@ -119,6 +126,11 @@ export function LabQuickPlayground({
   const credential = useMemo(() => applications
     .flatMap(application => application.credentials)
     .find(candidate => candidate.status === 'approved') ?? null, [applications]);
+  const loadCertificates = useCallback(async () => {
+    const next = await labFetch<CertificateRecord[]>('certificates');
+    setCertificates(next);
+    return next;
+  }, []);
   const deployment = useMemo(
     () => deployments.find(candidate => candidate.status === 'active') ?? null,
     [deployments],
@@ -145,6 +157,11 @@ export function LabQuickPlayground({
     () => mtlsIdentities.find(identity => identity.id === localIdentityId) ?? null,
     [localIdentityId, mtlsIdentities],
   );
+  const selectedCertificate = useMemo(() => certificates.find(certificate =>
+    certificate.credential.id === credential?.id
+      && certificate.fingerprintSha256 === selectedMtlsIdentity?.certificateFingerprintSha256),
+  [certificates, credential?.id, selectedMtlsIdentity?.certificateFingerprintSha256]);
+  const selectedCertificateState = certificateState(selectedCertificate);
 
   useEffect(() => {
     if (!proxies.some(proxy => proxy.id === proxyId)) setProxyId(proxies[0]?.id ?? '');
@@ -187,6 +204,14 @@ export function LabQuickPlayground({
       setLocalIdentityId(mtlsIdentities[0]?.id ?? '');
     }
   }, [localIdentityId, mtlsIdentities]);
+
+  useEffect(() => {
+    if (!credential) {
+      setCertificates([]);
+      return;
+    }
+    void loadCertificates().catch(() => setCertificates([]));
+  }, [credential, loadCertificates]);
 
   const rotateSecret = useCallback(async () => {
     if (!credential) return;
@@ -284,11 +309,12 @@ export function LabQuickPlayground({
     try {
       const generated = await localAgent.track('Generate lab mTLS key and CSR', () =>
         client.generateMtlsIdentity({
-          name: `lab-${credential.id.slice(0, 12)}`,
+          name: createMtlsIdentityName(credential.id),
           credentialId: credential.id,
         }));
       await localAgent.refreshIdentities(client);
       setLocalIdentityId(generated.identity.id);
+      setResult(null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'mTLS identity could not be generated');
     } finally {
@@ -296,7 +322,7 @@ export function LabQuickPlayground({
     }
   }, [credential, localAgent]);
 
-  const issueMtlsCertificate = useCallback(async () => {
+  const issueMtlsCertificate = useCallback(async (replaceCurrent = false) => {
     const client = localAgent.state.status === 'connected' ? localAgent.state.client : null;
     if (!client || !credential || !selectedMtlsIdentity) return;
     setRunning(true);
@@ -304,7 +330,8 @@ export function LabQuickPlayground({
     try {
       const { csr } = await localAgent.track('Read local CSR', () =>
         client.getCsr(selectedMtlsIdentity.id));
-      const issued = await labFetch<{ id: string }>(
+      const previousCertificate = replaceCurrent ? selectedCertificate : undefined;
+      const issued = await labFetch<CertificateRecord>(
         `credentials/${credential.id}/certificates`,
         { method: 'POST', body: JSON.stringify({ csrPem: csr, validityDays: 1 }) },
       );
@@ -318,17 +345,72 @@ export function LabQuickPlayground({
           chainPem: material.chainPem ?? undefined,
         }));
       await localAgent.refreshIdentities(client);
+      if (previousCertificate?.status === 'approved') {
+        try {
+          await labFetch(`certificates/${previousCertificate.id}/revoke`, {
+            method: 'POST',
+            body: JSON.stringify({ reason: 'cessationOfOperation' }),
+          });
+        } finally {
+          await loadCertificates();
+        }
+      } else {
+        await loadCertificates();
+      }
+      setResult(null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Client certificate could not be issued');
     } finally {
       setRunning(false);
     }
-  }, [credential, localAgent, selectedMtlsIdentity]);
+  }, [credential, loadCertificates, localAgent, selectedCertificate, selectedMtlsIdentity]);
+
+  const revokeMtlsCertificate = useCallback(async () => {
+    if (!selectedCertificate || selectedCertificateState !== 'active') return;
+    if (!window.confirm('Revoke this certificate? The local key will remain available for a new certificate.')) return;
+    setRunning(true);
+    setError('');
+    try {
+      await labFetch(`certificates/${selectedCertificate.id}/revoke`, {
+        method: 'POST',
+        body: JSON.stringify({ reason: 'cessationOfOperation' }),
+      });
+      await loadCertificates();
+      setResult(null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Certificate could not be revoked');
+    } finally {
+      setRunning(false);
+    }
+  }, [loadCertificates, selectedCertificate, selectedCertificateState]);
+
+  const removeMtlsIdentity = useCallback(async () => {
+    const client = localAgent.state.status === 'connected' ? localAgent.state.client : null;
+    if (!client || !selectedMtlsIdentity) return;
+    const warning = selectedCertificateState === 'active'
+      ? 'Remove this local identity? Its certificate will remain active on the platform until you revoke it.'
+      : 'Remove this local identity and its private key from this machine?';
+    if (!window.confirm(warning)) return;
+    setRunning(true);
+    setError('');
+    try {
+      await localAgent.track('Remove local mTLS identity', () =>
+        client.removeIdentity(selectedMtlsIdentity.id));
+      await localAgent.refreshIdentities(client);
+      setLocalIdentityId('');
+      setResult(null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Local identity could not be removed');
+    } finally {
+      setRunning(false);
+    }
+  }, [localAgent, selectedCertificateState, selectedMtlsIdentity]);
 
   const runMtls = useCallback(async () => {
     const client = localAgent.state.status === 'connected' ? localAgent.state.client : null;
     if (!client
       || !selectedMtlsIdentity?.hasCertificate
+      || selectedCertificateState !== 'active'
       || !operation
       || !target) return;
     setRunning(true);
@@ -363,7 +445,7 @@ export function LabQuickPlayground({
     } finally {
       setRunning(false);
     }
-  }, [body, localAgent, operation, selectedMtlsIdentity, target]);
+  }, [body, localAgent, operation, selectedCertificateState, selectedMtlsIdentity, target]);
 
   if (proxies.length === 0) return null;
 
@@ -404,9 +486,9 @@ export function LabQuickPlayground({
               <ol aria-label="mTLS request flow">
                 <li data-complete={Boolean(selectedMtlsIdentity)}><span>1</span><div><strong>Generate</strong><small>Key + CSR · local agent</small></div></li>
                 <ArrowRight />
-                <li data-complete={selectedMtlsIdentity?.hasCertificate}><span>2</span><div><strong>Issue</strong><small>Certificate · platform</small></div></li>
+                <li data-complete={selectedCertificateState === 'active'}><span>2</span><div><strong>Issue</strong><small>Certificate · platform</small></div></li>
                 <ArrowRight />
-                <li data-complete={selectedMtlsIdentity?.hasCertificate}><span>3</span><div><strong>Install</strong><small>Public cert · local agent</small></div></li>
+                <li data-complete={selectedCertificateState === 'active'}><span>3</span><div><strong>Install</strong><small>Public cert · local agent</small></div></li>
                 <ArrowRight />
                 <li data-complete={Boolean(result)}><span>4</span><div><strong>Connect</strong><small>Certificate + private key</small></div></li>
               </ol>
@@ -415,13 +497,27 @@ export function LabQuickPlayground({
                   <><button type="button" className="secondary-command" onClick={() => void localAgent.connect()}><Cable /> Connect local agent</button><code>npm run gatewayctl -- agent start</code></>
                 ) : (
                   <>
-                    <select aria-label="Local mTLS identity" value={localIdentityId} onChange={event => setLocalIdentityId(event.target.value)}><option value="">Select local identity</option>{mtlsIdentities.map(identity => <option value={identity.id} key={identity.id}>{identity.name}</option>)}</select>
-                    <button type="button" className="secondary-command" onClick={() => void generateMtlsIdentity()} disabled={running}><KeyRound /> Generate key and CSR</button>
+                    <select aria-label="Local mTLS identity" value={localIdentityId} onChange={event => { setLocalIdentityId(event.target.value); setResult(null); }}><option value="">Select local identity</option>{mtlsIdentities.map(identity => <option value={identity.id} key={identity.id}>{identity.name}</option>)}</select>
+                    <button type="button" className="secondary-command" onClick={() => void generateMtlsIdentity()} disabled={running}><Plus /> Create new identity</button>
                     {selectedMtlsIdentity && !selectedMtlsIdentity.hasCertificate && <button type="button" className="secondary-command" onClick={() => void issueMtlsCertificate()} disabled={running}><FileKey2 /> Issue certificate</button>}
-                    <button type="button" className="primary-command" onClick={() => void runMtls()} disabled={running || !selectedMtlsIdentity?.hasCertificate}><Play /> Run with certificate</button>
+                    {selectedMtlsIdentity?.hasCertificate && <button type="button" className="secondary-command" onClick={() => void issueMtlsCertificate(true)} disabled={running}><RotateCcw /> Renew certificate</button>}
+                    <button type="button" className="primary-command" onClick={() => void runMtls()} disabled={running || !selectedMtlsIdentity?.hasCertificate || selectedCertificateState !== 'active'}><Play /> Run with certificate</button>
                   </>
                 )}
               </div>
+              {selectedMtlsIdentity && (
+                <div className="lab-mtls-identity-state" data-status={selectedCertificateState}>
+                  <div>
+                    <strong>{selectedCertificateState === 'active' ? 'Certificate active' : selectedCertificateState === 'missing' ? 'Certificate not issued' : `Certificate ${selectedCertificateState}`}</strong>
+                    <code>{selectedMtlsIdentity.certificateFingerprintSha256?.slice(0, 20) ?? selectedMtlsIdentity.fingerprint.slice(0, 20)}…</code>
+                    {selectedMtlsIdentity.certificateExpiresAt && <time dateTime={selectedMtlsIdentity.certificateExpiresAt}>Expires {new Date(selectedMtlsIdentity.certificateExpiresAt).toLocaleString()}</time>}
+                  </div>
+                  <div>
+                    {selectedCertificateState === 'active' && <button type="button" onClick={() => void revokeMtlsCertificate()} disabled={running}><ShieldX /> Revoke certificate</button>}
+                    <button type="button" onClick={() => void removeMtlsIdentity()} disabled={running}><Trash2 /> Remove local identity</button>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <button type="button" className="primary-command lab-run" onClick={() => void run()} disabled={running || loading || !operation || !credential}>
