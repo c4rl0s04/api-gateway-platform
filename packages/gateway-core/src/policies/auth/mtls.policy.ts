@@ -29,7 +29,11 @@ const defaultDependencies: MtlsPolicyDependencies = {
     include: {
       credential: {
         include: {
-          app: true,
+          app: {
+            include: {
+              organization: { include: { labWorkspace: true } },
+            },
+          },
           productGrants: {
             include: {
               product: {

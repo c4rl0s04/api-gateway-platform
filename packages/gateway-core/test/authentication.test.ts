@@ -413,6 +413,42 @@ describe('mTLS direct authentication', () => {
     assert.equal((await revokedPolicy(context)).action, 'halt');
   });
 
+  it('binds an approved client certificate to its lab workspace', async () => {
+    const labCredential = credential();
+    labCredential.app.organization = {
+      kind: 'lab',
+      labWorkspace: {
+        id: 'workspace-1',
+        status: 'active',
+        expiresAt: new Date(Date.now() + 60_000),
+      },
+    };
+    const policy = createMtlsPolicyWithDependencies(
+      { failureMode: 'closed' },
+      {
+        isTrustedProxy: () => true,
+        findCertificate: async () => ({
+          status: 'approved',
+          validFrom: new Date(0),
+          expiresAt: null,
+          credential: labCredential,
+        }),
+      },
+    );
+    const { context } = createPolicyContext({
+      headers: { 'x-gateway-client-cert-sha256': 'ef'.repeat(32) },
+    });
+    context.req.raw = { socket: { remoteAddress: '10.1.2.3' } } as never;
+    context.proxy.workspaceId = 'workspace-1';
+
+    assert.deepEqual(await policy(context), { action: 'continue' });
+    assert.equal(context.client?.workspaceId, 'workspace-1');
+
+    context.proxy.workspaceId = 'workspace-2';
+    const rejected = await policy(context);
+    assert.equal(rejected.action === 'halt' && rejected.statusCode, 401);
+  });
+
   it('maps different connection fingerprints to different applications', async () => {
     const firstFingerprint = '11'.repeat(32);
     const secondFingerprint = '22'.repeat(32);
