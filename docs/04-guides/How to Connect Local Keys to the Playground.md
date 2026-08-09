@@ -13,6 +13,7 @@ sources:
   - packages/gateway-cli/src/agent.ts
   - packages/gateway-cli/src/operations.ts
   - packages/admin-panel/components/playground-workspace.tsx
+  - packages/admin-panel/components/lab-quick-playground.tsx
   - packages/admin-panel/lib/use-local-agent.ts
 aliases:
   - Connect gatewayctl to the Playground
@@ -69,6 +70,19 @@ private key remains on the developer machine.
 
 ### mTLS with a new key
 
+The Lab and Playground show the same four-stage flow beside the mTLS controls:
+
+```text
+Generate locally → Issue on platform → Install locally → Connect from agent
+```
+
+| Stage | Owner | Material crossing the boundary |
+| --- | --- | --- |
+| Generate key and CSR | `gatewayctl` on the client machine | CSR only; the private key stays encrypted locally |
+| Issue certificate | Management API and the credential's active CA | CSR enters; public certificate and chain leave |
+| Install certificate | Browser hands public material to `gatewayctl` | Certificate and chain only |
+| Connect | `gatewayctl` opens HTTPS to Envoy | TLS proof of private-key possession; the key itself never leaves |
+
 1. In an mTLS operation, connect the agent and select `Generate CSR`.
 2. Choose the application credential. The agent creates the key and returns
    only the CSR.
@@ -119,4 +133,3 @@ file makes the identity unusable until it is registered again.
 - Remove a local alias with `npm run gatewayctl -- keys remove --id <id>`.
 - See [[Debug Local Agent Pairing]] for origin, session, keychain, and audience
   errors.
-

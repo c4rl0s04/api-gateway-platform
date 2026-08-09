@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  ArrowRight,
   Cable,
   CheckCircle2,
   CircleDot,
@@ -399,17 +400,28 @@ export function LabQuickPlayground({
           )}
 
           {requirement.type === 'mtls' ? (
-            <div className="lab-mtls-actions">
-              {localAgent.state.status !== 'connected' ? (
-                <><button type="button" className="secondary-command" onClick={() => void localAgent.connect()}><Cable /> Connect local agent</button><code>npm run gatewayctl -- agent start</code></>
-              ) : (
-                <>
-                  <select aria-label="Local mTLS identity" value={localIdentityId} onChange={event => setLocalIdentityId(event.target.value)}><option value="">Select local identity</option>{mtlsIdentities.map(identity => <option value={identity.id} key={identity.id}>{identity.name}</option>)}</select>
-                  <button type="button" className="secondary-command" onClick={() => void generateMtlsIdentity()} disabled={running}><KeyRound /> Generate key and CSR</button>
-                  {selectedMtlsIdentity && !selectedMtlsIdentity.hasCertificate && <button type="button" className="secondary-command" onClick={() => void issueMtlsCertificate()} disabled={running}><FileKey2 /> Issue certificate</button>}
-                  <button type="button" className="primary-command" onClick={() => void runMtls()} disabled={running || !selectedMtlsIdentity?.hasCertificate}><Play /> Run with certificate</button>
-                </>
-              )}
+            <div className="lab-mtls-workflow">
+              <ol aria-label="mTLS request flow">
+                <li data-complete={Boolean(selectedMtlsIdentity)}><span>1</span><div><strong>Generate</strong><small>Key + CSR · local agent</small></div></li>
+                <ArrowRight />
+                <li data-complete={selectedMtlsIdentity?.hasCertificate}><span>2</span><div><strong>Issue</strong><small>Certificate · platform</small></div></li>
+                <ArrowRight />
+                <li data-complete={selectedMtlsIdentity?.hasCertificate}><span>3</span><div><strong>Install</strong><small>Public cert · local agent</small></div></li>
+                <ArrowRight />
+                <li data-complete={Boolean(result)}><span>4</span><div><strong>Connect</strong><small>Certificate + private key</small></div></li>
+              </ol>
+              <div className="lab-mtls-actions">
+                {localAgent.state.status !== 'connected' ? (
+                  <><button type="button" className="secondary-command" onClick={() => void localAgent.connect()}><Cable /> Connect local agent</button><code>npm run gatewayctl -- agent start</code></>
+                ) : (
+                  <>
+                    <select aria-label="Local mTLS identity" value={localIdentityId} onChange={event => setLocalIdentityId(event.target.value)}><option value="">Select local identity</option>{mtlsIdentities.map(identity => <option value={identity.id} key={identity.id}>{identity.name}</option>)}</select>
+                    <button type="button" className="secondary-command" onClick={() => void generateMtlsIdentity()} disabled={running}><KeyRound /> Generate key and CSR</button>
+                    {selectedMtlsIdentity && !selectedMtlsIdentity.hasCertificate && <button type="button" className="secondary-command" onClick={() => void issueMtlsCertificate()} disabled={running}><FileKey2 /> Issue certificate</button>}
+                    <button type="button" className="primary-command" onClick={() => void runMtls()} disabled={running || !selectedMtlsIdentity?.hasCertificate}><Play /> Run with certificate</button>
+                  </>
+                )}
+              </div>
             </div>
           ) : (
             <button type="button" className="primary-command lab-run" onClick={() => void run()} disabled={running || loading || !operation || !credential}>
