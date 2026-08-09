@@ -44,6 +44,14 @@ function safeDnsName(value: string): string {
   return safeIdentifier(value, 'DNS name');
 }
 
+function safeCommonName(value: string): string {
+  const commonName = safeIdentifier(value, 'CA commonName');
+  if (commonName.length > 64) {
+    throw new Error('CA commonName cannot exceed 64 characters');
+  }
+  return commonName;
+}
+
 function certificateMetadata(certificatePem: string): CertificateMetadata {
   const certificate = new X509Certificate(certificatePem);
   return {
@@ -75,7 +83,7 @@ export async function createManagedAuthority(input: {
   commonName: string;
   validityDays?: number;
 }): Promise<ManagedAuthorityMaterial> {
-  const commonName = safeIdentifier(input.commonName, 'CA commonName');
+  const commonName = safeCommonName(input.commonName);
   const validityDays = input.validityDays ?? 3_650;
   if (!Number.isInteger(validityDays) || validityDays < 1 || validityDays > 3_650) {
     throw new Error('CA validityDays must be between 1 and 3650');

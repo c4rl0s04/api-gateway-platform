@@ -19,6 +19,10 @@ describe('X.509 certificate lifecycle', () => {
       () => createManagedAuthority({ commonName: 'invalid-authority', validityDays: 0 }),
       /between 1 and 3650/,
     );
+    await assert.rejects(
+      () => createManagedAuthority({ commonName: 'a'.repeat(65), validityDays: 2 }),
+      /cannot exceed 64 characters/,
+    );
   });
 
   it('issues a constrained client certificate from an RSA CSR', async () => {
