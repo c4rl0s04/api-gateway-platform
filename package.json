@@ -22,7 +22,7 @@
     "test:platform": "bash scripts/test-platform-isolated.sh",
     "test:platform:config": "PLATFORM_TEST_CONFIG_ONLY=1 bash scripts/test-platform-isolated.sh",
     "pki:client": "npm run build --workspace=packages/pki --silent && node scripts/generate-client-csr.mjs",
-    "gatewayctl": "npm run build --workspace=packages/gateway-cli --silent && node packages/gateway-cli/dist/cli.js",
+    "gatewayctl": "npm run build --workspace=packages/pki --silent && npm run build --workspace=packages/gateway-cli --silent && node packages/gateway-cli/dist/cli.js",
     "lint": "npm run lint --workspaces --if-present",
     "docs:index": "node scripts/docs/generate-index.mjs",
     "docs:check": "node scripts/docs/check-docs.mjs",

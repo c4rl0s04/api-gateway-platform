@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import type { AgentProfile } from './types.js';
@@ -9,6 +10,9 @@ export function gatewayCtlDirectory(): string {
 }
 
 export function loadAgentProfile(): AgentProfile {
+  const localGatewayCa = path.resolve(
+    '.local-secrets/pki/authorities/local-development/ca.crt',
+  );
   return {
     allowedOrigins: commaSeparated(
       process.env.GATEWAYCTL_ALLOWED_ORIGINS,
@@ -20,6 +24,8 @@ export function loadAgentProfile(): AgentProfile {
     ),
     playgroundUrl: process.env.GATEWAYCTL_PLAYGROUND_URL
       ?? 'http://localhost:8080/playground',
+    gatewayCaCertificateFile: process.env.GATEWAYCTL_GATEWAY_CA_CERT_FILE
+      ?? (existsSync(localGatewayCa) ? localGatewayCa : undefined),
   };
 }
 

@@ -39,6 +39,7 @@ export interface AgentProfile {
   allowedOrigins: string[];
   allowedAudienceHosts: string[];
   playgroundUrl: string;
+  gatewayCaCertificateFile?: string;
 }
 
 export interface AgentOperationRequest {

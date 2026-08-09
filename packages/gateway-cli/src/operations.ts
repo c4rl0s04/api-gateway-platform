@@ -169,6 +169,9 @@ export class AgentOperations {
       identity.chainFile ? readFile(identity.chainFile, 'utf8') : Promise.resolve(''),
       this.identities.readPrivateKey(identity),
     ]);
+    const configuredCa = this.profile.gatewayCaCertificateFile
+      ? await readFile(this.profile.gatewayCaCertificateFile, 'utf8')
+      : undefined;
     return sendHttpsRequest({
       url,
       method,
@@ -176,7 +179,7 @@ export class AgentOperations {
       body,
       certificate: `${certificate}${chain}`,
       privateKey,
-      caCertificate: optionalString(params, 'caCertificatePem'),
+      caCertificate: optionalString(params, 'caCertificatePem') ?? configuredCa,
     });
   }
 }
