@@ -24,6 +24,7 @@ import {
   type ApiProxyDetail,
   type ApiProxySummary,
   type AppCredential,
+  type CertificateRecord,
   type DeveloperApp,
   type Organization,
   type ProxyDeployment,
@@ -49,6 +50,11 @@ import {
   type LocalIdentity,
 } from '@/lib/local-agent';
 import { useLocalAgent, type AgentActivity } from '@/lib/use-local-agent';
+import {
+  mtlsCompatibilityLabel,
+  resolveMtlsCertificateCompatibility,
+  type MtlsCertificateCompatibility,
+} from '@/lib/mtls-playground';
 
 type OAuthMode = 'clientCredentials' | 'bearerToken' | 'jwtBearer';
 type ResponseView = 'preview' | 'body' | 'headers' | 'request';
@@ -121,6 +127,7 @@ export function PlaygroundWorkspace() {
   const [revision, setRevision] = useState<ProxyRevisionDetail | null>(null);
   const [operationId, setOperationId] = useState('');
   const [apps, setApps] = useState<DeveloperApp[]>([]);
+  const [certificates, setCertificates] = useState<CertificateRecord[]>([]);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [credentialOrganizationId, setCredentialOrganizationId] = useState('');
   const [pathValues, setPathValues] = useState<Record<string, string>>({});
@@ -184,15 +191,28 @@ export function PlaygroundWorkspace() {
     () => credentials.find(credential => credential.id === credentialId) ?? null,
     [credentialId, credentials],
   );
+  const mtlsIdentityMatches = useMemo(() => {
+    const authorizedCredentialIds = new Set(credentials.map(credential => credential.id));
+    return localAgent.identities
+      .filter(identity => identity.type === 'mtls' && identity.hasCertificate)
+      .map(identity => ({
+        identity,
+        ...resolveMtlsCertificateCompatibility(identity, certificates, authorizedCredentialIds),
+      }));
+  }, [certificates, credentials, localAgent.identities]);
   const localIdentities = useMemo(
-    () => localAgent.identities.filter(identity => requirement.type === 'mtls'
-      ? identity.type === 'mtls'
-      : identity.type === 'jwt'),
-    [localAgent.identities, requirement.type],
+    () => requirement.type === 'mtls'
+      ? mtlsIdentityMatches.map(match => match.identity)
+      : localAgent.identities.filter(identity => identity.type === 'jwt'),
+    [localAgent.identities, mtlsIdentityMatches, requirement.type],
   );
   const selectedLocalIdentity = useMemo(
     () => localIdentities.find(identity => identity.id === localIdentityId) ?? null,
     [localIdentities, localIdentityId],
+  );
+  const selectedMtlsMatch = useMemo(
+    () => mtlsIdentityMatches.find(match => match.identity.id === localIdentityId) ?? null,
+    [localIdentityId, mtlsIdentityMatches],
   );
   const pathNames = useMemo(
     () => selectedOperation ? pathParameterNames(selectedOperation.path) : [],
@@ -353,6 +373,21 @@ export function PlaygroundWorkspace() {
   }, [credentialOrganizationId]);
 
   useEffect(() => {
+    if (!proxy || proxy.systemManaged) {
+      setCertificates([]);
+      return;
+    }
+    const controller = new AbortController();
+    managementFetch<CertificateRecord[]>(
+      `organizations/${proxy.organizationId}/certificates`,
+      { signal: controller.signal },
+    ).then(setCertificates).catch(cause => {
+      if (cause.name !== 'AbortError') setError(cause.message);
+    });
+    return () => controller.abort();
+  }, [proxy]);
+
+  useEffect(() => {
     if (!selectedDeployment || !proxyId) {
       setRevision(null);
       return;
@@ -459,12 +494,13 @@ export function PlaygroundWorkspace() {
 
   useEffect(() => {
     if (localIdentities.some(identity => identity.id === localIdentityId)) return;
-    const matching = localIdentities.find(identity =>
-      selectedCredential?.consumerKey
+    const matching = requirement.type === 'mtls'
+      ? mtlsIdentityMatches.find(candidate => candidate.state === 'authorized')?.identity
+      : localIdentities.find(identity => selectedCredential?.consumerKey
         ? identity.consumerKey === selectedCredential.consumerKey
         : false);
     setLocalIdentityId(matching?.id ?? localIdentities[0]?.id ?? '');
-  }, [localIdentities, localIdentityId, selectedCredential]);
+  }, [localIdentities, localIdentityId, mtlsIdentityMatches, requirement.type, selectedCredential]);
 
   const createTemporaryCredential = useCallback(async () => {
     if (!selectedCredential || !credentialOrganizationId) return;
@@ -565,73 +601,14 @@ export function PlaygroundWorkspace() {
     }
   }, [localAgent, selectedCredential, selectedDeployment, selectedLocalIdentity]);
 
-  const generateLocalMtlsIdentity = useCallback(async () => {
-    const client = localAgent.state.status === 'connected'
-      ? localAgent.state.client
-      : null;
-    if (!client || !selectedCredential) return;
-    setAgentBusy(true);
-    setError('');
-    try {
-      const generated = await localAgent.track('Generate mTLS key and CSR locally', () =>
-        client.generateMtlsIdentity({
-          name: `mtls-${selectedCredential.id.slice(0, 12)}`,
-          credentialId: selectedCredential.id,
-        }));
-      await localAgent.refreshIdentities(client);
-      setLocalIdentityId(generated.identity.id);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'mTLS identity could not be generated');
-    } finally {
-      setAgentBusy(false);
-    }
-  }, [localAgent, selectedCredential]);
-
-  const issueLocalCertificate = useCallback(async () => {
-    const client = localAgent.state.status === 'connected'
-      ? localAgent.state.client
-      : null;
-    if (!client || !selectedCredential
-      || !selectedLocalIdentity
-      || selectedLocalIdentity.type !== 'mtls') return;
-    setAgentBusy(true);
-    setError('');
-    try {
-      const { csr } = await localAgent.track('Read local certificate request', () =>
-        client.getCsr(selectedLocalIdentity.id));
-      const issued = await localAgent.track('Issue client certificate', () =>
-        managementFetch<{ id: string }>(
-          `credentials/${selectedCredential.id}/certificates/issue`,
-          {
-            method: 'POST',
-            body: JSON.stringify({ csrPem: csr, validityDays: 90 }),
-          },
-        ));
-      const material = await managementFetch<{
-        certificatePem: string;
-        chainPem: string | null;
-      }>(`certificates/${issued.id}/download`);
-      await localAgent.track('Install certificate beside local key', () =>
-        client.installCertificate({
-          identityId: selectedLocalIdentity.id,
-          certificatePem: material.certificatePem,
-          chainPem: material.chainPem ?? undefined,
-        }));
-      await localAgent.refreshIdentities(client);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Client certificate could not be issued');
-    } finally {
-      setAgentBusy(false);
-    }
-  }, [localAgent, selectedCredential, selectedLocalIdentity]);
-
   const runLocalMtlsRequest = useCallback(async () => {
     const client = localAgent.state.status === 'connected'
       ? localAgent.state.client
       : null;
     if (!client || !selectedOperation
       || !selectedDeployment
-      || !selectedLocalIdentity?.hasCertificate) return;
+      || !selectedLocalIdentity?.hasCertificate
+      || selectedMtlsMatch?.state !== 'authorized') return;
     setAgentBusy(true);
     setError('');
     setResult(null);
@@ -676,7 +653,7 @@ export function PlaygroundWorkspace() {
     } finally {
       setAgentBusy(false);
     }
-  }, [body, bodyMediaType, headers, localAgent, mtlsCurl, selectedDeployment, selectedLocalIdentity, selectedOperation, target]);
+  }, [body, bodyMediaType, headers, localAgent, mtlsCurl, selectedDeployment, selectedLocalIdentity, selectedMtlsMatch, selectedOperation, target]);
 
   const refreshLocalIdentities = useCallback(async () => {
     setAgentBusy(true);
@@ -1105,20 +1082,23 @@ export function PlaygroundWorkspace() {
                   activity={localAgent.activity}
                   identities={localIdentities}
                   selectedIdentity={selectedLocalIdentity}
+                  mtlsIdentityStates={Object.fromEntries(mtlsIdentityMatches.map(match => [
+                    match.identity.id,
+                    match.state,
+                  ]))}
                   selectedCredential={selectedCredential}
                   temporaryCredentialExpiresAt={temporaryCredentialExpiresAt}
                   assertionInspection={assertionInspection}
                   busy={agentBusy}
                   canRunMtls={Boolean(selectedOperation
                     && selectedDeployment
-                    && selectedLocalIdentity?.hasCertificate)}
+                    && selectedLocalIdentity?.hasCertificate
+                    && selectedMtlsMatch?.state === 'authorized')}
                   onConnect={() => void localAgent.connect()}
                   onIdentityChange={setLocalIdentityId}
                   onCreateTemporaryCredential={() => void createTemporaryCredential()}
                   onGenerateJwtIdentity={() => void generateLocalJwtIdentity()}
                   onRegisterAndSign={() => void registerAndSignAssertion()}
-                  onGenerateMtlsIdentity={() => void generateLocalMtlsIdentity()}
-                  onIssueCertificate={() => void issueLocalCertificate()}
                   onRunMtls={() => void runLocalMtlsRequest()}
                   onRefreshIdentities={() => void refreshLocalIdentities()}
                 />
@@ -1127,15 +1107,19 @@ export function PlaygroundWorkspace() {
 
             <footer className="playground-execute-row">
               <span>{selectedDeployment?.environment.publicOrigin ?? 'No active deployment selected'}</span>
-              <button
-                className="primary-command playground-send"
-                type="button"
-                onClick={() => void runRequest()}
-                disabled={!canExecute || executing}
-              >
-                <Send />
-                {executing ? 'Sending request' : 'Send request'}
-              </button>
+              {requirement.type === 'mtls' ? (
+                <span>Use the verified local certificate action above</span>
+              ) : (
+                <button
+                  className="primary-command playground-send"
+                  type="button"
+                  onClick={() => void runRequest()}
+                  disabled={!canExecute || executing}
+                >
+                  <Send />
+                  {executing ? 'Sending request' : 'Send request'}
+                </button>
+              )}
             </footer>
           </section>
 
@@ -1354,12 +1338,11 @@ function AuthenticationEditor({
   if (requirement.type === 'mtls') {
     return (
       <div className="mtls-authentication-editor">
-        {credentialOptions}
         <div className="mtls-playground-callout">
           <FileKey2 />
           <div>
             <strong>Run this request from the certificate owner</strong>
-            <p>Connect gatewayctl to issue or select a certificate whose private key remains on this machine.</p>
+            <p>Select an existing certificate whose private key remains on this machine. Certificates are registered from the application configuration.</p>
             <details>
               <summary>Manual curl alternative</summary>
               <pre>{mtlsCurl}</pre>
@@ -1437,6 +1420,7 @@ function LocalAuthorizationTools({
   activity,
   identities,
   selectedIdentity,
+  mtlsIdentityStates,
   selectedCredential,
   temporaryCredentialExpiresAt,
   assertionInspection,
@@ -1447,8 +1431,6 @@ function LocalAuthorizationTools({
   onCreateTemporaryCredential,
   onGenerateJwtIdentity,
   onRegisterAndSign,
-  onGenerateMtlsIdentity,
-  onIssueCertificate,
   onRunMtls,
   onRefreshIdentities,
 }: {
@@ -1457,6 +1439,7 @@ function LocalAuthorizationTools({
   activity: AgentActivity[];
   identities: LocalIdentity[];
   selectedIdentity: LocalIdentity | null;
+  mtlsIdentityStates: Record<string, MtlsCertificateCompatibility>;
   selectedCredential: (AppCredential & { appId: string; appName: string }) | null;
   temporaryCredentialExpiresAt: string;
   assertionInspection: {
@@ -1471,8 +1454,6 @@ function LocalAuthorizationTools({
   onCreateTemporaryCredential(): void;
   onGenerateJwtIdentity(): void;
   onRegisterAndSign(): void;
-  onGenerateMtlsIdentity(): void;
-  onIssueCertificate(): void;
   onRunMtls(): void;
   onRefreshIdentities(): void;
 }) {
@@ -1504,7 +1485,9 @@ function LocalAuthorizationTools({
   const identityOptions: CatalogOption[] = identities.map(identity => ({
     value: identity.id,
     label: identity.name,
-    description: `${identity.algorithm} · ${identity.fingerprint.slice(0, 16)}`,
+    description: mode === 'mtls'
+      ? `${identity.algorithm} · ${mtlsCompatibilityLabel(mtlsIdentityStates[identity.id] ?? 'unregistered')}`
+      : `${identity.algorithm} · ${identity.fingerprint.slice(0, 16)}`,
     keywords: [identity.fingerprint, identity.consumerKey ?? ''],
   }));
   return (
@@ -1558,16 +1541,6 @@ function LocalAuthorizationTools({
               </>
             ) : (
               <>
-                <button type="button" onClick={onGenerateMtlsIdentity} disabled={!selectedCredential || busy}>
-                  <Plus /> Generate key and CSR
-                </button>
-                <button
-                  type="button"
-                  onClick={onIssueCertificate}
-                  disabled={!selectedCredential || !selectedIdentity || selectedIdentity.hasCertificate || busy}
-                >
-                  <FileKey2 /> Issue certificate
-                </button>
                 <button
                   className="agent-primary-action"
                   type="button"
@@ -1583,7 +1556,9 @@ function LocalAuthorizationTools({
             <div className="agent-identity-facts">
               <span>{selectedIdentity.algorithm}</span>
               <code>{selectedIdentity.fingerprint}</code>
-              <span>{selectedIdentity.hasCertificate ? 'Certificate installed' : 'No certificate'}</span>
+              <span>{mode === 'mtls'
+                ? mtlsCompatibilityLabel(mtlsIdentityStates[selectedIdentity.id] ?? 'unregistered')
+                : selectedIdentity.hasCertificate ? 'Certificate installed' : 'No certificate'}</span>
             </div>
           )}
           {mode === 'jwt' && assertionInspection && (
