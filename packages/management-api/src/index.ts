@@ -45,7 +45,7 @@ void (async () => {
     gatewayCatalog,
     proxyRevisions,
     runtimeSync,
-    labWorkspaces: new LabWorkspaceService(),
+    labWorkspaces: new LabWorkspaceService(certificateAuthorities),
     labUpstreams: new LabUpstreamService(),
     labProxies: new LabProxyService(gatewayCatalog, proxyRevisions),
     labProducts: new LabProductService(products),
@@ -53,9 +53,13 @@ void (async () => {
     labAudit: new LabAuditService(audit),
   });
   const labExpirationWorker = setInterval(() => {
-    void expireDueLabWorkspaces().catch(error => {
-      server.log.error({ err: error }, 'Lab workspace expiration sweep failed');
-    });
+    void expireDueLabWorkspaces()
+      .then(expired => expired > 0
+        ? certificateAuthorities.publishRuntimeTrust()
+        : undefined)
+      .catch(error => {
+        server.log.error({ err: error }, 'Lab workspace expiration sweep failed');
+      });
   }, 60_000);
   labExpirationWorker.unref();
   server.addHook('onClose', async () => {

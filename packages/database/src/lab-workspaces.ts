@@ -296,6 +296,10 @@ async function deactivateWorkspaceResources(
       ? 'labWorkspace.expire'
       : 'labWorkspace.revoke',
   );
+  await transaction.certificateAuthority.updateMany({
+    where: { organizationId, status: { in: ['draft', 'active', 'retiring'] } },
+    data: { status: 'revoked', isDefaultIssuer: false },
+  });
   await transaction.labWorkspace.update({
     where: { id: workspaceId },
     data: { status },
