@@ -15,6 +15,7 @@ sources:
   - packages/gateway-core/src/db/proxy-loader.ts
   - packages/lab-egress/src
   - packages/admin-panel/app/lab/page.tsx
+  - packages/admin-panel/components/lab-proxy-inspector.tsx
 aliases:
   - Gateway Lab
   - Lab Workspace Architecture
@@ -44,7 +45,8 @@ OIDC-owned `LabWorkspace`.
   supplies a workspace-bound copy of `platform-oauth`.
 - **Lab egress:** serves declarative mocks and constrained unauthenticated HTTPS
   targets behind internal upstream IDs.
-- **Lab portal:** provisions the sample, runs quick authentication checks, and
+- **Lab portal:** provisions the sample, runs quick authentication checks,
+  inspects deployed proxy routes and immutable policy configuration, and
   exposes advanced resource workflows.
 - **Expiry worker:** checks due workspaces every minute; each request also checks
   expiry lazily.
@@ -108,4 +110,3 @@ credentials must match the same workspace. Access tokens include
 - [[How to Learn the Gateway with the Lab]]
 - [[ADR-009 Logical Lab Workspace Isolation]]
 - [[Debug Lab Isolation and Egress]]
-

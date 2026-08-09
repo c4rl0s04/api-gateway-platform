@@ -11,6 +11,7 @@ tags:
 sources:
   - packages/admin-panel/components/personal-lab-workspace.tsx
   - packages/admin-panel/components/lab-quick-playground.tsx
+  - packages/admin-panel/components/lab-proxy-inspector.tsx
   - packages/admin-panel/components/lab-advanced-workspace.tsx
   - packages/management-api/src/services/lab-example.ts
 aliases:
@@ -58,7 +59,12 @@ policy, and runtime request fit together using the real gateway.
      Credentials or a JWT Bearer assertion.
    - `GET /certificate-profile` to issue and execute mTLS through the local
      agent.
-5. Use `Advanced workspace` in order:
+5. In `Inspect lab proxies`, select a proxy and verify:
+   - Its active workspace URL, environment, revision, and upstream.
+   - The products and scopes that expose it.
+   - Every immutable revision and its base path, operations, targets, and
+     ordered policy configuration.
+6. Use `Advanced workspace` in order:
    - Create a declarative mock or restricted public HTTPS upstream.
    - Import OpenAPI plus Gateway YAML and deploy revision 1 to a qual
      environment.
@@ -66,9 +72,9 @@ policy, and runtime request fit together using the real gateway.
    - Create an application and its first approved credential.
    - Customize the consumer key or rotate the one-time secret.
    - Inspect audit events for each mutation.
-6. Import a second revision to change paths, targets, or policies. Deploy it and
+7. Import a second revision to change paths, targets, or policies. Deploy it and
    observe automatic hot reload; deploy the older revision to practice rollback.
-7. Select `Reset` to revoke the current resources and rebuild a clean sample, or
+8. Select `Reset` to revoke the current resources and rebuild a clean sample, or
    `Revoke workspace` when finished.
 
 ## Verification
@@ -77,6 +83,8 @@ policy, and runtime request fit together using the real gateway.
 - The sample API-key request returns `200` with the managed mock body.
 - OAuth tokens contain the workspace ID and fail against another hostname.
 - A deployed revision appears without restarting the gateway.
+- The proxy inspector marks that revision as deployed and shows its effective
+  operation and policy configuration.
 - Lab resources do not appear in standard organization, proxy, product,
   application, certificate authority, or audit lists.
 - Identical base paths can exist in separate labs without conflict.
@@ -92,4 +100,3 @@ policy, and runtime request fit together using the real gateway.
 - `local_agent_required` means the selected flow needs a client-owned key.
 - Check the workspace audit list and [[Debug Lab Isolation and Egress]] before
   resetting; reset intentionally revokes existing credentials.
-

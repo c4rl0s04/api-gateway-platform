@@ -15,6 +15,7 @@ sources:
   - packages/admin-panel/components/playground-workspace.tsx
   - packages/admin-panel/components/personal-lab-workspace.tsx
   - packages/admin-panel/components/lab-quick-playground.tsx
+  - packages/admin-panel/components/lab-proxy-inspector.tsx
   - packages/admin-panel/components/lab-advanced-workspace.tsx
   - packages/admin-panel/lib/api-client.ts
   - packages/admin-panel/lib/playground-service.ts
@@ -73,11 +74,13 @@ client for assertion signing, CSR issuance, certificate installation, and mTLS
 execution because private client keys must never enter the browser or BFF.
 
 The Personal Lab page provisions and reads an OIDC-owned workspace through the
-Lab BFF. It displays a runnable sample, a quick policy-aware executor, and
-advanced workflows for upstreams, revisions, deployments, products, apps,
-credentials, and audit. The server-side executor only accepts resources from
-the active workspace and rewrites the selected deployment to its workspace
-hostname.
+Lab BFF. It displays a runnable sample, a quick policy-aware executor, a
+read-only proxy inspector, and advanced workflows for upstreams, revisions,
+deployments, products, apps, credentials, and audit. The inspector exposes each
+logical proxy's active routes, products and scopes, immutable revisions,
+operations, targets, and ordered policy configuration. The server-side executor
+only accepts resources from the active workspace and rewrites the selected
+deployment to its workspace hostname.
 
 ## Authentication Interface
 
