@@ -3,7 +3,7 @@ title: gatewayctl Reference
 type: reference
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-08-09
+last_verified: 2026-08-10
 tags:
   - type/reference
   - area/security
@@ -13,6 +13,7 @@ sources:
   - packages/gateway-cli/package.json
   - packages/gateway-cli/src/cli.ts
   - packages/gateway-cli/src/config.ts
+  - packages/gateway-cli/src/identity-store.ts
   - packages/gateway-cli/src/operations.ts
 aliases:
   - Local Agent CLI Reference
@@ -45,7 +46,7 @@ as `gatewayctl`.
 | `npm run gatewayctl -- keys generate --name <name> --type mtls --credential-id <id> [--algorithm rsa\|ec]` | Generates a separate client key and CSR; RSA is the default. |
 | `npm run gatewayctl -- keys add --name <name> --type jwt --file <private.pem> [--consumer-key <key>]` | Registers a reference to an existing JWT key after validating ownership and permissions. |
 | `npm run gatewayctl -- keys add --name <name> --type mtls --key <client.key> [--certificate <client.crt>] [--chain <chain.crt>]` | Registers existing mTLS material and verifies that certificate and key match. |
-| `npm run gatewayctl -- keys list` | Returns public metadata only: ID, alias, type, source, algorithm, fingerprint, public JWK, and certificate availability. |
+| `npm run gatewayctl -- keys list` | Returns public metadata only: ID, alias, type, source, algorithm, key fingerprint, public JWK, certificate availability, certificate fingerprint, and certificate expiration. |
 | `npm run gatewayctl -- keys remove --id <identity-id>` | Removes metadata and agent-generated encrypted material; it does not delete an imported source key. |
 
 Identity names match `[A-Za-z0-9][A-Za-z0-9._-]{0,127}`. JWT and mTLS
@@ -79,6 +80,7 @@ RPC calls.
 | --- | --- |
 | `agent.status` | Version and supported-method discovery. |
 | `identity.list` | Public local identity metadata. |
+| `identity.remove` | Remove one explicitly selected local identity and agent-generated private material. Imported source key files are not deleted. |
 | `jwt.generateKey` | Generate an encrypted local RS256 key. |
 | `jwt.getPublicJwk` | Return only the selected public JWK and metadata. |
 | `jwt.signAssertion` | Sign a 1-120 second JWT Bearer assertion for an allowed HTTPS audience. |
@@ -112,4 +114,3 @@ GATEWAYCTL_PLAYGROUND_URL=http://localhost:8080/lab \
 - `packages/gateway-cli/test`
 
 See [[Local Client Agent Architecture]], [[How to Connect Local Keys to the Playground]], and [[Debug Local Agent Pairing]].
-

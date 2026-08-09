@@ -3,7 +3,7 @@ title: How to Learn the Gateway with the Lab
 type: guide
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-08-09
+last_verified: 2026-08-10
 tags:
   - type/guide
   - area/developer-platform
@@ -59,6 +59,10 @@ policy, and runtime request fit together using the real gateway.
      Credentials or a JWT Bearer assertion.
    - `GET /certificate-profile` to issue and execute mTLS through the local
      agent.
+   - For mTLS, use `Create new identity` for a new key pair, `Renew
+     certificate` to preserve the key while replacing its certificate,
+     `Revoke certificate` to stop platform authorization, and `Remove local
+     identity` only to delete the material held by the agent.
 5. In `Inspect lab proxies`, select a proxy and verify:
    - Its active workspace URL, environment, revision, and upstream.
    - The products and scopes that expose it.
@@ -88,6 +92,8 @@ policy, and runtime request fit together using the real gateway.
 - Lab resources do not appear in standard organization, proxy, product,
   application, certificate authority, or audit lists.
 - Identical base paths can exist in separate labs without conflict.
+- An mTLS operation runs only when the selected local identity fingerprint
+  matches an approved, unexpired certificate in the Lab.
 
 ## Troubleshooting or Rollback
 
@@ -98,5 +104,7 @@ policy, and runtime request fit together using the real gateway.
 - `lab_upstream_blocked` means the public target or resolved address violates
   the egress boundary. Use a managed mock for private or authenticated APIs.
 - `local_agent_required` means the selected flow needs a client-owned key.
+- Removing a local identity does not revoke its platform certificate. Revoke
+  first when the certificate must no longer authorize requests.
 - Check the workspace audit list and [[Debug Lab Isolation and Egress]] before
   resetting; reset intentionally revokes existing credentials.

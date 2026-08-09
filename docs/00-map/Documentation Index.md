@@ -87,7 +87,7 @@ aliases: []
 | [[04-guides/How to Connect Local Keys to the Playground\|How to Connect Local Keys to the Playground]] | current | implemented | 2026-08-10 |
 | [[04-guides/How to Document the Project\|How to Document the Project]] | current | not-applicable | 2026-07-27 |
 | [[04-guides/How to Import and Deploy a Proxy Revision\|How to Import and Deploy a Proxy Revision]] | current | implemented | 2026-08-02 |
-| [[04-guides/How to Learn the Gateway with the Lab\|How to Learn the Gateway with the Lab]] | current | implemented | 2026-08-09 |
+| [[04-guides/How to Learn the Gateway with the Lab\|How to Learn the Gateway with the Lab]] | current | implemented | 2026-08-10 |
 | [[04-guides/How to Manage the Local Platform Lifecycle\|How to Manage the Local Platform Lifecycle]] | current | implemented | 2026-08-06 |
 | [[04-guides/How to Operate the PKI\|How to Operate the PKI]] | current | implemented | 2026-08-06 |
 | [[04-guides/How to Run Tests\|How to Run Tests]] | current | implemented | 2026-08-06 |
@@ -118,7 +118,7 @@ aliases: []
 | [[06-reference/Command Reference\|Command Reference]] | current | implemented | 2026-08-09 |
 | [[06-reference/Database Schema\|Database Schema]] | current | implemented | 2026-08-09 |
 | [[06-reference/Environment Variables\|Environment Variables]] | current | implemented | 2026-08-09 |
-| [[06-reference/gatewayctl Reference\|gatewayctl Reference]] | current | implemented | 2026-08-09 |
+| [[06-reference/gatewayctl Reference\|gatewayctl Reference]] | current | implemented | 2026-08-10 |
 | [[06-reference/Lab API Reference\|Lab API Reference]] | current | implemented | 2026-08-09 |
 | [[06-reference/Management API Endpoint Reference\|Management API Endpoint Reference]] | current | implemented | 2026-08-02 |
 | [[06-reference/policies/README\|Policy Reference Index]] | current | partial | 2026-07-27 |

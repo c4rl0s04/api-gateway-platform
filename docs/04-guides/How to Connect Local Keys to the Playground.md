@@ -11,6 +11,7 @@ tags:
 sources:
   - packages/gateway-cli/src/cli.ts
   - packages/gateway-cli/src/agent.ts
+  - packages/gateway-cli/src/identity-store.ts
   - packages/gateway-cli/src/operations.ts
   - packages/admin-panel/components/playground-workspace.tsx
   - packages/admin-panel/components/lab-quick-playground.tsx
@@ -94,6 +95,29 @@ Generate locally → Issue on platform → Install locally → Connect from agen
    the developer machine and the browser receives only safe status, headers,
    body, and timing.
 
+### Manage the mTLS identity lifecycle
+
+The mTLS controls deliberately separate local key ownership from platform
+certificate authorization:
+
+| Action | Local private key | Platform certificate |
+| --- | --- | --- |
+| `Create new identity` | Creates a new encrypted key and CSR under a unique local alias | Unchanged until `Issue certificate` |
+| `Issue certificate` | Reuses the selected key and installs the returned public certificate | Creates an approved certificate for the selected credential |
+| `Renew certificate` | Preserves the selected private key and CSR | Issues and installs a replacement, then revokes the previous approved certificate |
+| `Revoke certificate` | Preserves the local identity so it can request a replacement | Immediately marks the selected certificate revoked |
+| `Remove local identity` | Removes the local alias and agent-generated private material | Does not revoke an active platform certificate |
+
+Create another identity when a different key pair is required. Renew when the
+same private key should receive a fresh short-lived certificate. Revoke before
+removing a lost, compromised, or no-longer-used identity; deleting only the
+local material cannot prove to the platform that its certificate should stop
+being trusted.
+
+The selector may contain several identities for the same credential. The Lab
+matches the certificate using its SHA-256 fingerprint and enables `Run with
+certificate` only while the matching platform record is approved and unexpired.
+
 ### mTLS with existing files
 
 Expand `Use an existing certificate` under `Local certificate client`. Enter
@@ -126,6 +150,8 @@ unusable until it is registered again.
   key; its lifetime is no more than 120 seconds.
 - An mTLS response shows the selected certificate fingerprint but no private
   key or local path.
+- The identity status shows the public certificate fingerprint, expiration,
+  and whether the matching platform record is active, expired, or revoked.
 - `~/.gatewayctl/agent-audit.ndjson` contains operation names and outcomes, not
   complete assertions or key material.
 
@@ -138,6 +164,9 @@ unusable until it is registered again.
   deployment should use normal operating-system trust.
 - Revoke the registered JWK or certificate through the appropriate API when a
   local key is lost.
-- Remove a local alias with `npm run gatewayctl -- keys remove --id <id>`.
+- Revoke an active certificate before selecting `Remove local identity` when
+  the platform must stop accepting it.
+- Remove a local alias from the UI or with
+  `npm run gatewayctl -- keys remove --id <id>`.
 - See [[Debug Local Agent Pairing]] for origin, session, keychain, and audience
   errors.
