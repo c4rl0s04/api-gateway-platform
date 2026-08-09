@@ -27,6 +27,7 @@ export interface RegisterApplicationInput {
     productId: string;
     scopes?: string[];
   }>;
+  credentialPurpose?: CredentialPurpose;
 }
 
 export interface UpdateApplicationInput {
@@ -38,6 +39,7 @@ export type CreateCredentialInput =
   | {
       expiresAt?: Date | null;
       products: Array<{ productId: string; scopes?: string[] }>;
+      purpose?: CredentialPurpose;
       sourceCredentialId?: never;
     }
   | {
@@ -223,7 +225,9 @@ export class ApplicationService implements ApplicationOperations {
     }
     return registerDeveloperApplication({
       organizationId,
-      ...input,
+      name: input.name,
+      products: input.products,
+      credentialPurpose: input.credentialPurpose,
       actor: {
         issuer: actor.issuer,
         subject: actor.subject,

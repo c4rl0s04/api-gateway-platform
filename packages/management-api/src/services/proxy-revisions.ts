@@ -47,6 +47,7 @@ export interface UpdateProxyInput {
 export interface DeployRevisionInput {
   environmentId: string;
   upstreamBaseUrl?: string | null;
+  labWorkspaceId?: string;
 }
 
 export interface ProxyRevisionOperations {
