@@ -17,6 +17,7 @@ import { LabProxyService } from './services/lab-proxies.js';
 import { LabProductService } from './services/lab-products.js';
 import { LabApplicationService } from './services/lab-applications.js';
 import { LabAuditService } from './services/lab-audit.js';
+import { LabCertificateService } from './services/lab-certificates.js';
 
 void (async () => {
   const config = loadEnv();
@@ -51,6 +52,7 @@ void (async () => {
     labProducts: new LabProductService(products),
     labApplications: new LabApplicationService(applications),
     labAudit: new LabAuditService(audit),
+    labCertificates: new LabCertificateService(certificates),
   });
   const labExpirationWorker = setInterval(() => {
     void expireDueLabWorkspaces()

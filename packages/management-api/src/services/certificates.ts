@@ -11,7 +11,12 @@ import {
   type KeyStore,
 } from '@api-gateway/pki';
 import { createHash, randomUUID } from 'node:crypto';
-import { canManageOrganization, canReadOrganization, type AdminPrincipal } from '../auth/authorization.js';
+import {
+  canManageOrganization,
+  canReadOrganization,
+  expectedOrganizationKind,
+  type AdminPrincipal,
+} from '../auth/authorization.js';
 import type { CertificateAuthorityService } from './certificate-authorities.js';
 
 export interface CertificateOperations {
@@ -68,6 +73,19 @@ function requireManage(principal: AdminPrincipal, organizationId: string): void 
   }
 }
 
+async function requireCertificateOrganization(
+  principal: AdminPrincipal,
+  organizationId: string,
+): Promise<void> {
+  const organization = await prisma.organization.findFirst({
+    where: { id: organizationId, kind: expectedOrganizationKind(principal) },
+    select: { id: true },
+  });
+  if (!organization) {
+    throw Object.assign(new Error('Certificate resource does not exist'), { statusCode: 404 });
+  }
+}
+
 export class CertificateService implements CertificateOperations {
   constructor(
     private readonly keyStore: KeyStore,
@@ -78,7 +96,12 @@ export class CertificateService implements CertificateOperations {
     requireRead(actor, organizationId);
     return prisma.appCertificate.findMany({
       where: {
-        credential: { app: { organizationId } },
+        credential: {
+          app: {
+            organizationId,
+            organization: { kind: expectedOrganizationKind(actor) },
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
       include: {
@@ -109,6 +132,7 @@ export class CertificateService implements CertificateOperations {
       where: { id: input.credentialId },
       include: { app: true },
     });
+    await requireCertificateOrganization(actor, credential.app.organizationId);
     requireManage(actor, credential.app.organizationId);
     const authority = await prisma.certificateAuthority.findFirstOrThrow({
       where: {
@@ -212,6 +236,7 @@ export class CertificateService implements CertificateOperations {
       where: { id: input.credentialId },
       include: { app: true },
     });
+    await requireCertificateOrganization(actor, credential.app.organizationId);
     requireManage(actor, credential.app.organizationId);
     const authority = await prisma.certificateAuthority.findFirstOrThrow({
       where: {
@@ -266,6 +291,7 @@ export class CertificateService implements CertificateOperations {
       where: { id },
       include: { credential: { include: { app: true } } },
     });
+    await requireCertificateOrganization(actor, certificate.credential.app.organizationId);
     requireRead(actor, certificate.credential.app.organizationId);
     if (!certificate.certificatePem) {
       throw new Error('Certificate public material is unavailable');
@@ -281,6 +307,7 @@ export class CertificateService implements CertificateOperations {
       where: { id },
       include: { credential: { include: { app: true } } },
     });
+    await requireCertificateOrganization(actor, certificate.credential.app.organizationId);
     requireManage(actor, certificate.credential.app.organizationId);
     const revoked = await prisma.$transaction(async transaction => {
       const updated = await transaction.appCertificate.update({
@@ -320,9 +347,10 @@ export class CertificateService implements CertificateOperations {
     const organizationFilter = platformAdmin
       ? {}
       : { organizationId: { in: organizationIds } };
+    const organizationKind = expectedOrganizationKind(actor);
     const [authorities, expiringCertificates, recentAudit] = await Promise.all([
       prisma.certificateAuthority.findMany({
-        where: organizationFilter,
+        where: { ...organizationFilter, organization: { kind: organizationKind } },
         select: {
           id: true,
           organizationId: true,
@@ -334,7 +362,9 @@ export class CertificateService implements CertificateOperations {
       }),
       prisma.appCertificate.count({
         where: {
-          credential: { app: organizationFilter },
+          credential: {
+            app: { ...organizationFilter, organization: { kind: organizationKind } },
+          },
           status: AuthorizationStatus.approved,
           expiresAt: {
             lte: new Date(Date.now() + 30 * 86_400_000),
@@ -343,9 +373,10 @@ export class CertificateService implements CertificateOperations {
         },
       }),
       prisma.auditEvent.findMany({
-        where: platformAdmin
-          ? {}
-          : { organizationId: { in: organizationIds } },
+        where: {
+          ...(platformAdmin ? {} : { organizationId: { in: organizationIds } }),
+          organization: { kind: organizationKind },
+        },
         orderBy: { createdAt: 'desc' },
         take: 50,
       }),
