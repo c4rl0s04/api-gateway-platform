@@ -37,6 +37,8 @@ import { registerLabAuditRoutes } from './routes/lab-audit.routes.js';
 import type { LabAuditOperations } from './services/lab-audit.js';
 import { registerLabCertificateRoutes } from './routes/lab-certificates.routes.js';
 import type { LabCertificateOperations } from './services/lab-certificates.js';
+import { registerDeveloperTokenRoutes } from './routes/developer-tokens.routes.js';
+import type { DeveloperTokenOperations } from './services/developer-tokens.js';
 
 export interface ManagementServerOptions {
   config: ManagementEnv;
@@ -59,6 +61,7 @@ export interface ManagementServerOptions {
   labApplications?: LabApplicationOperations;
   labAudit?: LabAuditOperations;
   labCertificates?: LabCertificateOperations;
+  developerTokens?: DeveloperTokenOperations;
 }
 
 export function buildServer(options: ManagementServerOptions): FastifyInstance {
@@ -157,6 +160,9 @@ export function buildServer(options: ManagementServerOptions): FastifyInstance {
   }
   if (options.labCertificates) {
     registerLabCertificateRoutes(server, options.labCertificates);
+  }
+  if (options.developerTokens) {
+    registerDeveloperTokenRoutes(server, options.developerTokens);
   }
   return server;
 }

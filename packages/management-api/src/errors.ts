@@ -16,7 +16,11 @@ export type ManagementErrorCode =
   | 'organization_mismatch'
   | 'invalid_status_transition'
   | 'system_proxy_immutable'
-  | 'active_deployment_not_found';
+  | 'active_deployment_not_found'
+  | 'developer_token_environment_forbidden'
+  | 'developer_token_product_invalid'
+  | 'developer_token_proxy_invalid'
+  | 'developer_token_issuance_failed';
 
 export class ManagementError extends Error {
   constructor(

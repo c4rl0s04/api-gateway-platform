@@ -16,6 +16,8 @@ export const envSchema = z.object({
   PKI_TRUST_BUNDLE_FILE: z.string().trim().min(1),
   PKI_CRL_BUNDLE_FILE: z.string().trim().min(1),
   PKI_SDS_TRIGGER_FILE: z.string().trim().min(1),
+  DEVELOPER_TOKEN_ISSUANCE_SECRET: z.string().trim().min(32).optional(),
+  GATEWAY_INTERNAL_URL: z.string().url().optional(),
 });
 
 export type ManagementEnv = z.infer<typeof envSchema>;

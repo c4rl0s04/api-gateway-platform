@@ -19,9 +19,16 @@ import { LabApplicationService } from './services/lab-applications.js';
 import { LabAuditService } from './services/lab-audit.js';
 import { LabCertificateService } from './services/lab-certificates.js';
 import { LabExampleService } from './services/lab-example.js';
+import {
+  DeveloperTokenService,
+  GatewayDeveloperTokenIssuer,
+} from './services/developer-tokens.js';
 
 void (async () => {
   const config = loadEnv();
+  if (!config.DEVELOPER_TOKEN_ISSUANCE_SECRET || !config.GATEWAY_INTERNAL_URL) {
+    throw new Error('Developer token issuer configuration is required');
+  }
   const certificateAuthorities = await createCertificateAuthorityService(config);
   await certificateAuthorities.publishRuntimeTrust();
   const masterKey = await loadOrCreateMasterKey(config.PKI_MASTER_KEY_FILE);
@@ -65,6 +72,10 @@ void (async () => {
     labApplications,
     labAudit: new LabAuditService(audit),
     labCertificates: new LabCertificateService(certificates),
+    developerTokens: new DeveloperTokenService(
+      config.DEVELOPER_TOKEN_ISSUANCE_SECRET,
+      new GatewayDeveloperTokenIssuer(config.GATEWAY_INTERNAL_URL),
+    ),
   });
   const labExpirationWorker = setInterval(() => {
     void expireDueLabWorkspaces()
