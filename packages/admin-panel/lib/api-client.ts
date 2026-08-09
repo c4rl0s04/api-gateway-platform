@@ -233,7 +233,19 @@ export interface DeveloperApp {
   id: string;
   name: string;
   status: string;
+  organizationId: string;
   credentials: AppCredential[];
+}
+
+export interface CertificateAuthority {
+  id: string;
+  name: string;
+  kind: 'managed' | 'external';
+  status: string;
+  isDefaultIssuer: boolean;
+  fingerprintSha256: string;
+  subject: string;
+  expiresAt: string;
 }
 
 export interface CertificateRecord {

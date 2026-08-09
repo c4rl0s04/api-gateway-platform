@@ -2,31 +2,30 @@
 
 import {
   Download,
-  FileKey,
-  Plus,
   RefreshCw,
   ShieldX,
   Upload,
-  X,
 } from 'lucide-react';
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { useEffect, useMemo, useState } from 'react';
+import { CertificateRegistrationDialog } from '@/components/certificate-registration-dialog';
 import { OrganizationSelect } from '@/components/organization-select';
 import { StatusPill } from '@/components/status-pill';
 import {
   managementFetch,
+  type CertificateAuthority,
   type CertificateRecord,
   type DeveloperApp,
   type Organization,
 } from '@/lib/api-client';
-
-type FormMode = 'issue' | 'external' | null;
 
 export default function CertificatesPage() {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [organizationId, setOrganizationId] = useState('');
   const [apps, setApps] = useState<DeveloperApp[]>([]);
   const [certificates, setCertificates] = useState<CertificateRecord[]>([]);
-  const [mode, setMode] = useState<FormMode>(null);
+  const [authorities, setAuthorities] = useState<CertificateAuthority[]>([]);
+  const [registering, setRegistering] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const credentials = useMemo(
@@ -37,12 +36,14 @@ export default function CertificatesPage() {
 
   const refresh = async (selectedOrganization = organizationId) => {
     if (!selectedOrganization) return;
-    const [nextApps, nextCertificates] = await Promise.all([
+    const [nextApps, nextCertificates, nextAuthorities] = await Promise.all([
       managementFetch<DeveloperApp[]>(`organizations/${selectedOrganization}/apps`),
       managementFetch<CertificateRecord[]>(`organizations/${selectedOrganization}/certificates`),
+      managementFetch<CertificateAuthority[]>(`organizations/${selectedOrganization}/certificate-authorities`),
     ]);
     setApps(nextApps);
     setCertificates(nextCertificates);
+    setAuthorities(nextAuthorities);
   };
   useEffect(() => {
     managementFetch<Organization[]>('organizations')
@@ -55,40 +56,6 @@ export default function CertificatesPage() {
   useEffect(() => {
     refresh().catch(cause => setError(cause.message));
   }, [organizationId]);
-
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const credentialId = String(data.get('credentialId'));
-    setBusy(true);
-    setError('');
-    try {
-      if (mode === 'issue') {
-        await managementFetch(`credentials/${credentialId}/certificates/issue`, {
-          method: 'POST',
-          body: JSON.stringify({
-            csrPem: data.get('csrPem'),
-            validityDays: Number(data.get('validityDays')),
-          }),
-        });
-      } else {
-        await managementFetch(`credentials/${credentialId}/certificates/external`, {
-          method: 'POST',
-          body: JSON.stringify({
-            authorityId: data.get('authorityId'),
-            certificatePem: data.get('certificatePem'),
-            chainPem: data.get('chainPem') || null,
-          }),
-        });
-      }
-      setMode(null);
-      await refresh();
-    } catch (cause) {
-      setError((cause as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
 
   async function revoke(id: string) {
     if (!window.confirm('Revoke this certificate?')) return;
@@ -138,11 +105,8 @@ export default function CertificatesPage() {
           <button className="icon-command" onClick={() => refresh()} title="Refresh">
             <RefreshCw size={17} />
           </button>
-          <button className="secondary-command" onClick={() => setMode('external')}>
+          <button className="primary-command" onClick={() => setRegistering(true)}>
             <Upload size={17} />Register
-          </button>
-          <button className="primary-command" onClick={() => setMode('issue')}>
-            <Plus size={17} />Issue
           </button>
         </div>
       </header>
@@ -163,7 +127,7 @@ export default function CertificatesPage() {
             {certificates.map(certificate => (
               <tr key={certificate.id}>
                 <td>
-                  <strong>{certificate.credential.app.name}</strong>
+                  <Link href={`/apps/${certificate.credential.app.id}`}><strong>{certificate.credential.app.name}</strong></Link>
                   <code>{certificate.credential.consumerKey}</code>
                 </td>
                 <td>
@@ -200,65 +164,13 @@ export default function CertificatesPage() {
         )}
       </section>
 
-      {mode && (
-        <div className="modal-backdrop" role="presentation">
-          <form className="modal" onSubmit={submit}>
-            <header>
-              <div>
-                {mode === 'issue' ? <FileKey size={20} /> : <Upload size={20} />}
-                <h2>{mode === 'issue' ? 'Issue certificate' : 'Register certificate'}</h2>
-              </div>
-              <button type="button" onClick={() => setMode(null)} title="Close">
-                <X size={18} />
-              </button>
-            </header>
-            <label className="field">
-              <span>mTLS credential</span>
-              <select name="credentialId" required>
-                {credentials.map(credential => (
-                  <option key={credential.id} value={credential.id}>
-                    {credential.appName} - {credential.consumerKey}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {mode === 'issue' ? (
-              <>
-                <label className="field">
-                  <span>CSR (PEM)</span>
-                  <textarea name="csrPem" rows={9} required />
-                </label>
-                <label className="field">
-                  <span>Validity days</span>
-                  <input name="validityDays" type="number" min="1" max="365" defaultValue="90" required />
-                </label>
-              </>
-            ) : (
-              <>
-                <label className="field">
-                  <span>Authority ID</span>
-                  <input name="authorityId" required />
-                </label>
-                <label className="field">
-                  <span>Certificate (PEM)</span>
-                  <textarea name="certificatePem" rows={7} required />
-                </label>
-                <label className="field">
-                  <span>Intermediate chain (PEM)</span>
-                  <textarea name="chainPem" rows={5} />
-                </label>
-              </>
-            )}
-            <footer>
-              <button type="button" className="secondary-command" onClick={() => setMode(null)}>
-                Cancel
-              </button>
-              <button className="primary-command" disabled={busy || credentials.length === 0}>
-                {busy ? 'Saving...' : 'Save'}
-              </button>
-            </footer>
-          </form>
-        </div>
+      {registering && (
+        <CertificateRegistrationDialog
+          credentials={credentials}
+          authorities={authorities}
+          onClose={() => setRegistering(false)}
+          onRegistered={refresh}
+        />
       )}
     </>
   );

@@ -173,6 +173,9 @@ button:disabled { cursor: not-allowed; opacity: .56; }
 .item-list { display: grid; gap: 16px; }
 .entity-panel > header { display: flex; justify-content: space-between; gap: 16px; padding: 20px 24px; border-bottom: 1px solid var(--line); }
 .entity-panel h2 { margin: 0 0 4px; font-size: 18px; }
+.entity-panel-footer { display: flex; justify-content: flex-end; padding: 12px 24px; }
+.entity-panel-footer a, .back-link { display: inline-flex; align-items: center; gap: 7px; color: var(--red); font-size: 12px; font-weight: 600; text-decoration: none; }
+.back-link { margin-bottom: 12px; color: var(--ink-soft); }
 code { display: block; margin-top: 4px; color: var(--ink-faint); font-family: var(--font-technical); font-size: 11px; }
 .credential-row { display: grid; grid-template-columns: minmax(208px, 1fr) minmax(264px, 1.3fr); align-items: start; gap: 24px; padding: 16px 24px; border-bottom: 1px solid var(--line); }
 .credential-row:last-child { border-bottom: 0; }
@@ -198,6 +201,18 @@ td { padding: 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
 .modal > header > div { display: flex; align-items: center; gap: 8px; }
 .modal h2 { margin: 0; font-size: 20px; }
 .modal > footer { justify-content: flex-end; padding-top: 8px; }
+.form-context { margin: 0; color: var(--ink-soft); font-size: 12px; line-height: 1.55; }
+.certificate-file-summary { display: grid; grid-template-columns: 20px minmax(0, 1fr); align-items: center; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-1); background: var(--surface-subtle); }
+.certificate-file-summary svg { color: var(--success); }
+.certificate-file-summary div { min-width: 0; display: grid; gap: 3px; }
+.certificate-file-summary strong, .certificate-file-summary small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.certificate-file-summary small { color: var(--ink-faint); }
+.application-credential { margin-bottom: 16px; }
+.application-credential > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 20px; border-bottom: 1px solid var(--line); }
+.application-grants { padding: 12px 20px; border-bottom: 1px solid var(--line); }
+.embedded-table { border-radius: 0 0 var(--radius-2) var(--radius-2); }
+.embedded-table td:first-child code { max-width: 280px; overflow: hidden; text-overflow: ellipsis; }
+.page-loading { padding: 48px 0; color: var(--ink-soft); }
 .metric-grid { display: grid; grid-template-columns: repeat(4, minmax(152px, 1fr)); gap: 8px; margin-bottom: 24px; }
 .metric { min-height: 112px; display: grid; grid-template-columns: 24px 1fr; align-items: start; gap: 8px; padding: 16px; border: 1px solid var(--line); background: var(--surface); }
 .metric svg { color: var(--red); }

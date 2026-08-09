@@ -1,6 +1,7 @@
 'use client';
 
-import { KeyRound, ShieldCheck } from 'lucide-react';
+import { ArrowRight, KeyRound, ShieldCheck } from 'lucide-react';
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { OrganizationSelect } from '@/components/organization-select';
 import { StatusPill } from '@/components/status-pill';
@@ -76,6 +77,9 @@ export default function AppsPage() {
                 </div>
               </div>
             ))}
+            <footer className="entity-panel-footer">
+              <Link href={`/apps/${app.id}`}>Open application <ArrowRight size={16} /></Link>
+            </footer>
           </section>
         ))}
         {!error && apps.length === 0 && (
