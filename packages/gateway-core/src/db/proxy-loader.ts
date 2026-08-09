@@ -23,12 +23,26 @@ export async function loadProxiesFromDatabase(
     where: {
       status: 'active',
       proxy: { active: true },
+      OR: [
+        {
+          labWorkspaceId: null,
+          proxy: { organization: { kind: 'standard' } },
+        },
+        {
+          labWorkspace: {
+            status: 'active',
+            expiresAt: { gt: new Date() },
+          },
+          proxy: { organization: { kind: 'lab' } },
+        },
+      ],
       ...(environmentIds && environmentIds.length > 0
         ? { environmentId: { in: [...environmentIds] } }
         : {}),
     },
     include: {
       environment: true,
+      labWorkspace: true,
       proxy: true,
       revision: {
         include: {
@@ -42,13 +56,19 @@ export async function loadProxiesFromDatabase(
     },
   });
 
-  return deployments.map((deployment): ProxyConfig => {
+  const configs = deployments.map((deployment): ProxyConfig => {
     const proxy = deployment.proxy;
     const revision = deployment.revision;
     if (!revision) {
       throw new Error(`Active deployment "${deployment.id}" has no proxy revision`);
     }
 
+    const runtimePublicOrigin = deployment.labWorkspace
+      ? labPublicOrigin(
+          deployment.labWorkspace.hostname,
+          deployment.environment.publicOrigin,
+        )
+      : deployment.environment.publicOrigin;
     return {
       id: proxy.id,
       name: proxy.name,
@@ -62,6 +82,9 @@ export async function loadProxiesFromDatabase(
         region: deployment.environment.region,
         publicOrigin: deployment.environment.publicOrigin,
       }),
+      workspaceId: deployment.labWorkspaceId,
+      runtimeAuthority: new URL(runtimePublicOrigin).host.toLowerCase(),
+      runtimePublicOrigin,
       systemManaged: proxy.systemManaged,
       upstreamBaseUrl: deployment.upstreamBaseUrl,
       organizationId: proxy.organizationId,
@@ -116,4 +139,45 @@ export async function loadProxiesFromDatabase(
       }),
     };
   });
+
+  const activeLabContexts = new Map<string, {
+    workspaceId: string;
+    hostname: string;
+    environmentId: string;
+  }>();
+  for (const deployment of deployments) {
+    if (!deployment.labWorkspace) continue;
+    activeLabContexts.set(
+      `${deployment.labWorkspace.id}:${deployment.environmentId}`,
+      {
+        workspaceId: deployment.labWorkspace.id,
+        hostname: deployment.labWorkspace.hostname,
+        environmentId: deployment.environmentId,
+      },
+    );
+  }
+  for (const context of activeLabContexts.values()) {
+    const oauth = configs.find(config =>
+      config.id === 'proxy-platform-oauth'
+      && config.environment.id === context.environmentId
+      && !config.workspaceId);
+    if (!oauth) continue;
+    const runtimePublicOrigin = labPublicOrigin(
+      context.hostname,
+      oauth.environment.publicOrigin,
+    );
+    configs.push({
+      ...oauth,
+      deploymentId: `${oauth.deploymentId}:lab:${context.workspaceId}`,
+      workspaceId: context.workspaceId,
+      runtimeAuthority: new URL(runtimePublicOrigin).host.toLowerCase(),
+      runtimePublicOrigin,
+    });
+  }
+  return configs;
+}
+
+function labPublicOrigin(hostname: string, environmentOrigin: string): string {
+  const environment = new URL(environmentOrigin);
+  return `https://${hostname}${environment.port ? `:${environment.port}` : ''}`;
 }

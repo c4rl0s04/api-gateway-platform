@@ -7,6 +7,7 @@ import {
   resolveEndpoint,
   resolveEnvironment,
   resolveProxy,
+  resolveRuntimeTarget,
 } from '../src/proxy/resolver';
 
 function proxy(
@@ -84,6 +85,36 @@ describe('proxy resolver', () => {
       'env-prod-es',
     );
     assert.equal(resolveEnvironment('unknown.gateway.localhost:8443'), null);
+  });
+
+  it('isolates identical base paths across personal lab hostnames', () => {
+    const standard = proxy('standard-api', '/api', ['/users']);
+    const firstLab = {
+      ...proxy('lab-api-1', '/api', ['/users']),
+      workspaceId: 'workspace-1',
+      runtimeAuthority: 'workspace-1.lab.gateway.localhost:8443',
+      runtimePublicOrigin: 'https://workspace-1.lab.gateway.localhost:8443',
+    };
+    const secondLab = {
+      ...proxy('lab-api-2', '/api', ['/users']),
+      workspaceId: 'workspace-2',
+      runtimeAuthority: 'workspace-2.lab.gateway.localhost:8443',
+      runtimePublicOrigin: 'https://workspace-2.lab.gateway.localhost:8443',
+    };
+
+    loadProxies([standard, firstLab, secondLab]);
+
+    const firstRuntime = resolveRuntimeTarget(
+      'workspace-1.lab.gateway.localhost:8443',
+    );
+    const secondRuntime = resolveRuntimeTarget(
+      'workspace-2.lab.gateway.localhost:8443',
+    );
+    assert.equal(firstRuntime?.workspaceId, 'workspace-1');
+    assert.equal(secondRuntime?.workspaceId, 'workspace-2');
+    assert.equal(resolveProxy(firstRuntime!.registryKey, '/api/users')?.id, 'lab-api-1');
+    assert.equal(resolveProxy(secondRuntime!.registryKey, '/api/users')?.id, 'lab-api-2');
+    assert.equal(resolveProxy('env-qual-es', '/api/users')?.id, 'standard-api');
   });
 
   it('prefers static endpoints and extracts dynamic parameters', () => {

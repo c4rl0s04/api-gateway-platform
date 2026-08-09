@@ -9,7 +9,7 @@ import {
   getRegistryEnvironmentCount,
   isRegistryReady,
   resolveEndpoint,
-  resolveEnvironment,
+  resolveRuntimeTarget,
 } from './proxy/resolver';
 import { forwardRequest } from './proxy/forwarder';
 import { validateProxyConfiguration } from './proxy/config-validator.js';
@@ -185,16 +185,16 @@ export async function buildServer(options: BuildServerOptions = {}) {
     // req.url contains query params. We need just the path for resolution.
     const pathWithoutQuery = req.url.split('?')[0];
     const authority = req.headers.host ?? '';
-    const environment = resolveEnvironment(authority);
+    const runtime = resolveRuntimeTarget(authority);
 
-    if (!environment) {
+    if (!runtime) {
       return reply.status(421).send({
         error: 'Misdirected Request',
         message: `No gateway environment is configured for host: ${authority}`,
       });
     }
     const proxy = resolveProxy(
-      environment.id,
+      runtime.registryKey,
       pathWithoutQuery,
     );
 

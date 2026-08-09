@@ -10,8 +10,20 @@ import type {
  * Second key: proxy basePath (e.g. "/api/users").
  */
 let registry = new Map<string, Map<string, ProxyConfig>>();
-let environmentsByAuthority = new Map<string, EnvironmentConfig>();
+let runtimesByAuthority = new Map<string, RuntimeTarget>();
 let registryInitialized = false;
+
+export interface RuntimeTarget {
+  registryKey: string;
+  environment: EnvironmentConfig;
+  workspaceId: string | null;
+}
+
+function registryKey(proxy: ProxyConfig): string {
+  return proxy.workspaceId
+    ? `workspace:${proxy.workspaceId}`
+    : `environment:${proxy.environment.id}`;
+}
 
 function normalizeAuthority(authority: string): string | null {
   try {
@@ -38,7 +50,7 @@ function normalizeAuthority(authority: string): string | null {
  */
 export function loadProxies(proxies: ProxyConfig[]): void {
   const candidateRegistry = new Map<string, Map<string, ProxyConfig>>();
-  const candidateEnvironmentsByAuthority = new Map<string, EnvironmentConfig>();
+  const candidateRuntimesByAuthority = new Map<string, RuntimeTarget>();
 
   for (const proxy of proxies) {
     if (proxy.active) {
@@ -59,25 +71,31 @@ export function loadProxies(proxies: ProxyConfig[]): void {
         }),
       };
 
-      let environmentRegistry = candidateRegistry.get(proxy.environment.id);
+      const proxyRegistryKey = registryKey(proxy);
+      let environmentRegistry = candidateRegistry.get(proxyRegistryKey);
       if (!environmentRegistry) {
         environmentRegistry = new Map<string, ProxyConfig>();
-        candidateRegistry.set(proxy.environment.id, environmentRegistry);
+        candidateRegistry.set(proxyRegistryKey, environmentRegistry);
       }
-      const authority = new URL(proxy.environment.publicOrigin).host.toLowerCase();
-      const existingEnvironment = candidateEnvironmentsByAuthority.get(authority);
+      const authority = proxy.runtimeAuthority
+        ?? new URL(proxy.environment.publicOrigin).host.toLowerCase();
+      const existingRuntime = candidateRuntimesByAuthority.get(authority);
       if (
-        existingEnvironment
-        && existingEnvironment.id !== proxy.environment.id
+        existingRuntime
+        && existingRuntime.registryKey !== proxyRegistryKey
       ) {
         throw new Error(
           `Public authority "${authority}" is assigned to multiple environments`,
         );
       }
-      candidateEnvironmentsByAuthority.set(authority, proxy.environment);
+      candidateRuntimesByAuthority.set(authority, {
+        registryKey: proxyRegistryKey,
+        environment: proxy.environment,
+        workspaceId: proxy.workspaceId ?? null,
+      });
       if (environmentRegistry.has(proxy.basePath)) {
         throw new Error(
-          `Environment "${proxy.environment.id}" has multiple active deployments `
+          `Runtime context "${proxyRegistryKey}" has multiple active deployments `
           + `for basePath "${proxy.basePath}"`,
         );
       }
@@ -86,7 +104,7 @@ export function loadProxies(proxies: ProxyConfig[]): void {
   }
 
   registry = candidateRegistry;
-  environmentsByAuthority = candidateEnvironmentsByAuthority;
+  runtimesByAuthority = candidateRuntimesByAuthority;
   registryInitialized = true;
 }
 
@@ -174,11 +192,13 @@ export function resolveProxy(
   let bestMatch: ProxyConfig | null = null;
   let bestMatchLength = 0;
   const environmentRegistry = registry.get(environmentId);
-  if (!environmentRegistry) {
+  const resolvedRegistry = environmentRegistry
+    ?? registry.get(`environment:${environmentId}`);
+  if (!resolvedRegistry) {
     return null;
   }
 
-  for (const [basePath, proxy] of environmentRegistry) {
+  for (const [basePath, proxy] of resolvedRegistry) {
     const matches =
       requestPath === basePath || requestPath.startsWith(basePath + '/');
 
@@ -197,8 +217,13 @@ export function resolveEnvironment(
 ): EnvironmentConfig | null {
   const normalized = normalizeAuthority(authority);
   return normalized
-    ? environmentsByAuthority.get(normalized) ?? null
+    ? runtimesByAuthority.get(normalized)?.environment ?? null
     : null;
+}
+
+export function resolveRuntimeTarget(authority: string): RuntimeTarget | null {
+  const normalized = normalizeAuthority(authority);
+  return normalized ? runtimesByAuthority.get(normalized) ?? null : null;
 }
 
 /** Returns the number of active registered proxies. Useful for health checks and logs. */

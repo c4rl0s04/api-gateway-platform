@@ -30,6 +30,12 @@ export interface ProxyConfig {
   revisionId: string;
   revisionNumber: number;
   environment: EnvironmentConfig;
+  /** Personal lab namespace. Null means standard runtime traffic. */
+  workspaceId?: string | null;
+  /** Host authority used by the resolver for this deployment context. */
+  runtimeAuthority?: string;
+  /** Public origin used as OAuth issuer and token endpoint audience. */
+  runtimePublicOrigin?: string;
   systemManaged: boolean;
   /** Origin del backend para el deployment seleccionado. */
   upstreamBaseUrl: string | null;
