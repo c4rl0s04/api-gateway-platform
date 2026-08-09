@@ -3,7 +3,7 @@ title: Database Schema
 type: reference
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-08-02
+last_verified: 2026-08-09
 tags:
   - type/reference
   - area/database
@@ -21,17 +21,17 @@ aliases: []
 
 | Model | Core fields | Important constraints |
 | --- | --- | --- |
-| `Organization` | `id`, `name`, `createdAt` | Owns proxies, products, apps, CAs, memberships, and audit events |
+| `Organization` | `id`, `name`, `kind`, `createdAt` | `standard` or hidden `lab`; owns proxies, products, apps, CAs, memberships, and audit events |
 | `Environment` | `stage`, `region`, HTTPS `publicOrigin` | Unique `(stage, region)` and unique origin |
 | `ApiProxy` | `name`, `active`, `systemManaged`, `organizationId` | Stable identity owned by an organization |
 | `ApiProxyRevision` | proxy, number, `basePath`, source/parsed documents, version, content hash | Unique proxy/revision number; immutable through Management API |
 | `ProxyOperation` | revision, `operationId`, method, mode, path, target | Unique operation ID and method/path inside the revision |
 | `OperationPolicy` | `type`, `order`, `enabled`, `config`, operation | Unique execution order inside one operation |
-| `ProxyDeployment` | proxy, revision, environment, nullable upstream, status | Partial unique active proxy/environment; retired history retained |
+| `ProxyDeployment` | proxy, revision, environment, nullable workspace/upstream, status | Partial unique active scope; retired history retained |
 | `GatewayConfigChange` | monotonic version, change/resource identity, environment, publication state | Durable routing outbox retried until Redis publication |
 | `ApiProduct` | `name`, `active`, `scopes`, `organizationId` | Many-to-many proxies and optional environment allowlist |
 | `DeveloperApp` | `name`, `status`, `organizationId` | Owns credentials |
-| `AppCredential` | `consumerKey`, required `consumerSecretHash`, `status`, validity | Unique `consumerKey`; plaintext secret is returned once |
+| `AppCredential` | `consumerKey`, required `consumerSecretHash`, `status`, `purpose`, validity | Unique `consumerKey`; plaintext secret is returned once |
 | `CredentialProductGrant` | credential, product, `status`, `scopes` | Unique credential/product |
 | `AppPublicKey` | credential, `kid`, RSA JWK, `RS256`, status, validity | Unique credential/`kid` |
 | `AppCertificate` | credential, authority, SHA-256 fingerprint, PEM/chain, source, status, validity, revocation | Unique fingerprint |
@@ -39,6 +39,8 @@ aliases: []
 | `CertificateIssuance` | authority, credential, CSR digest, requested days, result | Optional unique resulting certificate |
 | `AdminMembership` | OIDC issuer/subject, role, organization, active | Unique issuer/subject/scope |
 | `AuditEvent` | actor, role, organization, action, resource, metadata | Append-only security history |
+| `LabWorkspace` | OIDC owner, hidden organization, hostname, status, expiry | Unique organization and hostname; one active row per issuer/subject |
+| `LabUpstream` | workspace, name, kind, target URL or mock JSON, active | Unique name per workspace; reached through internal egress only |
 
 ## Authoritative Values
 
@@ -64,6 +66,30 @@ https://<stage>-<region>.gateway.localhost:8443
 
 ```text
 pending | approved | revoked
+```
+
+`OrganizationKind`:
+
+```text
+standard | lab
+```
+
+`CredentialPurpose`:
+
+```text
+standard | playground | lab
+```
+
+`LabWorkspaceStatus`:
+
+```text
+active | expired | revoked
+```
+
+`LabUpstreamKind`:
+
+```text
+mock | publicHttps
 ```
 
 `DeploymentStatus`:
@@ -118,3 +144,4 @@ ProxyDeployment.upstreamBaseUrl + ProxyOperation.targetPath
 - [[Policy Types]]
 - [[Multi-Client PKI]]
 - [[Proxy Revisions and Deployments]]
+- [[Personal Gateway Lab]]

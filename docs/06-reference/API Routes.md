@@ -3,7 +3,7 @@ title: API Routes
 type: reference
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-08-08
+last_verified: 2026-08-09
 tags:
   - type/reference
   - area/project
@@ -18,6 +18,7 @@ sources:
   - packages/management-api/src/routes/proxy-revisions.routes.ts
   - packages/management-api/src/routes/runtime-sync.routes.ts
   - packages/admin-panel/app/api/playground/route.ts
+  - packages/admin-panel/app/api/lab/[...path]/route.ts
 aliases: []
 ---
 
@@ -120,6 +121,8 @@ A `viewer` has read-only access.
 | --- | --- | --- | --- |
 | Any | `/api/management/*` | Management response | Authenticated browser/Postman bridge to internal `/v1/*` routes |
 | `POST` | `/api/playground` | `200` | Validate and execute a configured operation through Envoy |
+| Any | `/api/lab/*` | Lab API response | Authenticated bridge to internal `/lab/v1/*` routes |
+| `POST` | `/api/lab/playground` | `200` | Validate and execute an operation from the active Personal Lab |
 
 `POST /api/playground` requires the same OIDC session cookie or explicit Bearer
 token as the Management BFF. It accepts configuration IDs, request inputs, and
@@ -133,6 +136,8 @@ preserved because it is the requested operation response.
 
 For exact request bodies, role boundaries, response fields, filters, and stable
 errors, use [[Management API Endpoint Reference]].
+The complete workspace-owned surface and `/api/lab/*` to `/lab/v1/*` mapping
+are authoritative in [[Lab API Reference]].
 
 Application registration accepts:
 
@@ -196,3 +201,4 @@ Bearer token to `http://localhost:8080/api/management/*`.
 - [[How to Use the Proxy Playground]]
 - [[How to Import and Deploy a Proxy Revision]]
 - [[Debug Gateway 404]]
+- [[Lab API Reference]]

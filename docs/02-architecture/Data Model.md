@@ -3,7 +3,7 @@ title: Data Model
 type: architecture
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-08-02
+last_verified: 2026-08-09
 tags:
   - type/architecture
   - area/database
@@ -12,6 +12,8 @@ sources:
   - packages/database/src/proxy-revisions.ts
   - packages/database/src/proxy-deployments.ts
   - packages/database/src/credentials.ts
+  - packages/database/src/lab-workspaces.ts
+  - packages/database/src/lab-upstreams.ts
   - packages/shared/src/deployments/config.ts
 aliases:
   - Database and Prisma
@@ -54,6 +56,9 @@ erDiagram
     Organization ||--o{ CertificateAuthority : owns
     Organization ||--o{ AdminMembership : scopes
     Organization ||--o{ AuditEvent : audits
+    Organization ||--o| LabWorkspace : isolates
+    LabWorkspace ||--o{ ProxyDeployment : scopes
+    LabWorkspace ||--o{ LabUpstream : owns
 ```
 
 ## Deployment Flow
@@ -80,6 +85,13 @@ outbox row. Its polymorphic resource fields identify deploy, rollback,
 retirement, or logical-proxy activation without coupling the outbox to one
 specific table.
 
+A `LabWorkspace` binds one hidden `Organization(kind = lab)` to an OIDC issuer
+and subject, unique hostname, status, and 24-hour expiry. Lab deployments carry
+`labWorkspaceId`, so the active-row and base-path conflict boundary becomes
+workspace + proxy + environment instead of the standard global environment
+scope. `LabUpstream` belongs to exactly one workspace and stores either a
+declarative mock or a public HTTPS target consumed only through `lab-egress`.
+
 ## Authorization Flow
 
 An `AppCredential` identifies one application through a globally unique,
@@ -100,6 +112,8 @@ certificate, CRL, validity, and key reference; managed private keys live only
 in the encrypted keystore. `CertificateIssuance` records a CSR SHA-256 digest.
 `AdminMembership` maps an OIDC issuer/subject to a platform or organization
 role, while `AuditEvent` records security mutations append-only.
+`AppCredential.purpose` distinguishes normal, one-hour Playground clone, and
+lab credentials without changing how endpoint policies select authentication.
 
 Operations are either `forward` or `local`. `targetPath` and an upstream are
 required only for forwarding. Method and public path come from OpenAPI;
@@ -110,6 +124,8 @@ identifies platform-owned proxies such as `platform-oauth`.
 
 - Duplicate active base paths are rejected within one environment.
 - Duplicate environment public origins are rejected.
+- Duplicate workspace hostnames and multiple active workspaces for the same
+  OIDC owner are rejected by database constraints.
 - A partial PostgreSQL index rejects multiple active proxy/environment rows.
 - Invalid revision progression raises `ProxyDeploymentError` with
   `promotion_required`.
@@ -124,4 +140,5 @@ changes to Prisma, shared contracts, migrations, seeds, tests, and documentation
 ## Sources
 
 Use [[Database Schema]] for field-level reference and [[database]] for package
-ownership. See [[Proxy Revisions and Deployments]] for the complete lifecycle.
+ownership. See [[Proxy Revisions and Deployments]] for the standard lifecycle
+and [[Personal Gateway Lab]] for workspace-scoped behavior.

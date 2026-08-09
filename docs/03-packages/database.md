@@ -3,7 +3,7 @@ title: database
 type: package
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-08-02
+last_verified: 2026-08-09
 tags:
   - type/package
   - area/database
@@ -46,6 +46,9 @@ This package is the persistence boundary for the monorepo.
   event atomically through `registerDeveloperApplication()`.
 - Persists certificate authorities, issuance records, OIDC memberships, and
   append-only audit events; managed CA private keys remain outside PostgreSQL.
+- Owns Personal Lab lifecycle, OIDC ownership, expiry/revocation, workspace
+  deployment scoping, safe upstream definitions, and route-removal outbox
+  events.
 
 Runtime packages should not reproduce database invariants in route handlers or
 direct model writes.
@@ -115,3 +118,4 @@ key replacement, and selective credential cloning.
 - [[pki]]
 - [[Proxy Revisions and Deployments]]
 - [[Seed Example Catalog]]
+- [[Personal Gateway Lab]]
