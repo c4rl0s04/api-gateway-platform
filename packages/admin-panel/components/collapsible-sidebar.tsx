@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { FlaskConical } from 'lucide-react';
+import { FlaskConical, TestTube2 } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -26,6 +26,7 @@ const navigation = [
   { href: '/', label: 'Overview', icon: OverviewIcon },
   { href: '/proxies', label: 'Proxies', icon: ProxyIcon },
   { href: '/playground', label: 'Playground', icon: FlaskConical },
+  { href: '/lab', label: 'Personal lab', icon: TestTube2 },
   { href: '/apps', label: 'Applications', icon: ApplicationIcon },
   { href: '/products', label: 'API products', icon: ProductIcon },
   { href: '/certificates', label: 'Certificates', icon: CertificateIcon },
