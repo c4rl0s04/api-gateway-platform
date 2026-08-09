@@ -82,4 +82,19 @@ describe('playground local-agent client', () => {
         && error.code === 'operation_not_allowed',
     );
   });
+
+  it('restores only an explicit temporary browser session', async () => {
+    const { LocalAgentClient } = await import('../lib/local-agent.js');
+    const client = LocalAgentClient.restore({
+      port: 43123,
+      token: 'temporary-session-token-with-enough-entropy',
+      expiresAt: '2030-01-01T00:00:00.000Z',
+    });
+
+    assert.deepEqual(client.session('2030-01-01T00:00:00.000Z'), {
+      port: 43123,
+      token: 'temporary-session-token-with-enough-entropy',
+      expiresAt: '2030-01-01T00:00:00.000Z',
+    });
+  });
 });

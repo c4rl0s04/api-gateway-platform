@@ -22,6 +22,12 @@ interface PairingData {
   nonce: string;
 }
 
+export interface LocalAgentSession {
+  port: number;
+  token: string;
+  expiresAt: string;
+}
+
 interface RpcResponse<T> {
   result?: T;
   error?: { code: string; message: string };
@@ -86,6 +92,14 @@ export class LocalAgentClient {
       client: new LocalAgentClient(pairing.port, payload.token),
       expiresAt: payload.expiresAt,
     };
+  }
+
+  static restore(session: LocalAgentSession): LocalAgentClient {
+    return new LocalAgentClient(session.port, session.token);
+  }
+
+  session(expiresAt: string): LocalAgentSession {
+    return { port: this.port, token: this.token, expiresAt };
   }
 
   listIdentities(): Promise<LocalIdentity[]> {
