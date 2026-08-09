@@ -1,13 +1,18 @@
 ---
 title: Public Developer Sandbox
 type: architecture
-doc_status: draft
-implementation_status: planned
+doc_status: current
+implementation_status: partial
 last_verified: 2026-08-09
 tags:
   - type/architecture
   - area/developer-platform
-sources: []
+sources:
+  - packages/admin-panel/app/lab/page.tsx
+  - packages/management-api/src/routes/lab-workspaces.routes.ts
+  - packages/gateway-cli/src
+  - packages/lab-egress/src
+  - docker-compose.yml
 aliases:
   - Developer Portal and Sandbox
 ---
@@ -15,114 +20,93 @@ aliases:
 # Public Developer Sandbox
 
 > [!summary] At a glance
-> Planned architecture for a public developer portal where external users can
-> safely discover and test sandbox APIs, while platform administration remains
-> protected and mTLS private keys remain outside the platform.
+> The implemented Personal Gateway Lab and local client agent provide the sandbox behavior and key-custody model. Publishing them on the Internet still requires production infrastructure, public DNS/TLS, abuse controls, and a dedicated external portal posture.
 
 ## Context
 
-The current Admin Panel is a control-plane application for trusted platform
-and organization administrators. It can create proxies, products,
-applications, credentials, certificate authorities, and certificates. It must
-not become anonymously accessible.
+The earlier design proposed a catalogue-only public sandbox plus manual CSR
+guidance. It has been superseded by two implemented capabilities:
 
-The planned public surface is a separate developer portal. Anyone may browse
-public documentation, but a developer must authenticate before creating an app
-or receiving sandbox credentials. The portal is limited to predefined sandbox
-products and cannot administer organizations, deployments, CAs, or production
-configuration.
+- [[Personal Gateway Lab]] gives each authenticated user a complete, isolated,
+  24-hour gateway configuration space using the real data and control planes.
+- [[Local Client Agent Architecture]] lets a developer sign JWT assertions,
+  generate CSRs, install certificates, and execute mTLS without transferring
+  private keys to the platform.
+
+The current Admin Panel remains an administrative and local-learning surface.
+Running it locally does not make it production-ready or safely anonymous.
 
 ## Components
 
-- **Public developer portal:** documentation, API catalogue, playground, and
-  authenticated self-service onboarding.
-- **Developer self-service API:** a narrowly scoped API distinct from the
-  administrator Management API. It creates sandbox apps and grants only
-  approved sandbox products.
-- **Sandbox gateway:** public gateway hostnames and mock or dedicated sandbox
-  upstreams. It uses the existing API key, OAuth, mTLS, product, and policy
-  model.
-- **Administrator control plane:** the existing Admin Panel and Management API
-  remain OIDC-protected and private to authorized administrators.
-- **Production infrastructure:** persistent PostgreSQL, Redis, PKI keystore,
-  CRL storage, secret manager, public DNS, and TLS termination.
+| Capability | Current state | Public deployment requirement |
+| --- | --- | --- |
+| Personal workspace, sample, advanced CRUD, audit | Implemented | Durable database, quotas, support policy, and lifecycle monitoring |
+| API key and OAuth quick Playground | Implemented | Public gateway DNS/TLS, abuse limits, logs, and safe demo data |
+| Client-owned JWT and mTLS keys | Implemented through `gatewayctl` | Signed distributable CLI, trusted origins/audiences, update policy |
+| Mock and public HTTPS upstreams | Implemented through `lab-egress` | Production DNS controls, network egress policy, metrics, alerting |
+| OIDC ownership | Implemented with local Keycloak | Hardened or corporate IdP, account lifecycle, external-client policy |
+| Public anonymous catalogue | Not implemented | Separate Developer Portal information architecture and content policy |
 
 ## Data Flow
 
-### API key and OAuth
-
 ```text
-Developer signs in
-→ creates a sandbox app
-→ receives consumerKey and one-time consumerSecret
-→ receives an approved grant for a sandbox product
-→ uses API key or obtains an OAuth access token
-→ calls a sandbox proxy through the public gateway
+OIDC developer
+→ Personal Gateway Lab
+→ isolated proxy/product/app/credential configuration
+→ durable hot reload
+→ workspace hostname
+→ managed mock or protected public HTTPS egress
 ```
 
-The portal may invoke the existing constrained Playground BFF for API key and
-OAuth examples. It must never allow arbitrary outbound requests or expose the
-administrator Management API to an untrusted browser.
-
-### mTLS
+For client-owned key flows:
 
 ```text
-Developer generates private key and CSR on their own machine
-→ uploads only the CSR
-→ platform signs it through a managed CA, or records an external certificate
-→ developer downloads the public certificate and chain
-→ developer configures certificate and private key in their client
-→ Envoy validates the TLS client certificate
-→ mtls-auth authorizes its fingerprint for the requested API
+Developer Portal or Admin Panel
+↔ origin-bound gatewayctl on 127.0.0.1
+→ public JWK or CSR only reaches the platform
+→ private key signs or connects locally
 ```
-
-The platform must never generate, retain, return, or receive a client private
-key. The portal should provide a CLI or Postman/cURL instructions for mTLS.
-The current server-side Playground cannot execute an mTLS request on behalf of
-a developer because it does not own the developer's private key.
 
 ## Failure Modes
 
-- An unauthenticated visitor can read public information but cannot provision a
-  credential or consume protected sandbox APIs.
-- A sandbox credential cannot access non-sandbox products or production
-  deployments.
-- A missing, expired, revoked, or untrusted client certificate fails at Envoy
-  or is rejected by `mtls-auth`.
-- Redis, PostgreSQL, CRL, or secret-manager failures must fail closed for
-  sensitive issuance and authentication paths.
-- A lost private key requires a new CSR and certificate issuance or rotation;
-  it cannot be recovered from the platform.
+- A lab credential cannot authorize a standard route or another workspace.
+- Expiry or revocation removes routes and identity material through the durable
+  outbox; requests also enforce lifetime lazily.
+- Unsafe public upstreams fail closed in `lab-egress`.
+- Missing local agent prevents mTLS and reusable client-key signing but does not
+  grant the server access to those keys.
+- A public deployment without correct DNS, TLS, origin, audience, egress, rate
+  limit, monitoring, or secret management must not be presented as secure.
 
 ## Constraints
 
-- Keep public developer capabilities separate from administrator capabilities
-  and authorization roles.
-- Use public TLS certificates or a CA already installed in client trust stores;
-  `--cacert` is a local-development aid, not a normal public-client step.
-- Store OAuth signing keys, OIDC secrets, PKI master keys, and runtime
-  certificates in managed secret storage rather than `.local-secrets`.
-- Use public DNS and environment-specific gateway hosts, with rate limits,
-  quotas, audit events, abuse protection, backups, and observability.
-- Use isolated sandbox products, data, upstreams, and credentials. Do not use
-  development seeds or local credentials in an internet-facing environment.
+- The implemented lab is authenticated, not anonymous.
+- Isolation is logical inside a shared runtime, not a dedicated compute sandbox
+  for untrusted executable code.
+- Upstreams are declarative mocks or unauthenticated public HTTPS APIs only.
+- The platform never receives client private keys.
+- Local `.local-secrets`, development CA trust, local Keycloak credentials, and
+  `*.localhost` hostnames are not public deployment mechanisms.
 
-## Delivery Outline
+## Public Delivery Remaining
 
-1. Define sandbox tenants, products, quotas, and public gateway domains.
-2. Deploy the current platform services with managed persistence, DNS, TLS,
-   secret storage, and an external or hardened OIDC provider.
-3. Create the developer self-service boundary and public portal without
-   exposing administrator operations.
-4. Add API key and OAuth onboarding and a sandbox Playground flow.
-5. Add CSR-based mTLS issuance, a client CLI, certificate rotation, and
-   revocation guidance.
-6. Add operational controls: monitoring, alerts, abuse controls, backups, and
-   security review before any production exposure.
+1. Deploy PostgreSQL, Redis, keystore, signing keys, and backups through managed
+   production services and secret storage.
+2. Configure wildcard lab DNS and publicly trusted gateway certificates.
+3. Replace or harden local Keycloak and define external account lifecycle.
+4. Distribute a signed `gatewayctl` binary with production origin/audience
+   defaults and an update channel.
+5. Add per-user quotas, rate limiting, abuse detection, metrics, alerting,
+   retention, and purge operations.
+6. Perform threat modeling and penetration testing of OIDC ownership, logical
+   isolation, loopback pairing, and egress.
+7. Build the external Developer Portal shell if anonymous documentation and API
+   discovery are required separately from administration.
 
 ## Sources
 
-- [[Authentication and Authorization]]
-- [[Multi-Client PKI]]
-- [[Management API]]
-- [[How to Use the Proxy Playground]]
+- [[Personal Gateway Lab]]
+- [[How to Learn the Gateway with the Lab]]
+- [[Local Client Agent Architecture]]
+- [[How to Connect Local Keys to the Playground]]
+- [[Debug Lab Isolation and Egress]]
