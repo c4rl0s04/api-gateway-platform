@@ -36,6 +36,8 @@ issuance, certificate trust, and OIDC-based administrator access.
 - [[Authentication and Authorization]] explains all supported client flows.
 - [[Multi-Client PKI]] explains organization CAs and certificate lifecycle.
 - [[Control Plane Flow]] explains Keycloak and administrator memberships.
+- [[Public Developer Sandbox]] defines the planned public onboarding and mTLS
+  private-key boundary.
 
 ## Guides
 

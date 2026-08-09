@@ -38,6 +38,8 @@ Admin Panel BFF.
 - [[Management API]] defines control-plane ownership and boundaries.
 - [[Data Model]] and [[Proxy Revisions and Deployments]] explain persistence.
 - [[Hot Reload Sync]] explains control-plane to data-plane convergence.
+- [[Public Developer Sandbox]] is the planned boundary between public
+  self-service and administrator operations.
 
 ## Guides
 

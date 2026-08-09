@@ -3,7 +3,7 @@ title: Documentation Index
 type: map
 doc_status: current
 implementation_status: not-applicable
-last_verified: 2026-08-08
+last_verified: 2026-08-09
 tags:
   - type/map
   - area/project
@@ -59,6 +59,7 @@ aliases: []
 | [[02-architecture/Multi-Client PKI\|Multi-Client PKI]] | current | implemented | 2026-07-27 |
 | [[02-architecture/Observability\|Observability]] | current | partial | 2026-07-27 |
 | [[02-architecture/Proxy Revisions and Deployments\|Proxy Revisions and Deployments]] | current | implemented | 2026-08-02 |
+| [[02-architecture/Public Developer Sandbox\|Public Developer Sandbox]] | draft | planned | 2026-08-09 |
 | [[02-architecture/Routing Engine\|Routing Engine]] | current | implemented | 2026-07-31 |
 | [[02-architecture/Runtime Request Flow\|Runtime Request Flow]] | current | implemented | 2026-08-02 |
 
