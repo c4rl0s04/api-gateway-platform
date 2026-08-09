@@ -3,7 +3,7 @@ title: Hot Reload Sync
 type: architecture
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-08-02
+last_verified: 2026-08-09
 tags:
   - type/architecture
   - area/gateway-core
@@ -54,6 +54,9 @@ sequenceDiagram
 Deploy, rollback, retirement, and logical proxy activation changes create
 `GatewayConfigChange` inside the same transaction. Creating an undeployed proxy
 or importing a revision does not create an event because no active route changed.
+Personal lab provisioning, deployment, reset, expiry, and revocation use the
+same outbox. Workspace context is part of the candidate snapshot, so one reload
+can add or remove a lab hostname without changing standard routes.
 
 The Management API attempts immediate publication and retries unpublished
 outbox rows periodically. Delivery is at least once. Each gateway ignores
@@ -87,8 +90,10 @@ The reload covers active routing, revisions, operations, and policies. Products,
 grants, credentials, and certificates are queried by their authorization flows
 and do not use the routing registry. Mutations do not wait for every gateway;
 clients poll `runtime-sync` for asynchronous convergence.
+The Lab portal waits for the queued version before treating a new sample route
+as ready; it does not restart the gateway.
 
 ## Sources
 
 See [[Control Plane Flow]], [[Data Plane vs Control Plane]], and
-[[Current Status]].
+[[Current Status]]. For workspace-specific behavior, see [[Personal Gateway Lab]].

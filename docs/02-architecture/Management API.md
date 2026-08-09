@@ -3,7 +3,7 @@ title: Management API
 type: architecture
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-08-02
+last_verified: 2026-08-09
 tags:
   - type/architecture
   - area/management-api
@@ -11,6 +11,7 @@ sources:
   - packages/management-api/src/server.ts
   - packages/management-api/src/routes
   - packages/management-api/src/config/env.ts
+  - packages/management-api/src/routes/lab-workspaces.routes.ts
 aliases: []
 ---
 
@@ -48,6 +49,9 @@ to the host; browsers and API clients reach it through the Admin Panel BFF.
 - Certificate lifecycle: issue from CSR, register external, list, download, and
   revoke.
 - PKI runtime status and append-only security audit events.
+- OIDC-owned Personal Lab API for workspace lifecycle, isolated proxies,
+  revisions, deployments, products, apps, credentials, JWKs, certificates,
+  upstreams, and audit.
 
 ## Data Flow
 
@@ -74,6 +78,12 @@ transaction and return asynchronous runtime-sync metadata. Product,
 credential, grant, and public-key mutations use domain services so routes do
 not reproduce persistence or security rules with direct Prisma calls.
 
+The Lab API is a separate `/lab/v1` surface. It validates the same OIDC JWT but
+resolves ownership directly from `issuer + subject`, not from caller-provided
+organization IDs or standard administrative memberships. It reuses domain
+operations through a `LabPrincipal` and applies the additional workspace,
+expiry, qual-only, and upstream constraints documented in [[Lab API Reference]].
+
 ## Failure Modes
 
 - Missing, invalid, or expired OIDC tokens return `401`.
@@ -96,3 +106,5 @@ revision editing remain outside the current boundary.
 
 See [[Control Plane Flow]], [[management-api]], [[Management API Endpoint Reference]],
 [[How to Use the Management API with Postman]], and [[Current Status]].
+Lab callers should use [[Personal Gateway Lab]] and [[Lab API Reference]] rather
+than the administrator endpoint reference.

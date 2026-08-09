@@ -3,7 +3,7 @@ title: Runtime Request Flow
 type: architecture
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-08-02
+last_verified: 2026-08-09
 tags:
   - type/architecture
   - area/gateway-core
@@ -13,6 +13,7 @@ sources:
   - packages/gateway-core/src/proxy/forwarder.ts
   - packages/gateway-core/src/policies/pipeline.ts
   - packages/gateway-core/src/runtime-sync/reloader.ts
+  - packages/gateway-core/src/db/proxy-loader.ts
 aliases: []
 ---
 
@@ -35,7 +36,7 @@ flowchart TD
     OPERATIONAL -->|"/live or /ready"| HEALTH["Gateway response"]
     OPERATIONAL -->|"No"| ENVIRONMENT{"Resolve Host to environment"}
     ENVIRONMENT -->|"Unknown"| MISDIRECTED["421 Misdirected Request"]
-    ENVIRONMENT -->|"Known"| PROXY{"Resolve longest proxy prefix"}
+    ENVIRONMENT -->|"Known environment or lab workspace"| PROXY{"Resolve longest proxy prefix"}
     PROXY -->|"No match"| PROXY404["404 unknown proxy"]
     PROXY -->|"Match"| ENDPOINT{"Resolve path and method"}
     ENDPOINT -->|"No path"| ENDPOINT404["404 unknown operation"]
@@ -57,6 +58,11 @@ The environment comes from the request authority matched against
 `Environment.publicOrigin`; no request header or default environment can
 override it.
 
+For `*.lab.gateway.*`, the authority resolves both the workspace and the qual
+environment used by its deployment. The registry contains only that workspace's
+active deployments plus its workspace-scoped managed OAuth proxy. Identical
+base paths in another lab therefore occupy a different resolver scope.
+
 ## Failure Modes
 
 Policy dependency failures are handled according to `failureMode`. Business
@@ -68,6 +74,8 @@ PostgreSQL and JWT Bearer additionally requires Redis replay protection.
 Gateway-issued Bearer verification is stateless and does not query PostgreSQL.
 For mTLS, Envoy rejects invalid chains and CRLs before the request reaches the
 gateway; `mtls-auth` then authorizes the connection-derived fingerprint.
+All four authentication flows additionally enforce workspace equality when the
+resolved route is a personal lab.
 
 ## Constraints
 
@@ -79,4 +87,5 @@ certificate and CRL trust is a separate runtime and reloads through file SDS.
 
 ## Sources
 
-See [[Routing Engine]], [[gateway-core]], and [[Debug Gateway 404]].
+See [[Routing Engine]], [[gateway-core]], [[Personal Gateway Lab]], and
+[[Debug Gateway 404]].

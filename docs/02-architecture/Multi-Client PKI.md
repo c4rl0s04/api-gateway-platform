@@ -3,7 +3,7 @@ title: "Multi-Client PKI"
 type: architecture
 doc_status: current
 implementation_status: implemented
-last_verified: "2026-07-27"
+last_verified: "2026-08-09"
 tags:
   - type/architecture
   - area/security
@@ -11,6 +11,7 @@ sources:
   - packages/pki/src
   - packages/management-api/src/services/certificate-authorities.ts
   - packages/management-api/src/services/certificates.ts
+  - packages/management-api/src/services/lab-certificates.ts
   - infra/envoy/envoy.yaml
   - infra/envoy/sds
 aliases:
@@ -100,6 +101,13 @@ to trigger Envoy reload. A `retiring` CA remains trusted but cannot issue. CA
 rotation creates and activates a replacement, then marks the previous CA
 `retiring` so existing clients continue working during migration.
 
+Each Personal Lab provisions an ephemeral managed CA and a wildcard server
+certificate for its lab hostname boundary. Lab client certificates are issued
+from CSRs for one day and remain scoped through the owning credential and
+workspace. The private key and CSR workflow is executed through
+[[Local Client Agent Architecture|gatewayctl]]; only CSR, certificate, and
+public chain cross the browser/platform boundary.
+
 ## Failure Modes
 
 | Failure | Behavior |
@@ -122,6 +130,8 @@ rotation creates and activates a replacement, then marks the previous CA
 - External CRL URLs must use HTTPS; manual CRL upload is also supported.
 - File-backed encrypted keys and file SDS are the current local implementation,
   not the target production secret-distribution system.
+- Lab authorities and certificates are short-lived learning resources and do
+  not appear in standard organization PKI inventories.
 
 ## Sources
 
@@ -131,3 +141,5 @@ rotation creates and activates a replacement, then marks the previous CA
 - [[ADR-006 Envoy and Managed Client PKI]]
 - [[How to Configure Application Authentication]]
 - [[Debug OAuth and mTLS]]
+- [[How to Connect Local Keys to the Playground]]
+- [[Personal Gateway Lab]]

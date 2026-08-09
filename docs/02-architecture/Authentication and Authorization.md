@@ -3,7 +3,7 @@ title: "Authentication and Authorization"
 type: architecture
 doc_status: current
 implementation_status: implemented
-last_verified: "2026-08-06"
+last_verified: "2026-08-09"
 tags:
   - type/architecture
   - area/security
@@ -16,6 +16,7 @@ sources:
   - packages/management-api/src/services/applications.ts
   - packages/admin-panel/app/api/auth
   - packages/admin-panel/components/session-shell.tsx
+  - packages/gateway-cli/src/operations.ts
   - infra/keycloak/themes/api-gateway/login
   - infra/envoy/envoy.yaml
 aliases:
@@ -73,6 +74,13 @@ The system-managed `platform-oauth` proxy exposes local endpoints at
 Local endpoints return from a terminal policy and never invoke an upstream.
 The request hostname selects the environment. Its `publicOrigin` is the access
 token issuer and `<publicOrigin>/oauth/token` is the assertion audience.
+
+Personal labs apply an additional ownership boundary. The workspace hostname
+selects a workspace-scoped copy of `platform-oauth`; credentials must belong to
+that workspace and issued access tokens include `workspace_id`. A lab API key,
+assertion, access token, or certificate cannot authorize another lab or a
+standard environment. The Playground can use [[Local Client Agent Architecture|gatewayctl]]
+to sign assertions and execute mTLS while private keys remain on the client.
 
 ### Administrative Login Boundary
 
@@ -158,6 +166,9 @@ sequenceDiagram
   Gateway->>Backend: forward authorized request
 ```
 
+For a personal lab, the same flow additionally verifies that the certificate's
+credential organization owns the workspace selected by the request hostname.
+
 ## Failure Modes
 
 | Failure | Behavior |
@@ -167,6 +178,7 @@ sequenceDiagram
 | Invalid signing key or trusted CIDR configuration | Gateway startup fails; readiness is never reached |
 | Invalid access-token signature or claims | `401` |
 | Token issuer from another environment | `401` |
+| Lab credential or token used on another workspace hostname | `401` or `403` |
 | Wrong `environment_id`, proxy, or missing scope | `403` |
 | Credential, grant, JWK, or certificate revoked | New DB-backed authentication fails immediately |
 | Access token revoked indirectly after issuance | Remains valid until `exp` |
@@ -181,6 +193,8 @@ sequenceDiagram
 - Envoy removes client-supplied identity headers and writes the fingerprint
   derived from the live TLS connection.
 - Client private keys never enter the platform; managed issuance accepts CSRs.
+- Browser-generated JWT keys are an in-memory lab convenience; reusable or
+  mTLS client keys use the local agent.
 - Authorization code, password, implicit, `private_key_jwt`, and direct external
   JWT validation are not supported.
 
@@ -191,3 +205,5 @@ sequenceDiagram
 - [[OAuth 2.0]]
 - [[ADR-005 Signed OAuth Tokens]]
 - [[Multi-Client PKI]]
+- [[Local Client Agent Architecture]]
+- [[Personal Gateway Lab]]
