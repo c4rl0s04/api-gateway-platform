@@ -123,7 +123,7 @@ implements CertificateAuthorityOperations {
     });
     const id = randomUUID();
     const material = await createManagedAuthority({
-      commonName: `gateway-${input.organizationId}-${id}`,
+      commonName: `gateway-ca-${id}`,
       validityDays: input.validityDays,
     });
     const keyRef = `authorities/${id}`;
