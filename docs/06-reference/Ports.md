@@ -3,7 +3,7 @@ title: Ports
 type: reference
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-08-03
+last_verified: 2026-08-09
 tags:
   - type/reference
   - area/operations
@@ -33,7 +33,9 @@ aliases: []
 | Redis | Internal `6379` | Default local Compose service | Not published |
 | `gateway-core` | Internal `3000` | Default local Compose service | Not published |
 | `management-api` | Internal `3002` | Default local Compose service | Not published |
+| `lab-egress` | Internal `3010` | Default local Compose service | Not published |
 | Mock backend | Internal `4000` | Default local Compose service | Not published to the host |
+| `gatewayctl` agent | Random loopback port | Client process | Binds `127.0.0.1` only while running |
 | Prometheus | `9090` | Optional `observability` profile | Through Compose edit |
 | Grafana | `3001` | Optional `observability` profile | Through Compose edit |
 | Prisma Studio | `5555` | Prisma default | Through Prisma CLI options |
@@ -73,3 +75,4 @@ npm run dev:local
 - [[Deployment Model]]
 - [[How to Start the Project]]
 - [[Environment Variables]]
+- [[gatewayctl Reference]]

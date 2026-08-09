@@ -3,7 +3,7 @@ title: Environment Variables
 type: reference
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-08-08
+last_verified: 2026-08-09
 tags:
   - type/reference
   - area/operations
@@ -13,6 +13,7 @@ sources:
   - scripts/dev-local.sh
   - packages/gateway-core/src/config/env.ts
   - packages/management-api/src/config/env.ts
+  - packages/gateway-cli/src/config.ts
 aliases: []
 ---
 
@@ -108,6 +109,28 @@ request URL, TLS server name, and `Host` header. `PLAYGROUND_ENVOY_URL` only
 selects the trusted network address used by the Admin Panel container to reach
 that Envoy listener.
 
+### gatewayctl
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `GATEWAYCTL_HOME` | `~/.gatewayctl` | Local identity manifest, encrypted generated keys, certificates, agent state, and redacted audit. |
+| `GATEWAYCTL_ALLOWED_ORIGINS` | `http://localhost:8080` | Comma-separated exact browser origins allowed to pair and invoke loopback RPC. |
+| `GATEWAYCTL_ALLOWED_AUDIENCE_HOSTS` | `*.gateway.localhost,*.lab.gateway.localhost` | Exact or left-wildcard HTTPS hosts accepted for JWT audiences and mTLS requests. |
+| `GATEWAYCTL_PLAYGROUND_URL` | `http://localhost:8080/playground` | Page opened with the one-time pairing fragment. |
+| `GATEWAYCTL_GATEWAY_CA_CERT_FILE` | Local development CA when present | Optional development trust anchor; omit when server TLS is publicly trusted. |
+
+### lab-egress
+
+| Variable | Required | Default | Purpose |
+| --- | --- | --- | --- |
+| `HOST` | No | `0.0.0.0` | Internal listen address. |
+| `PORT` | No | `3010` | Internal listen port. |
+| `DATABASE_URL` | Yes | None | Loads workspace-owned upstream definitions and active lifetime. |
+
+`lab-egress` has no host port and accepts only internal upstream IDs. Public
+target URL, SSRF restrictions, redirect validation, size limits, timeout, and
+workspace rate limit are code-enforced rather than environment-configurable.
+
 ## Authoritative Example
 
 `.env.example` is the local gateway baseline. Secrets and environment-specific
@@ -124,3 +147,5 @@ credentials must remain outside version control.
 - [[How to Start the Project]]
 - [[Ports]]
 - [[gateway-core]]
+- [[gatewayctl Reference]]
+- [[Personal Gateway Lab]]

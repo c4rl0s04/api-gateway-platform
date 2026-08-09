@@ -3,7 +3,7 @@ title: Command Reference
 type: reference
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-08-06
+last_verified: 2026-08-09
 tags:
   - type/reference
   - area/operations
@@ -104,6 +104,8 @@ the other services required by the complete platform.
 | `admin-panel` | `npm run build --workspace=packages/admin-panel` / `npm run test --workspace=packages/admin-panel` | Builds or tests the Admin Panel package. |
 | `gateway-core` | `npm run dev --workspace=packages/gateway-core` | Watches and starts only the gateway using optional root `.env`; it does not bootstrap dependencies or required production security configuration. |
 | `gateway-core` | `npm run build --workspace=packages/gateway-core` / `npm run test --workspace=packages/gateway-core` | Builds or tests the gateway package. |
+| `gatewayctl` | `npm run build --workspace=packages/gateway-cli` / `npm run test --workspace=packages/gateway-cli` | Builds or tests the closed local cryptographic agent and identity store. |
+| `lab-egress` | `npm run build --workspace=packages/lab-egress` / `npm run test --workspace=packages/lab-egress` | Builds or tests managed mocks and protected public HTTPS forwarding; it is normally internal to Compose. |
 | `management-api` | `npm run dev --workspace=packages/management-api` | Watches and starts only Management API; supply its PostgreSQL, Redis, OIDC, and PKI configuration separately. |
 | `management-api` | `npm run build --workspace=packages/management-api` / `npm run test --workspace=packages/management-api` | Builds or tests Management API. |
 | `pki` | `npm run build --workspace=packages/pki` / `npm run test --workspace=packages/pki` | Builds or tests PKI issuance, keystore, CRL, and trust-bundle code. |
@@ -123,6 +125,13 @@ dependencies and configuration.
 | Command | Level | Purpose and effects |
 | --- | --- | --- |
 | `npm run pki:client -- <credential-id> [rsa\|ec]` | recommended | Builds the PKI package, then creates a client-owned private key and CSR under `.local-secrets/clients/<credential-id>/`. It refuses to overwrite either material. Send only the CSR to the platform. |
+| `npm run gatewayctl -- keys generate --name <name> --type jwt [--consumer-key <key>]` | recommended | Generates an encrypted local RS256 identity for JWT Bearer assertions. |
+| `npm run gatewayctl -- keys generate --name <name> --type mtls --credential-id <id> [--algorithm rsa\|ec]` | recommended | Generates a key and CSR in the local agent store; only the CSR is returned to the browser/platform. |
+| `npm run gatewayctl -- keys add ...` | recommended | Registers an existing JWT or mTLS private-key reference after ownership, permissions, algorithm, and optional certificate matching checks. |
+| `npm run gatewayctl -- keys list` / `keys remove --id <id>` | recommended | Lists public identity metadata or removes a local alias and agent-generated encrypted material. |
+| `npm run gatewayctl -- agent start\|status\|stop` | recommended | Starts, inspects, or stops the origin-bound loopback agent used by Playground and Personal Lab. |
+
+See [[gatewayctl Reference]] for exact options and [[How to Connect Local Keys to the Playground]] for the browser flow.
 
 ## Documentation
 
@@ -159,3 +168,5 @@ dependencies and configuration.
 - [[How to Run Tests]]
 - [[Reset Local Database]]
 - [[How to Use Prisma Studio]]
+- [[gatewayctl Reference]]
+- [[How to Learn the Gateway with the Lab]]
