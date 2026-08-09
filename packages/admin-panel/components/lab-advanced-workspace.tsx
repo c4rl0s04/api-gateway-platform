@@ -130,7 +130,7 @@ export function LabAdvancedWorkspace({
     event.preventDefault();
     void perform('Upstream creation', async () => {
       const payload = upstreamKind === 'publicHttps'
-        ? { name: upstreamName, kind: upstreamKind, baseUrl: upstreamUrl }
+        ? { name: upstreamName, kind: upstreamKind, targetUrl: upstreamUrl }
         : {
             name: upstreamName,
             kind: upstreamKind,
