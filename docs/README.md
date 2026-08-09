@@ -3,7 +3,7 @@ title: API Gateway Platform
 type: map
 doc_status: current
 implementation_status: partial
-last_verified: 2026-08-06
+last_verified: 2026-08-09
 tags:
   - type/map
   - area/project
@@ -32,6 +32,8 @@ configuration management in the control plane.
 - [[04-guides/How to Manage the Local Platform Lifecycle|How to Manage the Local Platform Lifecycle]] - start, stop, resume, or reset retained local state.
 - [[04-guides/How to Run Tests|How to Run Tests]] - execute workspace and documentation checks.
 - [[06-reference/Command Reference|Command Reference]] - find every supported command and its operational effects.
+- [[04-guides/How to Learn the Gateway with the Lab|Personal Gateway Lab]] - create a disposable real gateway workspace and run its sample.
+- [[04-guides/How to Connect Local Keys to the Playground|Local client keys]] - sign JWT assertions and execute mTLS without uploading private keys.
 - [[04-guides/How to Document the Project|How to Document the Project]] - create and maintain notes.
 
 ## Main Areas
@@ -39,7 +41,7 @@ configuration management in the control plane.
 | Area | Purpose |
 | --- | --- |
 | [[Data Plane]] | Request routing, policies, local responses, and forwarding |
-| [[Control Plane]] | Management API, proxy lifecycle, products, apps, and runtime sync |
+| [[Control Plane]] | Management API, proxy lifecycle, Personal Lab, products, apps, and runtime sync |
 | [[Security and Identity]] | API keys, OAuth, mTLS, PKI, Keycloak, and administrator identity |
 | [[Operations]] | Startup, configuration, ports, health, synchronization, and recovery |
 | [[Development]] | Packages, persistence, implementation workflows, tests, and seeds |

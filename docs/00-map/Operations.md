@@ -3,7 +3,7 @@ title: Operations
 type: map
 doc_status: current
 implementation_status: not-applicable
-last_verified: 2026-08-06
+last_verified: 2026-08-09
 tags:
   - type/map
   - area/operations
@@ -45,6 +45,8 @@ runtime health, synchronization, PKI operations, and incident diagnosis.
 - [[How to Run Tests]]
 - [[How to Operate the PKI]]
 - [[How to Import and Deploy a Proxy Revision]]
+- [[How to Connect Local Keys to the Playground]]
+- [[How to Learn the Gateway with the Lab]]
 
 ## Reference
 
@@ -53,6 +55,8 @@ runtime health, synchronization, PKI operations, and incident diagnosis.
 - [[Environment Variables]]
 - [[Seed Example Catalog]]
 - [[Current Status]]
+- [[gatewayctl Reference]]
+- [[Lab API Reference]]
 
 ## Troubleshooting
 
@@ -61,9 +65,12 @@ runtime health, synchronization, PKI operations, and incident diagnosis.
 - [[Debug OAuth and mTLS]]
 - [[Debug Policy Failure]]
 - [[Reset Local Database]]
+- [[Debug Local Agent Pairing]]
+- [[Debug Lab Isolation and Egress]]
 
 ## Packages and Decisions
 
-- Packages: [[gateway-core]], [[management-api]], [[admin-panel]], and [[pki]].
+- Packages: [[gateway-core]], [[management-api]], [[admin-panel]], [[pki]],
+  [[gatewayctl]], and [[lab-egress]].
 - Decisions: [[ADR-006 Envoy and Managed Client PKI]] and
   [[ADR-007 Hostname-Based Environment Routing]].

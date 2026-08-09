@@ -3,7 +3,7 @@ title: Development
 type: map
 doc_status: current
 implementation_status: not-applicable
-last_verified: 2026-08-06
+last_verified: 2026-08-09
 tags:
   - type/map
   - area/project
@@ -53,15 +53,18 @@ change before implementing a feature.
 - [[Policy Types]]
 - [[Seed Example Catalog]]
 - [[Documentation Index]]
+- [[Lab API Reference]]
+- [[gatewayctl Reference]]
 
 ## Troubleshooting
 
 - [[Reset Local Database]]
 - [[Debug Gateway 404]]
 - [[Debug Policy Failure]]
+- [[Debug Lab Isolation and Egress]]
 
 ## Packages and Decisions
 
 - Packages: [[gateway-core]], [[management-api]], [[admin-panel]], [[database]],
-  [[pki]], and [[shared]].
+  [[pki]], [[gatewayctl]], [[lab-egress]], and [[shared]].
 - Start architectural rationale at [[Decision Records]].

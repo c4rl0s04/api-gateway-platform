@@ -3,7 +3,7 @@ title: Project Map
 type: map
 doc_status: current
 implementation_status: partial
-last_verified: 2026-08-06
+last_verified: 2026-08-09
 tags:
   - type/map
   - area/project
@@ -43,6 +43,8 @@ aliases: []
 | Work on certificates or trust | [[Security and Identity]] | [[Multi-Client PKI]] |
 | Work on the control plane | [[Control Plane]] | [[Management API]] |
 | Call the control plane manually | [[Control Plane]] | [[How to Use the Management API with Postman]] |
+| Learn in an isolated workspace | [[Control Plane]] | [[How to Learn the Gateway with the Lab]] |
+| Connect client-owned JWT or mTLS keys | [[Security and Identity]] | [[How to Connect Local Keys to the Playground]] |
 | Run the project | [[Operations]] | [[How to Start the Project]] |
 | Stop, resume, or reset local state | [[Operations]] | [[How to Manage the Local Platform Lifecycle]] |
 | Find the right command | [[Operations]] | [[Command Reference]] |
@@ -60,8 +62,11 @@ flowchart LR
     ADMIN["Admin browser"] --> PANEL["admin-panel"]
     PANEL --> MANAGEMENT["management-api"]
     PANEL --> KEYCLOAK["OIDC IdP"]
+    CLIENT --> AGENT["gatewayctl on loopback"]
+    AGENT --> INGRESS
     MANAGEMENT --> DATABASE
     MANAGEMENT --> INGRESS
+    GATEWAY --> LABEGRESS["lab-egress"]
 ```
 
 Solid arrows represent current runtime interactions.
@@ -78,7 +83,7 @@ Solid arrows represent current runtime interactions.
 
 ## Current Gaps
 
-Membership administration, environment catalog writes, production key
-management, and Prometheus metrics are not implemented.
+Membership administration, environment catalog writes, public production
+deployment controls, production key management, and Prometheus metrics are not implemented.
 The Admin Panel does not yet expose the complete Management API. See
 [[Current Status]] for the verified feature matrix.

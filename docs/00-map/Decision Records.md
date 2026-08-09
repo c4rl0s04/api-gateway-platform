@@ -3,7 +3,7 @@ title: Decision Records
 type: map
 doc_status: current
 implementation_status: not-applicable
-last_verified: 2026-08-02
+last_verified: 2026-08-09
 tags:
   - type/map
   - area/architecture
@@ -61,3 +61,5 @@ When behavior and intent appear inconsistent, compare the relevant ADR with
 - Policies: [[ADR-004 XML Policies]].
 - Security: [[ADR-005 Signed OAuth Tokens]] and
   [[ADR-006 Envoy and Managed Client PKI]].
+- Developer platform: [[ADR-008 Closed Loopback Client Agent]] and
+  [[ADR-009 Logical Lab Workspace Isolation]].
