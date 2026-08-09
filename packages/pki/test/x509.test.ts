@@ -9,6 +9,18 @@ import {
 } from '../src/x509.js';
 
 describe('X.509 certificate lifecycle', () => {
+  it('supports short-lived internal certificate authorities', async () => {
+    const authority = await createManagedAuthority({
+      commonName: 'ephemeral-lab-authority',
+      validityDays: 2,
+    });
+    assert.ok(authority.expiresAt > authority.validFrom);
+    await assert.rejects(
+      () => createManagedAuthority({ commonName: 'invalid-authority', validityDays: 0 }),
+      /between 1 and 3650/,
+    );
+  });
+
   it('issues a constrained client certificate from an RSA CSR', async () => {
     const authority = await createManagedAuthority({
       commonName: 'test-authority',

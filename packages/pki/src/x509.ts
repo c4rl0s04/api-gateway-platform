@@ -77,8 +77,8 @@ export async function createManagedAuthority(input: {
 }): Promise<ManagedAuthorityMaterial> {
   const commonName = safeIdentifier(input.commonName, 'CA commonName');
   const validityDays = input.validityDays ?? 3_650;
-  if (!Number.isInteger(validityDays) || validityDays < 365 || validityDays > 3_650) {
-    throw new Error('CA validityDays must be between 365 and 3650');
+  if (!Number.isInteger(validityDays) || validityDays < 1 || validityDays > 3_650) {
+    throw new Error('CA validityDays must be between 1 and 3650');
   }
 
   return withTemporaryDirectory(async (directory) => {
