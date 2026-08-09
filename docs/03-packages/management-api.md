@@ -3,7 +3,7 @@ title: management-api
 type: package
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-08-02
+last_verified: 2026-08-09
 tags:
   - type/package
   - area/management-api
@@ -26,7 +26,9 @@ logical proxy creation and metadata, read-only bundle validation, atomic
 configured proxy plus revision-1 creation, OpenAPI/gateway bundle import,
 immutable revision reads and source downloads,
 revision deployment, retirement and rollback, application/credential/grant/JWK
-management, filtered audit reads, and PKI lifecycle.
+management, filtered audit reads, and PKI lifecycle. It also exposes the
+separate OIDC-owned Lab API for ephemeral workspace lifecycle and
+workspace-scoped variants of those resource operations.
 
 ## Boundaries
 
@@ -52,10 +54,16 @@ management, filtered audit reads, and PKI lifecycle.
 - Prevents public mutation of system-managed proxies.
 - Commits routing changes with a durable outbox version, publishes Redis
   notifications, and exposes live gateway convergence through `/v1/runtime-sync`.
+- Resolves `LabPrincipal` from OIDC `issuer + subject`, enforces 24-hour
+  workspace ownership, and never accepts lab organization/workspace ownership
+  from the request body.
+- Provisions a managed sample, ephemeral lab PKI, and restricted upstream IDs;
+  direct public target execution belongs to the internal `lab-egress` service.
 
 ## Public Contracts
 
 The versioned surface is under `/v1`; see [[Management API Endpoint Reference]].
+The separate lab surface is under `/lab/v1`; see [[Lab API Reference]].
 `GET /live` and `GET /ready` are unversioned operational endpoints.
 
 ## Runtime Flow
@@ -79,6 +87,8 @@ credential customization, cloning, rotation, desired-state grants, RSA keys,
 outbox publication, runtime status, audit filters, and CA authorization.
 `test:integration:management` verifies domain persistence; `test:platform`
 verifies hot reload and the full workflow through the real BFF and gateway.
+The isolated platform test additionally creates two OIDC-owned labs and verifies
+cross-workspace API key, OAuth, JWT Bearer, mTLS, egress, reset, and revocation.
 
 ## Limitations
 
@@ -95,3 +105,5 @@ verifies hot reload and the full workflow through the real BFF and gateway.
 - [[Management API Endpoint Reference]]
 - [[How to Use the Management API with Postman]]
 - [[Proxy Revisions and Deployments]]
+- [[Personal Gateway Lab]]
+- [[Lab API Reference]]

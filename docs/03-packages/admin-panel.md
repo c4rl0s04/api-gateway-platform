@@ -3,7 +3,7 @@ title: admin-panel
 type: package
 doc_status: current
 implementation_status: partial
-last_verified: 2026-08-08
+last_verified: 2026-08-09
 tags:
   - type/package
   - area/admin-panel
@@ -13,6 +13,9 @@ sources:
   - packages/admin-panel/components/access-screen.tsx
   - packages/admin-panel/components/session-shell.tsx
   - packages/admin-panel/components/playground-workspace.tsx
+  - packages/admin-panel/components/personal-lab-workspace.tsx
+  - packages/admin-panel/components/lab-quick-playground.tsx
+  - packages/admin-panel/components/lab-advanced-workspace.tsx
   - packages/admin-panel/lib/api-client.ts
   - packages/admin-panel/lib/playground-service.ts
   - infra/keycloak/themes/api-gateway/login
@@ -44,8 +47,10 @@ those credentials; the Keycloak login theme is a separate runtime resource.
 - `GET /api/auth/login`, callback, session, and logout.
 - `/api/management/[...path]` authenticated BFF.
 - `POST /api/playground` constrained gateway execution BFF.
+- `/api/lab/[...path]` OIDC-authenticated Personal Lab BFF.
+- `POST /api/lab/playground` constrained workspace gateway executor.
 - Dashboard, configured proxy creation, inventory/detail, applications,
-  authorities, certificates, and proxy playground pages.
+  authorities, certificates, proxy playground, and Personal Lab pages.
 
 ## Runtime Flow
 
@@ -63,9 +68,16 @@ request to Envoy over the internal network. OpenAPI request bodies provide
 media types and editable examples, while a live redacted cURL shows the request
 before execution. It supports API key, existing Bearer tokens, automatic
 Client Credentials and JWT Bearer exchanges, and direct execution of the
-managed OAuth token and JWKS operations. mTLS remains a local-client flow and
-produces a safe cURL command because private client keys must never enter the
-browser or BFF.
+managed OAuth token and JWKS operations. `gatewayctl` adds an origin-bound local
+client for assertion signing, CSR issuance, certificate installation, and mTLS
+execution because private client keys must never enter the browser or BFF.
+
+The Personal Lab page provisions and reads an OIDC-owned workspace through the
+Lab BFF. It displays a runnable sample, a quick policy-aware executor, and
+advanced workflows for upstreams, revisions, deployments, products, apps,
+credentials, and audit. The server-side executor only accepts resources from
+the active workspace and rewrites the selected deployment to its workspace
+hostname.
 
 ## Authentication Interface
 
@@ -102,7 +114,9 @@ selection, session failure states, proxy draft reduction and step validity,
 Gateway YAML hydration and serialization, policy/path constraints, multipart
 request formatting, playground destination constraints, OpenAPI request
 examples, managed OAuth execution and redaction, error-to-step mapping, and
-the rendered retry action.
+the rendered retry action. Local-agent parsing/session tests and Lab portal
+tests cover pairing, workspace BFF mapping, quick execution, and advanced
+resource payloads.
 Platform configuration tests verify the generated realm metadata and read-only
 Keycloak theme mount.
 
@@ -119,4 +133,6 @@ Keycloak theme mount.
 - [[Authentication and Authorization]]
 - [[Management API]]
 - [[How to Use the Proxy Playground]]
+- [[How to Learn the Gateway with the Lab]]
+- [[How to Connect Local Keys to the Playground]]
 - [[Ports]]
