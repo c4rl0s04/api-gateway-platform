@@ -191,6 +191,35 @@ integration('proxy revision persistence', () => {
     );
   });
 
+  it('waits for the proxy revision lock beyond the Prisma default timeout', async () => {
+    const proxy = await createApiProxy({
+      organizationId,
+      name: 'Contended revision import',
+      actor,
+    });
+    let lockAcquired!: () => void;
+    const acquired = new Promise<void>(resolve => {
+      lockAcquired = resolve;
+    });
+    const lockHolder = prisma.$transaction(async transaction => {
+      await transaction.$executeRaw`
+        SELECT pg_advisory_xact_lock(hashtext(${'proxy-revision:' + proxy.id}))
+      `;
+      lockAcquired();
+      await new Promise(resolve => setTimeout(resolve, 5_500));
+    }, { timeout: 10_000 });
+
+    await acquired;
+    const revision = await importProxyRevision({
+      proxyId: proxy.id,
+      ...bundle(`/contended-revision-${suffix}`, 'getContendedRevision'),
+      actor,
+    });
+    await lockHolder;
+
+    assert.equal(revision.revisionNumber, 1);
+  });
+
   it('keeps one active deployment and records rollback as new history', async () => {
     const basePath = `/deployment-test-${suffix}`;
     const proxy = await createApiProxy({
