@@ -118,6 +118,30 @@ export interface ApiProductSummary {
   scopes: string[];
 }
 
+export interface ApiProductDetail extends ApiProductSummary {
+  organizationId: string;
+  proxies: Array<{ id: string; name: string; active: boolean }>;
+  environments: Array<Pick<Environment, 'id' | 'stage' | 'region' | 'publicOrigin'>>;
+}
+
+export interface ManagementPrincipal {
+  issuer: string;
+  subject: string;
+  memberships: Array<{
+    role: 'platformAdmin' | 'organizationAdmin' | 'viewer';
+    organizationId: string | null;
+    active: boolean;
+  }>;
+}
+
+export interface DeveloperTokenResult {
+  accessToken: string;
+  tokenType: 'Bearer';
+  expiresIn: number;
+  authorizedProxies: string[];
+  scopes: string[];
+}
+
 export interface ApiProxyDetail extends ApiProxySummary {
   products: ApiProductSummary[];
 }

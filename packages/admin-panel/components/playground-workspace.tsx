@@ -23,9 +23,12 @@ import {
   managementFetch,
   type ApiProxyDetail,
   type ApiProxySummary,
+  type ApiProductDetail,
   type AppCredential,
   type CertificateRecord,
   type DeveloperApp,
+  type DeveloperTokenResult,
+  type ManagementPrincipal,
   type Organization,
   type ProxyDeployment,
   type ProxyOperation,
@@ -50,13 +53,14 @@ import {
   type LocalIdentity,
 } from '@/lib/local-agent';
 import { useLocalAgent, type AgentActivity } from '@/lib/use-local-agent';
+import { canIssueDeveloperToken as canIssueDeveloperTokenFor } from '@/lib/developer-tokens';
 import {
   mtlsCompatibilityLabel,
   resolveMtlsCertificateCompatibility,
   type MtlsCertificateCompatibility,
 } from '@/lib/mtls-playground';
 
-type OAuthMode = 'clientCredentials' | 'bearerToken' | 'jwtBearer';
+type OAuthMode = 'clientCredentials' | 'bearerToken' | 'jwtBearer' | 'developerToken';
 type ResponseView = 'preview' | 'body' | 'headers' | 'request';
 interface EditableParameter extends PlaygroundParameter { id: number }
 
@@ -129,6 +133,7 @@ export function PlaygroundWorkspace() {
   const [apps, setApps] = useState<DeveloperApp[]>([]);
   const [certificates, setCertificates] = useState<CertificateRecord[]>([]);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [principal, setPrincipal] = useState<ManagementPrincipal | null>(null);
   const [credentialOrganizationId, setCredentialOrganizationId] = useState('');
   const [pathValues, setPathValues] = useState<Record<string, string>>({});
   const [query, setQuery] = useState<EditableParameter[]>([]);
@@ -148,6 +153,11 @@ export function PlaygroundWorkspace() {
   const [scope, setScope] = useState('');
   const [bearerToken, setBearerToken] = useState('');
   const [assertion, setAssertion] = useState('');
+  const [developerProducts, setDeveloperProducts] = useState<ApiProductDetail[]>([]);
+  const [developerProductIds, setDeveloperProductIds] = useState<string[]>([]);
+  const [developerProxyIds, setDeveloperProxyIds] = useState<string[]>([]);
+  const [developerScopes, setDeveloperScopes] = useState<string[]>([]);
+  const [developerTokenExpiresAt, setDeveloperTokenExpiresAt] = useState('');
   const [localIdentityId, setLocalIdentityId] = useState('');
   const [assertionInspection, setAssertionInspection] = useState<{
     header: Record<string, unknown>;
@@ -191,6 +201,26 @@ export function PlaygroundWorkspace() {
     () => credentials.find(credential => credential.id === credentialId) ?? null,
     [credentialId, credentials],
   );
+  const canIssueDeveloperToken = useMemo(() => canIssueDeveloperTokenFor(
+    principal,
+    proxy?.organizationId,
+  ), [principal, proxy?.organizationId]);
+  const selectedDeveloperProducts = useMemo(() => developerProducts.filter(product =>
+    developerProductIds.includes(product.id)), [developerProductIds, developerProducts]);
+  const developerProxyOptions = useMemo(() => {
+    const productProxyIds = new Set(selectedDeveloperProducts.flatMap(product =>
+      product.proxies.map(productProxy => productProxy.id)));
+    return proxies.filter(candidate =>
+      candidate.active
+      && !candidate.systemManaged
+      && candidate.organizationId === proxy?.organizationId
+      && productProxyIds.has(candidate.id)
+      && candidate.deployments.some(candidateDeployment =>
+        candidateDeployment.environmentId === selectedDeployment?.environmentId));
+  }, [proxies, proxy?.organizationId, selectedDeployment?.environmentId, selectedDeveloperProducts]);
+  const developerScopeOptions = useMemo(() => [...new Set(
+    selectedDeveloperProducts.flatMap(product => product.scopes),
+  )].sort(), [selectedDeveloperProducts]);
   const mtlsIdentityMatches = useMemo(() => {
     const authorizedCredentialIds = new Set(credentials.map(credential => credential.id));
     return localAgent.identities
@@ -289,13 +319,15 @@ export function PlaygroundWorkspace() {
     Promise.all([
       managementFetch<ApiProxySummary[]>('proxies'),
       managementFetch<Organization[]>('organizations'),
+      managementFetch<ManagementPrincipal>('me'),
     ])
-      .then(([items, nextOrganizations]) => {
+      .then(([items, nextOrganizations, nextPrincipal]) => {
         const executable = items.filter(item => item.active
           && item.deployments.length > 0
           && (!item.systemManaged || item.id === 'proxy-platform-oauth'));
         setProxies(executable);
         setOrganizations(nextOrganizations);
+        setPrincipal(nextPrincipal);
         setProxyId(executable[0]?.id ?? '');
         setError('');
       })
@@ -319,6 +351,7 @@ export function PlaygroundWorkspace() {
     setAssertion('');
     setAssertionInspection(null);
     setTemporaryCredentialExpiresAt('');
+    setDeveloperTokenExpiresAt('');
     Promise.all([
       managementFetch<ApiProxyDetail>(`proxies/${proxyId}`, { signal: controller.signal }),
       managementFetch<ProxyDeployment[]>(`proxies/${proxyId}/deployments`, {
@@ -339,6 +372,43 @@ export function PlaygroundWorkspace() {
     }).finally(() => setLoading(false));
     return () => controller.abort();
   }, [proxyId]);
+
+  useEffect(() => {
+    if (!proxy || proxy.systemManaged || proxy.products.length === 0) {
+      setDeveloperProducts([]);
+      setDeveloperProductIds([]);
+      return;
+    }
+    const controller = new AbortController();
+    Promise.all(proxy.products.filter(product => product.active).map(product =>
+      managementFetch<ApiProductDetail>(`products/${product.id}`, { signal: controller.signal })))
+      .then(products => {
+        setDeveloperProducts(products);
+        setDeveloperProductIds(products.map(product => product.id));
+      })
+      .catch(cause => {
+        if (cause.name !== 'AbortError') setError(cause.message);
+      });
+    return () => controller.abort();
+  }, [proxy]);
+
+  useEffect(() => {
+    const availableProxyIds = developerProxyOptions.map(candidate => candidate.id);
+    setDeveloperProxyIds(current => {
+      const retained = current.filter(id => availableProxyIds.includes(id));
+      if (proxy && availableProxyIds.includes(proxy.id) && !retained.includes(proxy.id)) {
+        retained.unshift(proxy.id);
+      }
+      return retained.length > 0 ? retained : availableProxyIds;
+    });
+    setDeveloperScopes(current => {
+      const retained = current.filter(item => developerScopeOptions.includes(item));
+      const required = requirement.type === 'oauth'
+        ? requirement.requiredScopes.filter(item => developerScopeOptions.includes(item))
+        : [];
+      return [...new Set([...retained, ...required])];
+    });
+  }, [developerProxyOptions, developerScopeOptions, proxy, requirement]);
 
   useEffect(() => {
     if (!proxy) {
@@ -726,10 +796,40 @@ export function PlaygroundWorkspace() {
   const authentication = useCallback((): PlaygroundAuthentication => {
     if (requirement.type === 'apiKey') return { type: 'apiKey', value: apiKey };
     if (requirement.type !== 'oauth' && requirement.type !== 'oauthToken') return { type: 'none' };
-    if (oauthMode === 'bearerToken') return { type: 'bearerToken', token: bearerToken };
+    if (oauthMode === 'bearerToken' || oauthMode === 'developerToken') {
+      return { type: 'bearerToken', token: bearerToken };
+    }
     if (oauthMode === 'jwtBearer') return { type: 'jwtBearer', assertion, scope };
     return { type: 'clientCredentials', consumerKey, consumerSecret, scope };
   }, [apiKey, assertion, bearerToken, consumerKey, consumerSecret, oauthMode, requirement.type, scope]);
+
+  const issueDeveloperToken = useCallback(async () => {
+    if (!proxy || !selectedDeployment || !canIssueDeveloperToken) return;
+    setAgentBusy(true);
+    setError('');
+    try {
+      const issued = await managementFetch<DeveloperTokenResult>(
+        `organizations/${proxy.organizationId}/developer-tokens`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            environmentId: selectedDeployment.environmentId,
+            productIds: developerProductIds,
+            proxyIds: developerProxyIds,
+            scopes: developerScopes,
+            ttlSeconds: 600,
+          }),
+        },
+      );
+      setBearerToken(issued.accessToken);
+      setDeveloperTokenExpiresAt(new Date(Date.now() + issued.expiresIn * 1000).toISOString());
+      setResult(null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Developer token could not be issued');
+    } finally {
+      setAgentBusy(false);
+    }
+  }, [canIssueDeveloperToken, developerProductIds, developerProxyIds, developerScopes, proxy, selectedDeployment]);
 
   const canExecute = Boolean(selectedOperation && selectedDeployment)
     && pathNames.every(name => pathValues[name])
@@ -741,6 +841,7 @@ export function PlaygroundWorkspace() {
     && (requirement.type !== 'apiKey' || Boolean(apiKey))
     && (requirement.type !== 'oauth' && requirement.type !== 'oauthToken'
       || (oauthMode === 'bearerToken' && Boolean(bearerToken))
+      || (oauthMode === 'developerToken' && Boolean(bearerToken))
       || (oauthMode === 'jwtBearer' && Boolean(assertion))
       || (oauthMode === 'clientCredentials' && Boolean(consumerKey && consumerSecret)));
 
@@ -809,7 +910,7 @@ export function PlaygroundWorkspace() {
     if (requirement.type === 'apiKey') {
       previewHeaders[requirement.header.toLowerCase()] = '<redacted>';
     } else if (requirement.type === 'oauth') {
-      previewHeaders.authorization = oauthMode === 'bearerToken'
+      previewHeaders.authorization = oauthMode === 'bearerToken' || oauthMode === 'developerToken'
         ? 'Bearer <redacted>'
         : 'Bearer <issued-access-token>';
     }
@@ -1070,10 +1171,40 @@ export function PlaygroundWorkspace() {
                 assertion={assertion}
                 onAssertionChange={setAssertion}
                 mtlsCurl={mtlsCurl}
+                developerTokenAvailable={requirement.type === 'oauth'
+                  && selectedDeployment?.environment.stage === 'qual'}
               />
+              {requirement.type === 'oauth' && oauthMode === 'developerToken' && proxy && (
+                <DeveloperTokenEditor
+                  products={developerProducts}
+                  selectedProductIds={developerProductIds}
+                  proxies={developerProxyOptions}
+                  selectedProxyIds={developerProxyIds}
+                  requiredProxyId={proxy.id}
+                  scopes={developerScopeOptions}
+                  selectedScopes={developerScopes}
+                  tokenExpiresAt={developerTokenExpiresAt}
+                  tokenReady={Boolean(bearerToken)}
+                  authorized={canIssueDeveloperToken}
+                  busy={agentBusy}
+                  onProductToggle={id => setDeveloperProductIds(current =>
+                    current.includes(id) ? current.filter(item => item !== id) : [...current, id])}
+                  onProxyToggle={id => {
+                    if (id === proxy.id) return;
+                    setDeveloperProxyIds(current =>
+                      current.includes(id) ? current.filter(item => item !== id) : [...current, id]);
+                  }}
+                  onScopeToggle={value => setDeveloperScopes(current =>
+                    current.includes(value)
+                      ? current.filter(item => item !== value)
+                      : [...current, value])}
+                  onIssue={() => void issueDeveloperToken()}
+                />
+              )}
               {(requirement.type === 'mtls'
                 || (requirement.type === 'oauth' || requirement.type === 'oauthToken')
-                  && oauthMode !== 'bearerToken') && (
+                  && oauthMode !== 'bearerToken'
+                  && oauthMode !== 'developerToken') && (
                 <LocalAuthorizationTools
                   mode={requirement.type === 'mtls'
                     ? 'mtls'
@@ -1288,6 +1419,7 @@ function AuthenticationEditor({
   assertion,
   onAssertionChange,
   mtlsCurl,
+  developerTokenAvailable,
 }: {
   requirement: PlaygroundAuthenticationRequirement;
   credentials: Array<AppCredential & { appName: string }>;
@@ -1311,6 +1443,7 @@ function AuthenticationEditor({
   assertion: string;
   onAssertionChange(value: string): void;
   mtlsCurl: string;
+  developerTokenAvailable: boolean;
 }) {
   if (requirement.type === 'none') {
     return <div className="authentication-none"><ShieldCheck /> This operation can be called without client authentication.</div>;
@@ -1386,6 +1519,7 @@ function AuthenticationEditor({
         {allowsClientCredentials && <button type="button" aria-pressed={oauthMode === 'clientCredentials'} onClick={() => onOauthModeChange('clientCredentials')}>Client credentials</button>}
         {allowsAccessToken && <button type="button" aria-pressed={oauthMode === 'bearerToken'} onClick={() => onOauthModeChange('bearerToken')}>Access token</button>}
         {allowsJwtBearer && <button type="button" aria-pressed={oauthMode === 'jwtBearer'} onClick={() => onOauthModeChange('jwtBearer')}>JWT assertion</button>}
+        {developerTokenAvailable && <button type="button" aria-pressed={oauthMode === 'developerToken'} onClick={() => onOauthModeChange('developerToken')}>Developer token</button>}
       </div>
       {oauthMode === 'clientCredentials' && (
         <div className="playground-field-grid">
@@ -1405,12 +1539,141 @@ function AuthenticationEditor({
           <label className="playground-field"><span>Scope</span><input value={scope} onChange={event => onScopeChange(event.target.value)} /></label>
         </div>
       )}
-      <p className="playground-secret-note">
+      {oauthMode === 'developerToken' && (
+        <p className="playground-secret-note">
+          Uses your administrative OIDC role to issue a short-lived qual token. This does not test an application credential.
+        </p>
+      )}
+      {oauthMode !== 'developerToken' && <p className="playground-secret-note">
         {requirement.type === 'oauthToken'
           ? 'Credential material is used for this exchange only. A successful access token remains visible so it can be tested manually.'
           : 'Secrets and tokens are used for this request only and are never returned in diagnostics.'}
-      </p>
+      </p>}
     </div>
+  );
+}
+
+function DeveloperTokenEditor({
+  products,
+  selectedProductIds,
+  proxies,
+  selectedProxyIds,
+  requiredProxyId,
+  scopes,
+  selectedScopes,
+  tokenExpiresAt,
+  tokenReady,
+  authorized,
+  busy,
+  onProductToggle,
+  onProxyToggle,
+  onScopeToggle,
+  onIssue,
+}: {
+  products: ApiProductDetail[];
+  selectedProductIds: string[];
+  proxies: ApiProxySummary[];
+  selectedProxyIds: string[];
+  requiredProxyId: string;
+  scopes: string[];
+  selectedScopes: string[];
+  tokenExpiresAt: string;
+  tokenReady: boolean;
+  authorized: boolean;
+  busy: boolean;
+  onProductToggle(id: string): void;
+  onProxyToggle(id: string): void;
+  onScopeToggle(scope: string): void;
+  onIssue(): void;
+}) {
+  const canIssue = authorized
+    && selectedProductIds.length > 0
+    && selectedProxyIds.length > 0
+    && selectedScopes.length > 0;
+  return (
+    <div className="developer-token-editor">
+      <header>
+        <div>
+          <strong>Temporary multi-proxy authorization</strong>
+          <p>Valid for ten minutes in the selected qual environment.</p>
+        </div>
+        {tokenReady && <span><Check /> Token ready</span>}
+      </header>
+      {!authorized && (
+        <div className="developer-token-denied" role="status">
+          Only platform admins and organization admins can issue developer tokens.
+        </div>
+      )}
+      <DeveloperTokenChoices
+        title="Products"
+        items={products.map(product => ({ id: product.id, label: product.name }))}
+        selected={selectedProductIds}
+        disabled={!authorized || busy}
+        onToggle={onProductToggle}
+      />
+      <DeveloperTokenChoices
+        title="Proxies"
+        items={proxies.map(proxyItem => ({ id: proxyItem.id, label: proxyItem.name }))}
+        selected={selectedProxyIds}
+        locked={[requiredProxyId]}
+        disabled={!authorized || busy}
+        onToggle={onProxyToggle}
+      />
+      <DeveloperTokenChoices
+        title="Scopes"
+        items={scopes.map(scope => ({ id: scope, label: scope }))}
+        selected={selectedScopes}
+        disabled={!authorized || busy}
+        onToggle={onScopeToggle}
+      />
+      <footer>
+        <span>{tokenExpiresAt ? `Expires ${new Date(tokenExpiresAt).toLocaleTimeString()}` : 'The token is kept only in this browser tab.'}</span>
+        <button
+          type="button"
+          className="secondary-command"
+          onClick={onIssue}
+          disabled={!canIssue || busy}
+        >
+          <Sparkles /> {busy ? 'Issuing token' : tokenReady ? 'Replace token' : 'Generate developer token'}
+        </button>
+      </footer>
+    </div>
+  );
+}
+
+function DeveloperTokenChoices({
+  title,
+  items,
+  selected,
+  locked = [],
+  disabled,
+  onToggle,
+}: {
+  title: string;
+  items: Array<{ id: string; label: string }>;
+  selected: string[];
+  locked?: string[];
+  disabled: boolean;
+  onToggle(id: string): void;
+}) {
+  return (
+    <fieldset className="developer-token-choices">
+      <legend>{title}</legend>
+      <div>
+        {items.map(item => (
+          <label key={item.id}>
+            <input
+              type="checkbox"
+              checked={selected.includes(item.id)}
+              disabled={disabled || locked.includes(item.id)}
+              onChange={() => onToggle(item.id)}
+            />
+            <span>{item.label}</span>
+          </label>
+        ))}
+        {items.length === 0 && <p>No eligible {title.toLowerCase()}.</p>}
+      </div>
+    </fieldset>
   );
 }
 
