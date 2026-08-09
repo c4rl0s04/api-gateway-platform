@@ -203,8 +203,17 @@ export type {
 export interface AppCredential {
   id: string;
   consumerKey: string;
+  purpose: 'standard' | 'playground' | 'lab';
   status: string;
   expiresAt: string | null;
+  publicKeys: Array<{
+    id: string;
+    kid: string;
+    algorithm: string;
+    status: string;
+    validFrom: string;
+    expiresAt: string | null;
+  }>;
   certificates: Array<{
     id: string;
     fingerprintSha256: string;
