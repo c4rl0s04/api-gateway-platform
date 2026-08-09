@@ -16,6 +16,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LabApiError, labFetch } from '@/lib/lab-api';
 import { LabQuickPlayground } from '@/components/lab-quick-playground';
+import { LabAdvancedWorkspace } from '@/components/lab-advanced-workspace';
 
 interface LabWorkspaceRecord {
   id: string;
@@ -244,6 +245,15 @@ export function PersonalLabWorkspace() {
         proxies={inventory.proxies}
         applications={inventory.apps}
         consumerSecret={consumerSecret}
+        onConsumerSecret={setConsumerSecret}
+      />
+
+      <LabAdvancedWorkspace
+        proxies={inventory.proxies}
+        products={inventory.products}
+        applications={inventory.apps}
+        upstreams={inventory.upstreams}
+        onChanged={loadInventory}
         onConsumerSecret={setConsumerSecret}
       />
     </div>
