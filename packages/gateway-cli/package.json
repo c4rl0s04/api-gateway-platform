@@ -1,0 +1,26 @@
+{
+  "name": "@api-gateway/gatewayctl",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "gatewayctl": "dist/cli.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc --project tsconfig.json",
+    "test": "tsx --test test/*.test.ts",
+    "lint": "echo \"TODO: lint\""
+  },
+  "dependencies": {
+    "@api-gateway/pki": "*",
+    "@napi-rs/keyring": "^1.3.0",
+    "jose": "^6.2.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.8.7",
+    "tsx": "^4.23.0",
+    "typescript": "^5.2.2"
+  }
+}
