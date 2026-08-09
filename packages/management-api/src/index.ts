@@ -13,6 +13,7 @@ import { createRuntimeSyncService } from './services/runtime-sync.js';
 import { expireDueLabWorkspaces } from '@api-gateway/database';
 import { LabWorkspaceService } from './services/lab-workspaces.js';
 import { LabUpstreamService } from './services/lab-upstreams.js';
+import { LabProxyService } from './services/lab-proxies.js';
 
 void (async () => {
   const config = loadEnv();
@@ -25,6 +26,8 @@ void (async () => {
   const publisher = createGatewayConfigPublisher(config.REDIS_URL, console);
   const runtimeSync = createRuntimeSyncService(config.REDIS_URL);
   publisher.start();
+  const gatewayCatalog = new GatewayCatalogService();
+  const proxyRevisions = new ProxyRevisionService(publisher);
   const server = buildServer({
     config,
     organizations: new OrganizationService(),
@@ -33,11 +36,12 @@ void (async () => {
     applications: new ApplicationService(),
     certificateAuthorities,
     certificates,
-    gatewayCatalog: new GatewayCatalogService(),
-    proxyRevisions: new ProxyRevisionService(publisher),
+    gatewayCatalog,
+    proxyRevisions,
     runtimeSync,
     labWorkspaces: new LabWorkspaceService(),
     labUpstreams: new LabUpstreamService(),
+    labProxies: new LabProxyService(gatewayCatalog, proxyRevisions),
   });
   const labExpirationWorker = setInterval(() => {
     void expireDueLabWorkspaces().catch(error => {
