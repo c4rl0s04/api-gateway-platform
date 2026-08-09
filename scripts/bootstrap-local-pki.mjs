@@ -31,6 +31,7 @@ const authorityCertificateFile = path.join(authorityDir, 'ca.crt');
 const keyRef = 'authorities/local-development';
 const gatewayDnsNames = [
   'localhost',
+  '*.lab.gateway.localhost',
   ...DEPLOYMENT_STAGES.flatMap(stage =>
     DEPLOYMENT_REGIONS.map(region =>
       `${stage}-${region}.gateway.localhost`)),
