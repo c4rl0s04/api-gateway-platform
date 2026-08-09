@@ -92,6 +92,17 @@ describe('gatewayctl closed operations', () => {
       /between 1 and 120/u,
     );
   });
+
+  it('removes identities only through the closed identity operation', async () => {
+    const { store, operations } = await fixture();
+    const identity = await store.generateJwt({ name: 'temporary-key' });
+
+    assert.deepEqual(
+      await operations.execute('identity.remove', { identityId: identity.id }),
+      { removed: true },
+    );
+    assert.deepEqual(await store.list(), []);
+  });
 });
 
 async function fixture(): Promise<{

@@ -57,7 +57,17 @@ export class IdentityStore {
 
   async list(): Promise<PublicIdentity[]> {
     const manifest = await this.readManifest();
-    return manifest.identities.map(toPublicIdentity);
+    return Promise.all(manifest.identities.map(async identity => {
+      if (!identity.certificateFile) return toPublicIdentity(identity);
+      try {
+        const certificate = new X509Certificate(
+          await readFile(identity.certificateFile, 'utf8'),
+        );
+        return toPublicIdentity(identity, certificate);
+      } catch {
+        return toPublicIdentity(identity);
+      }
+    }));
   }
 
   async get(identityId: string): Promise<LocalIdentity> {
@@ -323,7 +333,10 @@ export class IdentityStore {
   }
 }
 
-function toPublicIdentity(identity: LocalIdentity): PublicIdentity {
+function toPublicIdentity(
+  identity: LocalIdentity,
+  certificate?: X509Certificate,
+): PublicIdentity {
   return {
     id: identity.id,
     name: identity.name,
@@ -334,6 +347,12 @@ function toPublicIdentity(identity: LocalIdentity): PublicIdentity {
     consumerKey: identity.consumerKey,
     publicJwk: identity.publicJwk,
     hasCertificate: Boolean(identity.certificateFile),
+    certificateFingerprintSha256: certificate?.fingerprint256
+      .replaceAll(':', '')
+      .toLowerCase(),
+    certificateExpiresAt: certificate
+      ? new Date(certificate.validTo).toISOString()
+      : undefined,
     createdAt: identity.createdAt,
   };
 }

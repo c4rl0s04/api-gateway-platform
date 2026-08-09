@@ -28,6 +28,7 @@ export class AgentOperations {
     return [
       'agent.status',
       'identity.list',
+      'identity.remove',
       'jwt.generateKey',
       'jwt.getPublicJwk',
       'jwt.signAssertion',
@@ -48,6 +49,9 @@ export class AgentOperations {
         };
       case 'identity.list':
         return this.identities.list();
+      case 'identity.remove':
+        await this.identities.remove(requiredString(params, 'identityId'));
+        return { removed: true };
       case 'jwt.generateKey':
         return this.identities.generateJwt({
           name: requiredString(params, 'name'),

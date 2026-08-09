@@ -32,6 +32,8 @@ export interface PublicIdentity {
   consumerKey?: string;
   publicJwk?: JWK;
   hasCertificate: boolean;
+  certificateFingerprintSha256?: string;
+  certificateExpiresAt?: string;
   createdAt: string;
 }
 

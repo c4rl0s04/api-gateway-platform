@@ -14,6 +14,8 @@ export interface LocalIdentity {
   consumerKey?: string;
   publicJwk?: JsonWebKey;
   hasCertificate: boolean;
+  certificateFingerprintSha256?: string;
+  certificateExpiresAt?: string;
   createdAt: string;
 }
 
@@ -130,6 +132,10 @@ export class LocalAgentClient {
 
   listIdentities(): Promise<LocalIdentity[]> {
     return this.rpc('identity.list');
+  }
+
+  removeIdentity(identityId: string): Promise<{ removed: true }> {
+    return this.rpc('identity.remove', { identityId });
   }
 
   generateJwtKey(name: string, consumerKey: string): Promise<LocalIdentity> {

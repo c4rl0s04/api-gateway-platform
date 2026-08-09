@@ -1,9 +1,14 @@
 import assert from 'node:assert/strict';
+import { X509Certificate } from 'node:crypto';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, it } from 'node:test';
 import { IdentityStore, type MasterKeyProvider } from '../src/index.js';
+import {
+  createManagedAuthority,
+  issueClientCertificate,
+} from '@api-gateway/pki';
 
 class TestMasterKeyProvider implements MasterKeyProvider {
   readonly key = Buffer.alloc(32, 7);
@@ -57,6 +62,43 @@ describe('gatewayctl identity store', () => {
     assert.equal(generated.identity.type, 'mtls');
     assert.match(generated.csr, /BEGIN CERTIFICATE REQUEST/u);
     assert.equal(await store.getCsr(generated.identity.id), generated.csr);
+  });
+
+  it('exposes installed certificate metadata and removes local material', async () => {
+    const directory = await temporaryDirectory();
+    const store = new IdentityStore(new TestMasterKeyProvider(), directory);
+    const generated = await store.generateMtls({
+      name: 'removable-mtls',
+      credentialId: 'credential-removable',
+    });
+    const authority = await createManagedAuthority({ commonName: 'test-local-agent-ca' });
+    const certificate = await issueClientCertificate({
+      csrPem: generated.csr,
+      authorityCertificatePem: authority.certificatePem,
+      authorityPrivateKeyPem: authority.privateKeyPem,
+      organizationId: 'organization-test',
+      appId: 'application-test',
+      credentialId: 'credential-removable',
+      validityDays: 1,
+    });
+
+    await store.installCertificate({
+      identityId: generated.identity.id,
+      certificatePem: certificate.certificatePem,
+      chainPem: authority.certificatePem,
+    });
+    const [installed] = await store.list();
+    const parsed = new X509Certificate(certificate.certificatePem);
+
+    assert.equal(
+      installed.certificateFingerprintSha256,
+      parsed.fingerprint256.replaceAll(':', '').toLowerCase(),
+    );
+    assert.equal(installed.certificateExpiresAt, new Date(parsed.validTo).toISOString());
+
+    await store.remove(generated.identity.id);
+    assert.deepEqual(await store.list(), []);
+    await assert.rejects(store.get(generated.identity.id), /does not exist/u);
   });
 
   it('rejects imported private keys with group-readable permissions', async () => {
