@@ -20,6 +20,7 @@ export type ProxyDeploymentErrorCode =
   | 'system_proxy_immutable'
   | 'upstream_required'
   | 'promotion_required'
+  | 'lab_workspace_invalid'
   | 'deployment_conflict'
   | 'active_deployment_not_found';
 
@@ -38,6 +39,7 @@ export interface DeployProxyRevisionInput {
   revisionNumber: number;
   environmentId: string;
   upstreamBaseUrl?: string | null;
+  labWorkspaceId?: string;
   actor: DeploymentMutationActor;
   allowSystemManaged?: boolean;
 }
@@ -71,11 +73,12 @@ function normalizeUpstream(value: string | null | undefined): string | null {
 export async function deployProxyRevision(input: DeployProxyRevisionInput) {
   const upstreamBaseUrl = normalizeUpstream(input.upstreamBaseUrl);
   return prisma.$transaction(async transaction => {
+    const deploymentScope = input.labWorkspaceId ?? 'standard';
     await transaction.$executeRaw`
-      SELECT pg_advisory_xact_lock(hashtext(${'proxy-deployment:' + input.proxyId + ':' + input.environmentId}))
+      SELECT pg_advisory_xact_lock(hashtext(${'proxy-deployment:' + deploymentScope + ':' + input.proxyId + ':' + input.environmentId}))
     `;
     await transaction.$executeRaw`
-      SELECT pg_advisory_xact_lock(hashtext(${'environment-base-path:' + input.environmentId}))
+      SELECT pg_advisory_xact_lock(hashtext(${'environment-base-path:' + deploymentScope + ':' + input.environmentId}))
     `;
     const proxy = await transaction.apiProxy.findUnique({
       where: { id: input.proxyId },
@@ -111,6 +114,26 @@ export async function deployProxyRevision(input: DeployProxyRevisionInput) {
     if (!environment) {
       throw new ProxyDeploymentError('environment_not_found', 'Environment does not exist');
     }
+    if (input.labWorkspaceId) {
+      const workspace = await transaction.labWorkspace.findUnique({
+        where: { id: input.labWorkspaceId },
+        select: {
+          organizationId: true,
+          status: true,
+          expiresAt: true,
+        },
+      });
+      if (!workspace
+        || workspace.organizationId !== proxy.organizationId
+        || workspace.status !== 'active'
+        || workspace.expiresAt <= new Date()
+        || environment.stage !== DeploymentStage.qual) {
+        throw new ProxyDeploymentError(
+          'lab_workspace_invalid',
+          'Lab deployments require an active matching workspace and a qual environment',
+        );
+      }
+    }
     if (revision.operations.some(operation => operation.mode === 'forward') && !upstreamBaseUrl) {
       throw new ProxyDeploymentError(
         'upstream_required',
@@ -118,11 +141,14 @@ export async function deployProxyRevision(input: DeployProxyRevisionInput) {
       );
     }
 
-    const requiredStage = previousStage(environment.stage);
+    const requiredStage = input.labWorkspaceId
+      ? null
+      : previousStage(environment.stage);
     if (requiredStage) {
       const promoted = await transaction.proxyDeployment.findFirst({
         where: {
           revisionId: revision.id,
+          labWorkspaceId: null,
           environment: { stage: requiredStage, region: environment.region },
           status: { in: [DeploymentStatus.active, DeploymentStatus.retired] },
         },
@@ -140,6 +166,7 @@ export async function deployProxyRevision(input: DeployProxyRevisionInput) {
       where: {
         environmentId: input.environmentId,
         status: DeploymentStatus.active,
+        labWorkspaceId: input.labWorkspaceId ?? null,
         proxyId: { not: input.proxyId },
         revision: { basePath: revision.basePath },
       },
@@ -157,6 +184,7 @@ export async function deployProxyRevision(input: DeployProxyRevisionInput) {
         proxyId: input.proxyId,
         environmentId: input.environmentId,
         status: DeploymentStatus.active,
+        labWorkspaceId: input.labWorkspaceId ?? null,
       },
       select: {
         id: true,
@@ -174,6 +202,7 @@ export async function deployProxyRevision(input: DeployProxyRevisionInput) {
         proxyId: input.proxyId,
         revisionId: revision.id,
         environmentId: input.environmentId,
+        labWorkspaceId: input.labWorkspaceId,
         upstreamBaseUrl,
         status: DeploymentStatus.active,
       },
@@ -202,6 +231,7 @@ export async function deployProxyRevision(input: DeployProxyRevisionInput) {
           proxyId: input.proxyId,
           revisionNumber: input.revisionNumber,
           environmentId: input.environmentId,
+          labWorkspaceId: input.labWorkspaceId ?? null,
           replacedDeploymentId: previous?.id ?? null,
           rollback,
         },
@@ -231,6 +261,7 @@ export async function retireProxyDeployment(
         id: true,
         proxyId: true,
         environmentId: true,
+        labWorkspaceId: true,
         status: true,
         proxy: {
           select: { organizationId: true, systemManaged: true },
@@ -250,7 +281,7 @@ export async function retireProxyDeployment(
       );
     }
     await transaction.$executeRaw`
-      SELECT pg_advisory_xact_lock(hashtext(${'proxy-deployment:' + current.proxyId + ':' + current.environmentId}))
+      SELECT pg_advisory_xact_lock(hashtext(${'proxy-deployment:' + (current.labWorkspaceId ?? 'standard') + ':' + current.proxyId + ':' + current.environmentId}))
     `;
     const active = await transaction.proxyDeployment.findFirst({
       where: { id: input.deploymentId, status: DeploymentStatus.active },
@@ -286,6 +317,7 @@ export async function retireProxyDeployment(
         metadata: {
           proxyId: current.proxyId,
           environmentId: current.environmentId,
+          labWorkspaceId: current.labWorkspaceId,
         },
       },
     });
@@ -308,6 +340,7 @@ export function listProxyDeployments(proxyId: string) {
       proxyId: true,
       revisionId: true,
       environmentId: true,
+      labWorkspaceId: true,
       upstreamBaseUrl: true,
       status: true,
       createdAt: true,
