@@ -21,6 +21,7 @@ import type { CertificateAuthorityService } from './certificate-authorities.js';
 
 export interface CertificateOperations {
   list(organizationId: string, actor: AdminPrincipal): Promise<unknown>;
+  listCredential(credentialId: string, actor: AdminPrincipal): Promise<unknown>;
   issue(
     input: {
       credentialId: string;
@@ -103,6 +104,34 @@ export class CertificateService implements CertificateOperations {
           },
         },
       },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        authority: {
+          select: { id: true, name: true, kind: true, status: true },
+        },
+        credential: {
+          select: {
+            id: true,
+            consumerKey: true,
+            app: { select: { id: true, name: true } },
+          },
+        },
+      },
+    });
+  }
+
+  async listCredential(credentialId: string, actor: AdminPrincipal) {
+    const credential = await prisma.appCredential.findUnique({
+      where: { id: credentialId },
+      select: { app: { select: { organizationId: true } } },
+    });
+    if (!credential) {
+      throw Object.assign(new Error('Credential does not exist'), { statusCode: 404 });
+    }
+    await requireCertificateOrganization(actor, credential.app.organizationId);
+    requireRead(actor, credential.app.organizationId);
+    return prisma.appCertificate.findMany({
+      where: { credentialId },
       orderBy: { createdAt: 'desc' },
       include: {
         authority: {
