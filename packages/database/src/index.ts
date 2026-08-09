@@ -94,6 +94,18 @@ export {
   updateManagedCredential,
 } from './application-management.js';
 export {
+  createPersonalLabWorkspace,
+  expireDueLabWorkspaces,
+  getPersonalLabWorkspace,
+  resetPersonalLabWorkspace,
+  revokePersonalLabWorkspace,
+  LabWorkspaceError,
+} from './lab-workspaces.js';
+export type {
+  LabPrincipal,
+  LabWorkspaceErrorCode,
+} from './lab-workspaces.js';
+export {
   countPendingGatewayConfigChanges,
   getLatestGatewayConfigVersion,
   listPendingGatewayConfigChanges,

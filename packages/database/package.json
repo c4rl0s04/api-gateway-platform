@@ -7,6 +7,7 @@
     "build": "npm run db:generate && tsc --project tsconfig.json && rm -rf dist/generated && cp -r src/generated dist/generated",
     "test": "tsx --test test/*.test.ts",
     "test:integration:revisions": "RUN_DATABASE_INTEGRATION=1 tsx --test test/proxy-revisions.integration.test.ts",
+    "test:integration:lab": "RUN_DATABASE_INTEGRATION=1 tsx --test test/lab-workspaces.integration.test.ts",
     "db:generate": "prisma generate --schema=prisma/schema.prisma",
     "db:migrate": "prisma migrate dev --schema=prisma/schema.prisma",
     "db:migrate:deploy": "prisma migrate deploy --schema=prisma/schema.prisma",
