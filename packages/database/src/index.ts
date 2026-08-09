@@ -8,6 +8,10 @@ export {
   CertificateAuthorityKind,
   CertificateAuthorityStatus,
   CertificateSource,
+  CredentialPurpose,
+  LabUpstreamKind,
+  LabWorkspaceStatus,
+  OrganizationKind,
   PrismaClient,
   Prisma,
 } from './generated/index.js';

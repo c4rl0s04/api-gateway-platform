@@ -262,6 +262,36 @@ integration('management control-plane persistence', () => {
     });
     assert.deepEqual(clonedMaterials, { publicKeys: [], certificates: [] });
 
+    const playgroundClone = await applications.createCredential(appId, {
+      sourceCredentialId: registration.credential.id,
+      purpose: 'playground',
+    }, actor) as {
+      credential: {
+        id: string;
+        purpose: string;
+        expiresAt: Date;
+      };
+      consumerSecret: string;
+    };
+    assert.equal(playgroundClone.credential.purpose, 'playground');
+    assert.ok(playgroundClone.credential.expiresAt > new Date());
+    assert.ok(
+      playgroundClone.credential.expiresAt.getTime() <= Date.now() + 60 * 60 * 1000,
+    );
+    const playgroundMaterials = await prisma.appCredential.findUniqueOrThrow({
+      where: { id: playgroundClone.credential.id },
+      select: {
+        purpose: true,
+        publicKeys: { select: { id: true } },
+        certificates: { select: { id: true } },
+      },
+    });
+    assert.deepEqual(playgroundMaterials, {
+      purpose: 'playground',
+      publicKeys: [],
+      certificates: [],
+    });
+
     const revokedKey = await applications.revokePublicKey(publicKey.id, actor) as {
       status: string;
     };

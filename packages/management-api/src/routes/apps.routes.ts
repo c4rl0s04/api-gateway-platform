@@ -39,6 +39,9 @@ const createCredentialSchema = z.object({
 }).strict();
 const cloneCredentialSchema = z.object({
   sourceCredentialId: z.string().trim().min(1).max(120),
+  purpose: z.literal('playground').optional(),
+  expiresAt: z.string().datetime({ offset: true }).transform(value => new Date(value))
+    .optional(),
 }).strict();
 const createOrCloneCredentialSchema = z.union([
   createCredentialSchema,

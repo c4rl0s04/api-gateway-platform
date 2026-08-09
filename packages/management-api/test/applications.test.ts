@@ -268,6 +268,26 @@ describe('application management API', () => {
       appId: 'app-1',
       input: { sourceCredentialId: 'credential-1' },
     });
+    const playgroundExpiry = '2030-01-01T00:30:00.000Z';
+    const playgroundClone = await server.inject({
+      method: 'POST',
+      url: '/v1/apps/app-1/credentials',
+      headers: { authorization: 'Bearer token' },
+      payload: {
+        sourceCredentialId: 'credential-1',
+        purpose: 'playground',
+        expiresAt: playgroundExpiry,
+      },
+    });
+    assert.equal(playgroundClone.statusCode, 201);
+    assert.deepEqual(calls[2], {
+      appId: 'app-1',
+      input: {
+        sourceCredentialId: 'credential-1',
+        purpose: 'playground',
+        expiresAt: new Date(playgroundExpiry),
+      },
+    });
     const missingProducts = await server.inject({
       method: 'POST',
       url: '/v1/apps/app-1/credentials',
@@ -275,7 +295,7 @@ describe('application management API', () => {
       payload: {},
     });
     assert.equal(missingProducts.statusCode, 400);
-    assert.equal(calls.length, 2);
+    assert.equal(calls.length, 3);
     await server.close();
   });
 

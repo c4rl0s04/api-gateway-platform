@@ -1,6 +1,7 @@
 import {
   AdminRole,
   AuthorizationStatus,
+  CredentialPurpose,
   Prisma,
   PublicKeyAlgorithm,
 } from './generated/index.js';
@@ -23,6 +24,7 @@ export type ApplicationManagementErrorCode =
   | 'invalid_status_transition'
   | 'consumer_key_conflict'
   | 'credential_clone_not_allowed'
+  | 'invalid_credential_expiration'
   | 'public_key_not_found'
   | 'public_key_conflict';
 
@@ -366,6 +368,8 @@ function normalizeManagedConsumerKey(value: string): string {
 export interface CloneManagedCredentialInput {
   appId: string;
   sourceCredentialId: string;
+  purpose?: CredentialPurpose;
+  expiresAt?: Date;
   actor: ApplicationMutationActor;
 }
 
@@ -376,6 +380,7 @@ export async function cloneManagedCredential(
   const consumerSecret = generateConsumerSecret();
   const consumerSecretHash = await hashConsumerSecret(consumerSecret);
   const credential = await prisma.$transaction(async transaction => {
+    const now = new Date();
     const app = await transaction.developerApp.findUnique({
       where: { id: input.appId },
       select: { id: true, organizationId: true, status: true },
@@ -409,6 +414,7 @@ export async function cloneManagedCredential(
       source.appId !== input.appId
       || source.status === AuthorizationStatus.revoked
       || app.status === AuthorizationStatus.revoked
+      || source.expiresAt !== null && source.expiresAt <= now
       || source.productGrants.length === 0
     ) {
       throw new ApplicationManagementError(
@@ -416,12 +422,20 @@ export async function cloneManagedCredential(
         'Only a non-revoked credential from the same app with approved grants can be cloned',
       );
     }
+    const purpose = input.purpose ?? CredentialPurpose.standard;
+    const expiresAt = resolveCloneExpiration({
+      purpose,
+      requestedExpiresAt: input.expiresAt,
+      sourceExpiresAt: source.expiresAt,
+      now,
+    });
     const created = await transaction.appCredential.create({
       data: {
         appId: input.appId,
         consumerKey,
         consumerSecretHash,
-        expiresAt: source.expiresAt,
+        purpose,
+        expiresAt,
         status: AuthorizationStatus.approved,
         productGrants: {
           create: source.productGrants.map(grant => ({
@@ -435,6 +449,7 @@ export async function cloneManagedCredential(
         id: true,
         appId: true,
         consumerKey: true,
+        purpose: true,
         status: true,
         issuedAt: true,
         expiresAt: true,
@@ -462,6 +477,8 @@ export async function cloneManagedCredential(
         metadata: {
           appId: input.appId,
           sourceCredentialId: source.id,
+          purpose,
+          expiresAt: expiresAt?.toISOString() ?? null,
           productIds: source.productGrants.map(grant => grant.productId),
         },
       },
@@ -469,6 +486,37 @@ export async function cloneManagedCredential(
     return created;
   });
   return { credential, consumerSecret };
+}
+
+function resolveCloneExpiration(input: {
+  purpose: CredentialPurpose;
+  requestedExpiresAt?: Date;
+  sourceExpiresAt: Date | null;
+  now: Date;
+}): Date | null {
+  if (input.purpose !== CredentialPurpose.playground) {
+    if (input.requestedExpiresAt !== undefined) {
+      throw new ApplicationManagementError(
+        'invalid_credential_expiration',
+        'A custom clone expiration is only supported for playground credentials',
+      );
+    }
+    return input.sourceExpiresAt;
+  }
+
+  const maximum = new Date(input.now.getTime() + 60 * 60 * 1000);
+  const latestAllowed = input.sourceExpiresAt !== null
+    && input.sourceExpiresAt < maximum
+    ? input.sourceExpiresAt
+    : maximum;
+  const expiresAt = input.requestedExpiresAt ?? latestAllowed;
+  if (expiresAt <= input.now || expiresAt > latestAllowed) {
+    throw new ApplicationManagementError(
+      'invalid_credential_expiration',
+      'Playground credentials must expire within one hour and before their source credential',
+    );
+  }
+  return expiresAt;
 }
 
 export interface RotateManagedConsumerSecretInput {

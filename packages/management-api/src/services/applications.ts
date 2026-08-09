@@ -1,6 +1,7 @@
 import {
   AdminRole,
   ApplicationManagementError,
+  CredentialPurpose,
   Prisma,
   cloneManagedCredential,
   createManagedCredential,
@@ -41,7 +42,8 @@ export type CreateCredentialInput =
     }
   | {
       sourceCredentialId: string;
-      expiresAt?: never;
+      purpose?: 'playground';
+      expiresAt?: Date;
       products?: never;
     };
 
@@ -138,6 +140,7 @@ const appSelection = {
     select: {
       id: true,
       consumerKey: true,
+      purpose: true,
       status: true,
       issuedAt: true,
       expiresAt: true,
@@ -285,6 +288,10 @@ export class ApplicationService implements ApplicationOperations {
       ? cloneManagedCredential({
           appId,
           sourceCredentialId: input.sourceCredentialId,
+          purpose: input.purpose === 'playground'
+            ? CredentialPurpose.playground
+            : CredentialPurpose.standard,
+          expiresAt: input.expiresAt,
           actor: mutationActor,
         })
       : createManagedCredential({ appId, ...input, actor: mutationActor });
@@ -297,6 +304,7 @@ export class ApplicationService implements ApplicationOperations {
         id: true,
         appId: true,
         consumerKey: true,
+        purpose: true,
         status: true,
         issuedAt: true,
         expiresAt: true,
