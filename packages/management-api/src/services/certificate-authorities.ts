@@ -18,7 +18,10 @@ import {
 import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import type { AdminPrincipal } from '../auth/authorization.js';
+import {
+  expectedOrganizationKind,
+  type AdminPrincipal,
+} from '../auth/authorization.js';
 import type { ManagementEnv } from '../config/env.js';
 
 export interface CreateManagedAuthorityInput {
@@ -36,7 +39,7 @@ export interface ImportExternalAuthorityInput {
 }
 
 export interface CertificateAuthorityOperations {
-  list(organizationId: string): Promise<unknown>;
+  list(organizationId: string, actor: AdminPrincipal): Promise<unknown>;
   createManaged(
     input: CreateManagedAuthorityInput,
     actor: AdminPrincipal,
@@ -77,9 +80,12 @@ implements CertificateAuthorityOperations {
     private readonly sdsTriggerFile: string,
   ) {}
 
-  list(organizationId: string) {
+  list(organizationId: string, actor: AdminPrincipal) {
     return prisma.certificateAuthority.findMany({
-      where: { organizationId },
+      where: {
+        organizationId,
+        organization: { kind: expectedOrganizationKind(actor) },
+      },
       orderBy: [{ status: 'asc' }, { name: 'asc' }],
       select: {
         id: true,
@@ -108,8 +114,11 @@ implements CertificateAuthorityOperations {
     input: CreateManagedAuthorityInput,
     actor: AdminPrincipal,
   ) {
-    await prisma.organization.findUniqueOrThrow({
-      where: { id: input.organizationId },
+    await prisma.organization.findFirstOrThrow({
+      where: {
+        id: input.organizationId,
+        kind: expectedOrganizationKind(actor),
+      },
       select: { id: true },
     });
     const id = randomUUID();
@@ -170,6 +179,13 @@ implements CertificateAuthorityOperations {
     input: ImportExternalAuthorityInput,
     actor: AdminPrincipal,
   ) {
+    await prisma.organization.findFirstOrThrow({
+      where: {
+        id: input.organizationId,
+        kind: expectedOrganizationKind(actor),
+      },
+      select: { id: true },
+    });
     const metadata = inspectCertificate(input.certificatePem);
     if (!metadata.isCertificateAuthority) {
       throw new Error('External certificate must be a certificate authority');
@@ -222,8 +238,8 @@ implements CertificateAuthorityOperations {
     status: 'active' | 'retiring' | 'revoked',
     actor: AdminPrincipal,
   ) {
-    const current = await prisma.certificateAuthority.findUniqueOrThrow({
-      where: { id },
+    const current = await prisma.certificateAuthority.findFirstOrThrow({
+      where: { id, organization: { kind: expectedOrganizationKind(actor) } },
     });
     if (
       status === 'active'
@@ -268,8 +284,8 @@ implements CertificateAuthorityOperations {
   }
 
   async rotate(id: string, actor: AdminPrincipal) {
-    const current = await prisma.certificateAuthority.findUniqueOrThrow({
-      where: { id },
+    const current = await prisma.certificateAuthority.findFirstOrThrow({
+      where: { id, organization: { kind: expectedOrganizationKind(actor) } },
     });
     if (current.kind !== CertificateAuthorityKind.managed) {
       throw new Error('Only managed authorities can be rotated by the platform');
@@ -286,8 +302,8 @@ implements CertificateAuthorityOperations {
   }
 
   async refreshCrl(id: string, actor: AdminPrincipal) {
-    const authority = await prisma.certificateAuthority.findUniqueOrThrow({
-      where: { id },
+    const authority = await prisma.certificateAuthority.findFirstOrThrow({
+      where: { id, organization: { kind: expectedOrganizationKind(actor) } },
       include: {
         certificates: {
           where: {
@@ -349,8 +365,8 @@ implements CertificateAuthorityOperations {
   }
 
   async uploadCrl(id: string, crlPem: string, actor: AdminPrincipal) {
-    const authority = await prisma.certificateAuthority.findUniqueOrThrow({
-      where: { id },
+    const authority = await prisma.certificateAuthority.findFirstOrThrow({
+      where: { id, organization: { kind: expectedOrganizationKind(actor) } },
     });
     if (authority.kind !== CertificateAuthorityKind.external) {
       throw new Error('Manual CRL upload is only valid for external authorities');

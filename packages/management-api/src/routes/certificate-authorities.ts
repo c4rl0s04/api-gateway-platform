@@ -44,7 +44,7 @@ export function registerCertificateAuthorityRoutes(
       )) {
         return reply.code(403).send({ error: 'forbidden' });
       }
-      return authorities.list(request.params.organizationId);
+      return authorities.list(request.params.organizationId, request.adminPrincipal);
     },
   );
   server.post<{

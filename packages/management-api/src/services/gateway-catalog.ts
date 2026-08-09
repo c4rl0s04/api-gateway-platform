@@ -76,7 +76,8 @@ const proxySummarySelection = {
 };
 
 export class GatewayCatalogService implements GatewayCatalogOperations {
-  listEnvironments(_actor: AdminPrincipal) {
+  listEnvironments(actor: AdminPrincipal) {
+    const lab = actor.context === 'lab';
     return prisma.environment.findMany({
       orderBy: [{ stage: 'asc' }, { region: 'asc' }],
       select: {
@@ -87,8 +88,14 @@ export class GatewayCatalogService implements GatewayCatalogOperations {
         createdAt: true,
         _count: {
           select: {
-            deployments: true,
-            products: true,
+            deployments: { where: { labWorkspaceId: lab ? { not: null } : null } },
+            products: {
+              where: {
+                organization: {
+                  kind: lab ? OrganizationKind.lab : OrganizationKind.standard,
+                },
+              },
+            },
           },
         },
       },
