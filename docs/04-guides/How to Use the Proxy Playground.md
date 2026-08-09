@@ -3,7 +3,7 @@ title: How to Use the Proxy Playground
 type: guide
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-08-09
+last_verified: 2026-08-10
 tags:
   - type/guide
   - area/admin-panel
@@ -58,8 +58,10 @@ material, execute it through Envoy and the gateway, and inspect the response.
    - JWT assertion: provide an assertion or connect `gatewayctl`, select a local
      RS256 identity, register its public JWK, and sign locally.
    - mTLS: connect `gatewayctl` to generate a CSR, issue and install the public
-     certificate, and execute from the client machine. The browser and BFF do
-     not receive the private key.
+     certificate, and execute from the client machine. For existing local
+     certificate files, expand `Use an existing certificate`, build and copy
+     the import command, run it locally, and refresh the identity selector. The
+     browser and BFF do not receive the private key.
 6. Review the live, redacted cURL in the Inspector before sending. Select
    `Send request`, then inspect the body, response headers, exact redacted
    request, timing, response size, and OAuth exchange timing when present.
@@ -110,6 +112,11 @@ clipboard.
 4. For JWT, register the public JWK and generate a 60-second assertion.
 5. For mTLS, submit the generated CSR, install the returned public certificate,
    and run the request through the agent.
+
+When the certificate and key already exist, the Playground's local certificate
+client provides an editable `keys add` command builder. It shell-quotes every
+value, keeps path values in browser memory, and refreshes only public identity
+metadata from the connected agent after the command runs.
 
 Use [[How to Connect Local Keys to the Playground]] for the full workflow and
 [[gatewayctl Reference]] for commands and configuration.

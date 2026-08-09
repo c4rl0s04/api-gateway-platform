@@ -69,7 +69,7 @@ aliases: []
 
 | Note | Documentation | Implementation | Verified |
 | --- | --- | --- | --- |
-| [[03-packages/admin-panel\|admin-panel]] | current | partial | 2026-08-09 |
+| [[03-packages/admin-panel\|admin-panel]] | current | partial | 2026-08-10 |
 | [[03-packages/database\|database]] | current | implemented | 2026-08-09 |
 | [[03-packages/gateway-core\|gateway-core]] | current | implemented | 2026-08-02 |
 | [[03-packages/gatewayctl\|gatewayctl]] | current | implemented | 2026-08-09 |
@@ -84,7 +84,7 @@ aliases: []
 | --- | --- | --- | --- |
 | [[04-guides/How to Add a New Proxy\|How to Add a New Proxy]] | current | implemented | 2026-08-07 |
 | [[04-guides/How to Configure Application Authentication\|How to Configure Application Authentication]] | current | implemented | 2026-08-02 |
-| [[04-guides/How to Connect Local Keys to the Playground\|How to Connect Local Keys to the Playground]] | current | implemented | 2026-08-09 |
+| [[04-guides/How to Connect Local Keys to the Playground\|How to Connect Local Keys to the Playground]] | current | implemented | 2026-08-10 |
 | [[04-guides/How to Document the Project\|How to Document the Project]] | current | not-applicable | 2026-07-27 |
 | [[04-guides/How to Import and Deploy a Proxy Revision\|How to Import and Deploy a Proxy Revision]] | current | implemented | 2026-08-02 |
 | [[04-guides/How to Learn the Gateway with the Lab\|How to Learn the Gateway with the Lab]] | current | implemented | 2026-08-09 |
@@ -94,7 +94,7 @@ aliases: []
 | [[04-guides/How to Start the Project\|How to Start the Project]] | current | implemented | 2026-08-06 |
 | [[04-guides/How to Use Prisma Studio\|How to Use Prisma Studio]] | current | implemented | 2026-08-06 |
 | [[04-guides/How to Use the Management API with Postman\|How to Use the Management API with Postman]] | current | implemented | 2026-08-02 |
-| [[04-guides/How to Use the Proxy Playground\|How to Use the Proxy Playground]] | current | implemented | 2026-08-09 |
+| [[04-guides/How to Use the Proxy Playground\|How to Use the Proxy Playground]] | current | implemented | 2026-08-10 |
 
 ## Decisions
 

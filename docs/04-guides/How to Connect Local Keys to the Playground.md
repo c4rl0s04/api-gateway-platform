@@ -3,7 +3,7 @@ title: How to Connect Local Keys to the Playground
 type: guide
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-08-09
+last_verified: 2026-08-10
 tags:
   - type/guide
   - area/security
@@ -96,6 +96,11 @@ Generate locally → Issue on platform → Install locally → Connect from agen
 
 ### mTLS with existing files
 
+Expand `Use an existing certificate` under `Local certificate client`. Enter
+the local identity name and key, certificate, and optional chain paths. The
+Playground builds the command locally and provides a copy action; those paths
+are not sent to the platform.
+
 ```bash
 npm run gatewayctl -- keys add \
   --name banking-mtls \
@@ -105,8 +110,11 @@ npm run gatewayctl -- keys add \
   --chain ./chain.crt
 ```
 
-The imported private key remains at its original path. Losing or moving that
-file makes the identity unusable until it is registered again.
+Run the copied command in a terminal, then select `Refresh local identities` in
+the Playground. The imported identity becomes available in the existing local
+identity selector without reconnecting the agent. The imported private key
+remains at its original path. Losing or moving that file makes the identity
+unusable until it is registered again.
 
 ## Verification
 

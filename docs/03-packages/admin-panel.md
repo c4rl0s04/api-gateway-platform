@@ -3,7 +3,7 @@ title: admin-panel
 type: package
 doc_status: current
 implementation_status: partial
-last_verified: 2026-08-09
+last_verified: 2026-08-10
 tags:
   - type/package
   - area/admin-panel
@@ -71,7 +71,10 @@ before execution. It supports API key, existing Bearer tokens, automatic
 Client Credentials and JWT Bearer exchanges, and direct execution of the
 managed OAuth token and JWKS operations. `gatewayctl` adds an origin-bound local
 client for assertion signing, CSR issuance, certificate installation, and mTLS
-execution because private client keys must never enter the browser or BFF.
+execution because private client keys must never enter the browser or BFF. For
+existing mTLS material, the Playground builds a shell-quoted local import
+command and refreshes the agent's public identity list after the operator runs
+it; the panel never submits the entered filesystem paths to the platform.
 
 The Personal Lab page provisions and reads an OIDC-owned workspace through the
 Lab BFF. It displays a runnable sample, a quick policy-aware executor, a
