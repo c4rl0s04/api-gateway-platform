@@ -1147,6 +1147,37 @@ try {
     throw new Error(`Lab mTLS certificate was not accepted: ${labMtlsStatus}`);
   }
 
+  // Local bootstrap may replace the runtime bundle while PostgreSQL retains
+  // active lab authorities. Management API must restore all active trust on startup.
+  await writeFile(
+    path.join(secrets, 'pki/trust-bundle.pem'),
+    await readFile(
+      path.join(secrets, 'pki/authorities/local-development/ca.crt'),
+      'utf8',
+    ),
+  );
+  await exec('docker', composeArguments('restart', 'management-api'), { cwd: root });
+  await waitForManagement(await currentPlatformAccessToken(true));
+  labMtlsStatus = '';
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    try {
+      const response = await gatewayCurl([
+        '--cert', labCertificateFile,
+        '--key', labClient.keyFile,
+        '--output', '/dev/null', '--write-out', '%{http_code}',
+        `${firstLabOrigin}/lab/banking/v1/certificate-profile`,
+      ]);
+      labMtlsStatus = response.stdout;
+      if (labMtlsStatus === '200') break;
+    } catch {
+      labMtlsStatus = '';
+    }
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+  if (labMtlsStatus !== '200') {
+    throw new Error(`Lab mTLS trust was not restored after restart: ${labMtlsStatus}`);
+  }
+
   const standardOrganizationsAfterLabs = await platformManagement('organizations');
   const standardProxiesAfterLabs = await platformManagement('proxies');
   if (

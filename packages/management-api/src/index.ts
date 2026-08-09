@@ -23,6 +23,7 @@ import { LabExampleService } from './services/lab-example.js';
 void (async () => {
   const config = loadEnv();
   const certificateAuthorities = await createCertificateAuthorityService(config);
+  await certificateAuthorities.publishRuntimeTrust();
   const masterKey = await loadOrCreateMasterKey(config.PKI_MASTER_KEY_FILE);
   const certificates = new CertificateService(
     new EncryptedFileKeyStore(config.PKI_KEYSTORE_DIR, masterKey),
