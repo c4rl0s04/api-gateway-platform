@@ -10,6 +10,7 @@ import {
 } from 'jose';
 import {
   oauthTokenPolicyConfigSchema,
+  DEVELOPER_TOKEN_GRANT_TYPE,
   type BasePolicyConfig,
 } from '@api-gateway/shared';
 import {
@@ -33,6 +34,17 @@ const OAUTH_HEADERS = {
 };
 
 class AssertionReplayError extends Error {}
+
+interface DeveloperGrant {
+  grantId: string;
+  subject: string;
+  organizationId: string;
+  environmentId: string;
+  productIds: string[];
+  proxyIds: string[];
+  scopes: string[];
+  ttlSeconds: number;
+}
 
 interface PublicKeyRecord {
   status: string;
@@ -168,6 +180,66 @@ function requestedScopes(form: URLSearchParams): string[] {
   return uniqueValues((form.get('scope') ?? '').split(/\s+/).filter(Boolean));
 }
 
+function stringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.length > 0
+    && value.every(item => typeof item === 'string' && item.length > 0);
+}
+
+async function authenticateDeveloperGrant(
+  assertion: string,
+  tokenEndpointAudience: string,
+  environmentId: string,
+  dependencies: OAuthTokenPolicyDependencies,
+): Promise<DeveloperGrant | null> {
+  const runtime = getOAuthRuntime();
+  if (!runtime.developerTokenIssuanceKey) return null;
+  let payload: JWTPayload;
+  try {
+    ({ payload } = await jwtVerify(assertion, runtime.developerTokenIssuanceKey, {
+      algorithms: ['HS256'],
+      issuer: 'management-api',
+      audience: tokenEndpointAudience,
+      requiredClaims: ['sub', 'iat', 'nbf', 'exp', 'jti'],
+      clockTolerance: 3,
+    }));
+  } catch {
+    return null;
+  }
+  const now = Math.floor(Date.now() / 1000);
+  if (
+    typeof payload.sub !== 'string'
+    || typeof payload.jti !== 'string'
+    || typeof payload.iat !== 'number'
+    || typeof payload.exp !== 'number'
+    || payload.exp - payload.iat > 30
+    || payload.iat > now + 3
+    || payload.environment_id !== environmentId
+    || typeof payload.organization_id !== 'string'
+    || payload.developer_subject !== payload.sub
+    || !stringArray(payload.product_ids)
+    || !stringArray(payload.proxy_ids)
+    || typeof payload.scope !== 'string'
+    || typeof payload.ttl_seconds !== 'number'
+    || !Number.isInteger(payload.ttl_seconds)
+    || payload.ttl_seconds < 60
+    || payload.ttl_seconds > 900
+  ) return null;
+  const replayTtl = Math.max(1, payload.exp - now);
+  if (!await dependencies.consumeAssertion('developer-token', payload.jti, replayTtl)) {
+    throw new AssertionReplayError('Developer grant replay detected');
+  }
+  return {
+    grantId: payload.jti,
+    subject: payload.sub,
+    organizationId: payload.organization_id,
+    environmentId,
+    productIds: payload.product_ids,
+    proxyIds: payload.proxy_ids,
+    scopes: uniqueValues(payload.scope.split(/\s+/).filter(Boolean)),
+    ttlSeconds: payload.ttl_seconds,
+  };
+}
+
 export function createOAuthTokenPolicyWithDependencies(
   rawConfig: BasePolicyConfig,
   dependencies: OAuthTokenPolicyDependencies,
@@ -194,6 +266,8 @@ export function createOAuthTokenPolicyWithDependencies(
     }
 
     let credential: CredentialRecord | null = null;
+    let developerGrant: DeveloperGrant | null = null;
+    const tokenEndpointAudience = `${ctx.proxy.runtimePublicOrigin ?? ctx.proxy.environment.publicOrigin}/oauth/token`;
     try {
       if (grantType === 'client_credentials') {
         const authorization = ctx.req.headers.authorization;
@@ -216,10 +290,27 @@ export function createOAuthTokenPolicyWithDependencies(
         if (!assertion) return oauthError(400, 'invalid_request', 'assertion is required');
         credential = await authenticateJwtAssertion(
           assertion,
-          `${ctx.proxy.runtimePublicOrigin ?? ctx.proxy.environment.publicOrigin}/oauth/token`,
+          tokenEndpointAudience,
           dependencies,
         );
         if (!credential) return oauthError(400, 'invalid_grant', 'JWT assertion is invalid');
+      } else if (grantType === DEVELOPER_TOKEN_GRANT_TYPE) {
+        const assertion = form.get('developer_assertion');
+        if (!assertion) {
+          return oauthError(400, 'invalid_request', 'developer_assertion is required');
+        }
+        if (ctx.proxy.workspaceId) {
+          return oauthError(400, 'invalid_grant', 'Developer tokens are unavailable in lab workspaces');
+        }
+        developerGrant = await authenticateDeveloperGrant(
+          assertion,
+          tokenEndpointAudience,
+          ctx.proxy.environment.id,
+          dependencies,
+        );
+        if (!developerGrant) {
+          return oauthError(400, 'invalid_grant', 'Developer authorization is invalid');
+        }
       }
     } catch (error) {
       ctx.req.log.error({ err: error, policyType: 'oauth-token' }, 'OAuth grant validation failed');
@@ -227,6 +318,42 @@ export function createOAuthTokenPolicyWithDependencies(
         return oauthError(400, 'invalid_grant', 'JWT assertion is invalid or has already been used');
       }
       return oauthError(503, 'server_error', 'Authorization service is temporarily unavailable');
+    }
+
+    if (developerGrant) {
+      const scopes = developerGrant.scopes;
+      if (scopes.length === 0
+        || scopes.some(scope => config.allowedScopes.length > 0
+          && !config.allowedScopes.includes(scope))) {
+        return oauthError(400, 'invalid_scope', 'One or more requested scopes are not allowed');
+      }
+      const now = Math.floor(Date.now() / 1000);
+      const runtime = getOAuthRuntime();
+      const token = await new SignJWT({
+        token_kind: 'developer',
+        client_id: developerGrant.subject,
+        credential_id: developerGrant.grantId,
+        organization_id: developerGrant.organizationId,
+        environment_id: developerGrant.environmentId,
+        product_ids: developerGrant.productIds,
+        proxy_ids: developerGrant.proxyIds,
+        scope: scopes.join(' '),
+      })
+        .setProtectedHeader({ alg: 'RS256', kid: runtime.signingKeyId, typ: 'JWT' })
+        .setIssuer(ctx.proxy.environment.publicOrigin)
+        .setSubject(developerGrant.subject)
+        .setAudience(config.audience)
+        .setIssuedAt(now)
+        .setNotBefore(now)
+        .setExpirationTime(now + developerGrant.ttlSeconds)
+        .setJti(randomUUID())
+        .sign(runtime.signingKey);
+      return respond(200, {
+        access_token: token,
+        token_type: 'Bearer',
+        expires_in: developerGrant.ttlSeconds,
+        scope: scopes.join(' '),
+      }, OAUTH_HEADERS);
     }
 
     if (!credential) return oauthError(401, 'invalid_client', 'Client authentication failed');
@@ -249,8 +376,10 @@ export function createOAuthTokenPolicyWithDependencies(
     const now = Math.floor(Date.now() / 1000);
     const runtime = getOAuthRuntime();
     const token = await new SignJWT({
+      token_kind: 'application',
       client_id: credential.consumerKey,
       credential_id: credential.id,
+      organization_id: credential.app.organizationId,
       environment_id: ctx.proxy.environment.id,
       product_ids: products.map(product => product.id),
       proxy_ids: uniqueValues(products.flatMap(product => product.proxyIds)),

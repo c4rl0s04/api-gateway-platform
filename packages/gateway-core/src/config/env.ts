@@ -41,12 +41,14 @@ export const envSchema = z.object({
   GATEWAY_ENVIRONMENT_ALLOWLIST: environmentAllowlistSchema,
   OAUTH_SIGNING_PRIVATE_KEY_BASE64: z.string().trim().min(1).optional(),
   OAUTH_SIGNING_KEY_ID: z.string().trim().min(1).optional(),
+  DEVELOPER_TOKEN_ISSUANCE_SECRET: z.string().trim().min(32).optional(),
   MTLS_TRUSTED_PROXY_CIDRS: z.string().trim().min(1).optional(),
 }).superRefine((value, context) => {
   if (value.NODE_ENV !== 'test') {
     const required = [
       'OAUTH_SIGNING_PRIVATE_KEY_BASE64',
       'OAUTH_SIGNING_KEY_ID',
+      'DEVELOPER_TOKEN_ISSUANCE_SECRET',
       'MTLS_TRUSTED_PROXY_CIDRS',
     ] as const;
     for (const key of required) {

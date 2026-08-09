@@ -61,6 +61,7 @@ describe('gateway environment', () => {
       GATEWAY_ENVIRONMENT_ALLOWLIST: 'env-qual-es, env-prod-es',
       OAUTH_SIGNING_PRIVATE_KEY_BASE64: 'placeholder',
       OAUTH_SIGNING_KEY_ID: 'gateway-1',
+      DEVELOPER_TOKEN_ISSUANCE_SECRET: 'developer-test-secret-0123456789abcdef',
       MTLS_TRUSTED_PROXY_CIDRS: '10.0.0.0/8',
     });
 

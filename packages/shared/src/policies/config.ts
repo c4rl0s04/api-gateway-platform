@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DEVELOPER_TOKEN_GRANT_TYPE } from '../auth/developer-tokens';
 
 export const POLICY_TYPES = [
   'api-key-auth',
@@ -38,6 +39,7 @@ export const rateLimitPolicyConfigSchema = basePolicyConfigSchema.extend({
 export const OAUTH_GRANT_TYPES = [
   'client_credentials',
   'urn:ietf:params:oauth:grant-type:jwt-bearer',
+  DEVELOPER_TOKEN_GRANT_TYPE,
 ] as const;
 
 export const oauthTokenPolicyConfigSchema = basePolicyConfigSchema.extend({

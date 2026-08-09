@@ -8,6 +8,7 @@ export interface OAuthRuntime {
   signingKey: Awaited<ReturnType<typeof importPKCS8>>;
   verificationKey: Awaited<ReturnType<typeof importJWK>>;
   publicJwk: JWK;
+  developerTokenIssuanceKey?: Uint8Array;
   trustedProxyCidrs: Array<[ipaddr.IPv4 | ipaddr.IPv6, number]>;
 }
 
@@ -48,6 +49,9 @@ export async function configureOAuthRuntime(config: GatewayEnv): Promise<void> {
     signingKey,
     verificationKey: await importJWK(publicJwk, 'RS256'),
     publicJwk,
+    ...(config.DEVELOPER_TOKEN_ISSUANCE_SECRET
+      ? { developerTokenIssuanceKey: new TextEncoder().encode(config.DEVELOPER_TOKEN_ISSUANCE_SECRET) }
+      : {}),
     trustedProxyCidrs,
   };
 }

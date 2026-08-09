@@ -164,6 +164,7 @@ export const PROXY_SEED_SCENARIOS: ProxySeedScenario[] = [
                 grantTypes: [
                   'client_credentials',
                   'urn:ietf:params:oauth:grant-type:jwt-bearer',
+                  'urn:api-gateway:params:oauth:grant-type:developer-token',
                 ],
                 accessTokenTtlSeconds: 900,
                 audience: 'api-gateway',

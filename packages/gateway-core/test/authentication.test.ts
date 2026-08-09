@@ -24,6 +24,7 @@ const AUTH_ENV: GatewayEnv = {
   ...TEST_ENV,
   OAUTH_SIGNING_PRIVATE_KEY_BASE64: Buffer.from(gatewayPrivatePem).toString('base64'),
   OAUTH_SIGNING_KEY_ID: 'gateway-test-1',
+  DEVELOPER_TOKEN_ISSUANCE_SECRET: 'developer-test-secret-0123456789abcdef',
   MTLS_TRUSTED_PROXY_CIDRS: '127.0.0.0/8,10.0.0.0/8',
 };
 const ENVIRONMENT_ORIGIN = 'https://qual-es.gateway.localhost:8443';
@@ -59,6 +60,7 @@ const tokenConfig = {
   grantTypes: [
     'client_credentials' as const,
     'urn:ietf:params:oauth:grant-type:jwt-bearer' as const,
+    'urn:api-gateway:params:oauth:grant-type:developer-token' as const,
   ],
   accessTokenTtlSeconds: 900,
   audience: 'api-gateway',
@@ -229,6 +231,66 @@ describe('OAuth token issuance and verification', () => {
     );
   });
 
+  it('exchanges a one-time management authorization for a multi-proxy developer token', async () => {
+    const now = Math.floor(Date.now() / 1000);
+    const developerAssertion = await new SignJWT({
+      organization_id: 'org-test',
+      environment_id: 'env-qual-es',
+      product_ids: ['product-1'],
+      proxy_ids: ['proxy-test', 'proxy-payments'],
+      scope: 'accounts:read',
+      ttl_seconds: 600,
+      developer_subject: 'developer:subject-1',
+    })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuer('management-api')
+      .setSubject('developer:subject-1')
+      .setAudience(TOKEN_ENDPOINT_AUDIENCE)
+      .setIssuedAt(now)
+      .setNotBefore(now)
+      .setExpirationTime(now + 30)
+      .setJti('developer-grant-1')
+      .sign(new TextEncoder().encode(AUTH_ENV.DEVELOPER_TOKEN_ISSUANCE_SECRET!));
+    let consumed = false;
+    const policy = createOAuthTokenPolicyWithDependencies(tokenConfig, {
+      findCredential: async () => null,
+      verifySecret: async () => false,
+      findPublicKey: async () => null,
+      consumeAssertion: async (_subject, jti) => {
+        assert.equal(jti, 'developer-grant-1');
+        if (consumed) return false;
+        consumed = true;
+        return true;
+      },
+    });
+    const execute = () => {
+      const { context } = createPolicyContext({
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      });
+      context.endpoint.mode = 'local';
+      context.req.body = Buffer.from(new URLSearchParams({
+        grant_type: 'urn:api-gateway:params:oauth:grant-type:developer-token',
+        developer_assertion: developerAssertion,
+      }).toString());
+      return policy(context);
+    };
+    const result = await execute();
+    assert.equal(result.action, 'respond');
+    if (result.action !== 'respond') return;
+    const verified = await jwtVerify(
+      (result.body as { access_token: string }).access_token,
+      gatewayPair.publicKey,
+      { issuer: ENVIRONMENT_ORIGIN, audience: 'api-gateway', algorithms: ['RS256'] },
+    );
+    assert.equal(verified.payload.token_kind, 'developer');
+    assert.equal(verified.payload.organization_id, 'org-test');
+    assert.deepEqual(verified.payload.proxy_ids, ['proxy-test', 'proxy-payments']);
+    assert.equal(verified.payload.exp! - verified.payload.iat!, 600);
+
+    const replay = await execute();
+    assert.equal(replay.action === 'respond' && replay.statusCode, 400);
+  });
+
   it('returns OAuth server_error when credential storage is unavailable', async () => {
     const policy = createOAuthTokenPolicyWithDependencies(tokenConfig, {
       findCredential: async () => { throw new Error('database unavailable'); },
@@ -299,6 +361,40 @@ describe('OAuth token issuance and verification', () => {
       wrongEnvironment.action === 'halt' && wrongEnvironment.statusCode,
       401,
     );
+  });
+
+  it('restricts developer tokens to the proxy organization', async () => {
+    const privateKey = await importPKCS8(gatewayPrivatePem, 'RS256');
+    const now = Math.floor(Date.now() / 1000);
+    const token = await new SignJWT({
+      token_kind: 'developer',
+      client_id: 'developer:subject-1',
+      credential_id: 'grant-1',
+      organization_id: 'org-other',
+      environment_id: 'env-qual-es',
+      product_ids: ['product-1'],
+      proxy_ids: ['proxy-test'],
+      scope: 'accounts:read',
+    })
+      .setProtectedHeader({ alg: 'RS256', kid: 'gateway-test-1' })
+      .setIssuer(ENVIRONMENT_ORIGIN)
+      .setSubject('developer:subject-1')
+      .setAudience('api-gateway')
+      .setIssuedAt(now)
+      .setNotBefore(now)
+      .setExpirationTime(now + 300)
+      .setJti('developer-token-1')
+      .sign(privateKey);
+    const policy = createOAuthAccessTokenPolicy({
+      audience: 'api-gateway',
+      requiredScopes: ['accounts:read'],
+      failureMode: 'closed',
+    });
+    const { context } = createPolicyContext({
+      headers: { authorization: `Bearer ${token}` },
+    });
+    const result = await policy(context);
+    assert.equal(result.action === 'halt' && result.statusCode, 403);
   });
 
   it('rejects access tokens with invalid issuer, audience, or expiration', async () => {

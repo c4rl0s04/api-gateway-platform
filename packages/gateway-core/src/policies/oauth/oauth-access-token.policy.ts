@@ -27,12 +27,17 @@ export const createOAuthAccessTokenPolicy: PolicyFactory = (
         requiredClaims: ['sub', 'iat', 'nbf', 'exp', 'jti'],
       });
       const claims = verified.payload;
+      const developerToken = claims.token_kind === 'developer';
       if (
         verified.protectedHeader.kid !== runtime.signingKeyId
         ||
         typeof claims.sub !== 'string'
         || typeof claims.client_id !== 'string'
         || typeof claims.credential_id !== 'string'
+        || (developerToken && claims.organization_id !== ctx.proxy.organizationId)
+        || (!developerToken
+          && claims.token_kind !== undefined
+          && claims.token_kind !== 'application')
         || claims.environment_id !== ctx.proxy.environment.id
         || (ctx.proxy.workspaceId
           ? claims.workspace_id !== ctx.proxy.workspaceId
