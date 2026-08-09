@@ -51,4 +51,58 @@ describe('lab certificate routes', () => {
     assert.equal(invalid.statusCode, 400);
     await server.close();
   });
+
+  it('lists, downloads, and revokes only through the lab certificate surface', async () => {
+    const calls: Array<{ action: string; args: unknown[] }> = [];
+    const certificates: LabCertificateOperations = {
+      list: async (...args) => {
+        calls.push({ action: 'list', args });
+        return [{ id: 'certificate-1', status: 'approved' }];
+      },
+      issue: async () => ({ id: 'certificate-1' }),
+      download: async (...args) => {
+        calls.push({ action: 'download', args });
+        return { certificatePem: 'public-certificate', chainPem: null };
+      },
+      revoke: async (...args) => {
+        calls.push({ action: 'revoke', args });
+        return { id: 'certificate-1', status: 'revoked' };
+      },
+    };
+    const server = buildServer({
+      config,
+      logger: false,
+      verifier: { verify: async () => ({ issuer: config.OIDC_ISSUER, subject: 'owner', claims: {} }) },
+      labCertificates: certificates,
+    });
+    const headers = { authorization: 'Bearer token' };
+
+    const listed = await server.inject({ method: 'GET', url: '/lab/v1/certificates', headers });
+    const downloaded = await server.inject({
+      method: 'GET',
+      url: '/lab/v1/certificates/certificate-1/download',
+      headers,
+    });
+    const revoked = await server.inject({
+      method: 'POST',
+      url: '/lab/v1/certificates/certificate-1/revoke',
+      headers,
+      payload: { reason: 'cessationOfOperation' },
+    });
+
+    assert.equal(listed.statusCode, 200);
+    assert.equal(downloaded.statusCode, 200);
+    assert.equal(revoked.statusCode, 200);
+    assert.deepEqual(calls.map(call => call.action), ['list', 'download', 'revoke']);
+    assert.equal(calls[1]?.args[0], 'certificate-1');
+    assert.deepEqual(calls[2]?.args.slice(0, 2), [
+      'certificate-1',
+      'cessationOfOperation',
+    ]);
+    assert.deepEqual(calls[2]?.args[2], {
+      issuer: config.OIDC_ISSUER,
+      subject: 'owner',
+    });
+    await server.close();
+  });
 });
