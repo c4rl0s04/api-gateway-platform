@@ -52,6 +52,20 @@ export function safeResponseHeaders(
     && name.toLowerCase() !== 'content-length')) as Record<string, string | string[]>;
 }
 
+export function withoutRequestBodyHeaders(
+  headers: Record<string, string | string[]>,
+): Record<string, string | string[]> {
+  const entityHeaders = new Set([
+    'content-encoding',
+    'content-language',
+    'content-length',
+    'content-type',
+  ]);
+  return Object.fromEntries(Object.entries(headers).filter(
+    ([name]) => !entityHeaders.has(name.toLowerCase()),
+  ));
+}
+
 export function buildPublicTarget(base: string, requestPath: string): URL {
   const target = new URL(base);
   const incoming = new URL(requestPath, 'http://lab-egress.local');

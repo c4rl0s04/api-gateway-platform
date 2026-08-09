@@ -5,6 +5,7 @@ import {
   isPublicAddress,
   safeRequestHeaders,
   safeResponseHeaders,
+  withoutRequestBodyHeaders,
 } from '../src/security.js';
 
 describe('lab egress security', () => {
@@ -31,5 +32,14 @@ describe('lab egress security', () => {
       buildPublicTarget('https://api.example.com/v1', '/accounts/1?expand=true').toString(),
       'https://api.example.com/v1/accounts/1?expand=true',
     );
+  });
+
+  it('removes entity headers when a redirect changes the request to GET', () => {
+    assert.deepEqual(withoutRequestBodyHeaders({
+      accept: 'application/json',
+      'content-length': '24',
+      'content-type': 'application/json',
+      'content-encoding': 'gzip',
+    }), { accept: 'application/json' });
   });
 });

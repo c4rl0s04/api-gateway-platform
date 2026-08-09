@@ -7,6 +7,7 @@ import {
   isPublicAddress,
   safeRequestHeaders,
   safeResponseHeaders,
+  withoutRequestBodyHeaders,
 } from './security.js';
 
 const REQUEST_LIMIT = 256 * 1024;
@@ -75,6 +76,7 @@ async function executePublicRequest(input: {
   let target = input.target;
   let method = input.method;
   let body = input.body;
+  let headers = input.headers;
   for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects += 1) {
     if (target.protocol !== 'https:' || (target.port && target.port !== '443')) {
       throw Object.assign(new Error('Redirect target is not public HTTPS'), {
@@ -86,7 +88,7 @@ async function executePublicRequest(input: {
       const response = await undiciRequest(target, {
         dispatcher,
         method: method as Dispatcher.HttpMethod,
-        headers: input.headers,
+        headers,
         body: method === 'GET' || method === 'HEAD' ? null : body,
         headersTimeout: REQUEST_TIMEOUT_MS,
         bodyTimeout: REQUEST_TIMEOUT_MS,
@@ -105,6 +107,7 @@ async function executePublicRequest(input: {
           || ((response.statusCode === 301 || response.statusCode === 302) && method === 'POST')) {
           method = 'GET';
           body = null;
+          headers = withoutRequestBodyHeaders(headers);
         }
         continue;
       }
