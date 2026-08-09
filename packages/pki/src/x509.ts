@@ -175,6 +175,23 @@ async function validateCsr(csrPath: string): Promise<void> {
   throw new Error('CSR key must use RSA, P-256, or P-384');
 }
 
+function validateClientPublicKey(key: ReturnType<typeof createPublicKey>): void {
+  if (key.asymmetricKeyType === 'rsa') {
+    if ((key.asymmetricKeyDetails?.modulusLength ?? 0) < 2_048) {
+      throw new Error('Client certificate RSA key must contain at least 2048 bits');
+    }
+    return;
+  }
+  if (key.asymmetricKeyType === 'ec') {
+    const curve = key.asymmetricKeyDetails?.namedCurve;
+    if (!['prime256v1', 'secp384r1'].includes(curve ?? '')) {
+      throw new Error('Client certificate EC key must use P-256 or P-384');
+    }
+    return;
+  }
+  throw new Error('Client certificate key must use RSA, P-256, or P-384');
+}
+
 export async function issueClientCertificate(input: {
   csrPem: string;
   authorityCertificatePem: string;
@@ -314,6 +331,7 @@ export async function validateExternalClientCertificate(input: {
   certificatePem: string;
   authorityCertificatePem: string;
   chainPem?: string | null;
+  crlPem?: string | null;
 }): Promise<CertificateMetadata> {
   return withTemporaryDirectory(async (directory) => {
     const certificatePath = path.join(directory, 'client.crt');
@@ -328,6 +346,11 @@ export async function validateExternalClientCertificate(input: {
       await writeFile(chainPath, input.chainPem, { mode: 0o600 });
       args.push('-untrusted', chainPath);
     }
+    if (input.crlPem) {
+      const crlPath = path.join(directory, 'authority.crl');
+      await writeFile(crlPath, input.crlPem, { mode: 0o600 });
+      args.push('-CRLfile', crlPath, '-crl_check');
+    }
     args.push(certificatePath);
     await runOpenSsl(args);
 
@@ -336,6 +359,7 @@ export async function validateExternalClientCertificate(input: {
       throw new Error('Client certificate cannot be a CA');
     }
     const certificate = new X509Certificate(input.certificatePem);
+    validateClientPublicKey(certificate.publicKey);
     const usages = certificate.keyUsage ?? [];
     if (!usages.includes(CLIENT_AUTH_OID)) {
       throw new Error('Certificate must allow TLS client authentication');

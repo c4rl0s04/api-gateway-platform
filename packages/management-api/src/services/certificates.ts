@@ -278,6 +278,7 @@ export class CertificateService implements CertificateOperations {
       certificatePem: input.certificatePem,
       authorityCertificatePem: authority.certificatePem,
       chainPem: input.chainPem,
+      crlPem: authority.crlPem,
     });
     return prisma.$transaction(async transaction => {
       const certificate = await transaction.appCertificate.create({

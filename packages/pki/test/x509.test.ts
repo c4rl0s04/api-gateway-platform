@@ -7,6 +7,7 @@ import {
   issueServerCertificate,
   validateExternalClientCertificate,
 } from '../src/x509.js';
+import { generateCertificateRevocationList } from '../src/trust.js';
 
 describe('X.509 certificate lifecycle', () => {
   it('supports short-lived internal certificate authorities', async () => {
@@ -151,6 +152,37 @@ describe('X.509 certificate lifecycle', () => {
     await assert.rejects(() => validateExternalClientCertificate({
       certificatePem: certificate.certificatePem,
       authorityCertificatePem: second.certificatePem,
+    }));
+  });
+
+  it('rejects an externally registered certificate present in the authority CRL', async () => {
+    const authority = await createManagedAuthority({
+      commonName: 'registration-crl-authority',
+      validityDays: 365,
+    });
+    const request = await createClientCertificateRequest({ credentialId: 'revoked-client' });
+    const certificate = await issueClientCertificate({
+      csrPem: request.csrPem,
+      authorityCertificatePem: authority.certificatePem,
+      authorityPrivateKeyPem: authority.privateKeyPem,
+      organizationId: 'organization-one',
+      appId: 'application-one',
+      credentialId: 'revoked-client',
+    });
+    const crl = await generateCertificateRevocationList({
+      authorityCertificatePem: authority.certificatePem,
+      authorityPrivateKeyPem: authority.privateKeyPem,
+      revokedCertificates: [{
+        serialNumber: certificate.serialNumber,
+        expiresAt: certificate.expiresAt,
+        revokedAt: new Date(),
+        reason: 'keyCompromise',
+      }],
+    });
+    await assert.rejects(() => validateExternalClientCertificate({
+      certificatePem: certificate.certificatePem,
+      authorityCertificatePem: authority.certificatePem,
+      crlPem: crl.pem,
     }));
   });
 });
