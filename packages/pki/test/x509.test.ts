@@ -79,6 +79,30 @@ describe('X.509 certificate lifecycle', () => {
     assert.equal(certificate.isCertificateAuthority, false);
   });
 
+  it('allows only a left-most wildcard in server DNS names', async () => {
+    const authority = await createManagedAuthority({ commonName: 'wildcard-test' });
+    const request = await createClientCertificateRequest({ credentialId: 'server-test' });
+    const certificate = await issueServerCertificate({
+      csrPem: request.csrPem,
+      authorityCertificatePem: authority.certificatePem,
+      authorityPrivateKeyPem: authority.privateKeyPem,
+      dnsNames: ['*.lab.gateway.localhost'],
+      validityDays: 1,
+    });
+    assert.ok(certificate.certificatePem.includes('BEGIN CERTIFICATE'));
+
+    await assert.rejects(
+      () => issueServerCertificate({
+        csrPem: request.csrPem,
+        authorityCertificatePem: authority.certificatePem,
+        authorityPrivateKeyPem: authority.privateKeyPem,
+        dnsNames: ['lab.*.gateway.localhost'],
+        validityDays: 1,
+      }),
+      /DNS name contains unsupported characters/,
+    );
+  });
+
   it('rejects invalid validity periods and untrusted certificates', async () => {
     const first = await createManagedAuthority({
       commonName: 'first-authority',

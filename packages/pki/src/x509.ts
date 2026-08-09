@@ -33,6 +33,17 @@ function safeIdentifier(value: string, label: string): string {
   return value;
 }
 
+function safeDnsName(value: string): string {
+  if (value.startsWith('*.')) {
+    const suffix = value.slice(2);
+    if (!suffix.includes('.') || !SAFE_IDENTIFIER.test(suffix)) {
+      throw new Error('DNS name contains unsupported characters');
+    }
+    return value;
+  }
+  return safeIdentifier(value, 'DNS name');
+}
+
 function certificateMetadata(certificatePem: string): CertificateMetadata {
   const certificate = new X509Certificate(certificatePem);
   return {
@@ -237,7 +248,7 @@ export async function issueServerCertificate(input: {
   if (!Number.isInteger(validityDays) || validityDays < 1 || validityDays > 825) {
     throw new Error('Server certificate validityDays must be between 1 and 825');
   }
-  const dnsNames = input.dnsNames.map(name => safeIdentifier(name, 'DNS name'));
+  const dnsNames = input.dnsNames.map(safeDnsName);
   const ipAddresses = input.ipAddresses ?? [];
   for (const address of ipAddresses) {
     if (!/^[0-9a-fA-F:.]+$/.test(address)) {
