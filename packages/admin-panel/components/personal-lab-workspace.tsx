@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LabApiError, labFetch } from '@/lib/lab-api';
+import { LabQuickPlayground } from '@/components/lab-quick-playground';
 
 interface LabWorkspaceRecord {
   id: string;
@@ -237,6 +238,14 @@ export function PersonalLabWorkspace() {
           <FlowNode label="Application" items={inventory.apps.map(item => ({ id: item.id, name: item.name, detail: item.credentials[0]?.consumerKey ?? 'No credential' }))} />
         </div>
       </section>
+
+      <LabQuickPlayground
+        hostname={workspace.hostname}
+        proxies={inventory.proxies}
+        applications={inventory.apps}
+        consumerSecret={consumerSecret}
+        onConsumerSecret={setConsumerSecret}
+      />
     </div>
   );
 }
