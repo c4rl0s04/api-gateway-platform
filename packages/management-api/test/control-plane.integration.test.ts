@@ -100,7 +100,12 @@ integration('management control-plane persistence', () => {
       gatewayConfigSource: JSON.stringify({
         apiVersion: 'gateway.platform/v1',
         basePath,
-        defaults: { policies: [] },
+        defaults: {
+          policies: [{
+            type: 'api-key-auth',
+            config: { header: 'x-api-key', failureMode: 'closed' },
+          }],
+        },
         operations: { getResource: { targetPath: '/health' } },
       }),
     }, actor) as { revisionNumber: number };
