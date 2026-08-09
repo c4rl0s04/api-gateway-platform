@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 
 import { execFile } from 'node:child_process';
-import { generateKeyPairSync } from 'node:crypto';
+import { generateKeyPairSync, randomUUID } from 'node:crypto';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { generateClientKeyAndCsr } from '../packages/pki/dist/index.js';
+import { SignJWT } from 'jose';
 
 const exec = promisify(execFile);
 const root = path.resolve(import.meta.dirname, '..');
@@ -124,6 +125,29 @@ async function ensureTestClient(adminToken) {
   });
 }
 
+async function ensureLabUser(adminToken, username, password) {
+  const headers = { authorization: `Bearer ${adminToken}` };
+  const existing = await request(
+    `${keycloakBaseUrl}/admin/realms/api-gateway/users?username=${encodeURIComponent(username)}&exact=true`,
+    { headers },
+  );
+  if (existing.length > 0) return;
+  await request(`${keycloakBaseUrl}/admin/realms/api-gateway/users`, {
+    method: 'POST',
+    headers: { ...headers, 'content-type': 'application/json' },
+    body: JSON.stringify({
+      username,
+      email: `${username}@gateway.localhost`,
+      firstName: 'Lab',
+      lastName: 'User',
+      enabled: true,
+      emailVerified: true,
+      requiredActions: [],
+      credentials: [{ type: 'password', value: password, temporary: false }],
+    }),
+  });
+}
+
 async function management(token, route, options = {}) {
   const multipartBody = typeof FormData !== 'undefined' && options.body instanceof FormData;
   return request(`${adminPanelBaseUrl}/api/management/${route}`, {
@@ -144,6 +168,18 @@ async function playground(token, input) {
       'content-type': 'application/json',
     },
     body: JSON.stringify(input),
+  });
+}
+
+async function lab(token, route, options = {}) {
+  const multipartBody = typeof FormData !== 'undefined' && options.body instanceof FormData;
+  return request(`${adminPanelBaseUrl}/api/lab/${route}`, {
+    ...options,
+    headers: {
+      authorization: `Bearer ${token}`,
+      ...(options.body && !multipartBody ? { 'content-type': 'application/json' } : {}),
+      ...options.headers,
+    },
   });
 }
 
@@ -197,6 +233,15 @@ async function gatewayCurl(arguments_) {
 }
 
 async function oauthClientCredentials(consumerKey, consumerSecret, scope) {
+  return oauthClientCredentialsAt(
+    qualEsGatewayOrigin,
+    consumerKey,
+    consumerSecret,
+    scope,
+  );
+}
+
+async function oauthClientCredentialsAt(origin, consumerKey, consumerSecret, scope) {
   const result = await gatewayCurl([
     '--user',
     `${consumerKey}:${consumerSecret}`,
@@ -206,7 +251,7 @@ async function oauthClientCredentials(consumerKey, consumerSecret, scope) {
     `grant_type=client_credentials&scope=${encodeURIComponent(scope)}`,
     '--write-out',
     '\n%{http_code}',
-    `${qualEsGatewayOrigin}/oauth/token`,
+    `${origin}/oauth/token`,
   ]);
   const lines = result.stdout.trimEnd().split('\n');
   const status = lines.pop();
@@ -250,6 +295,18 @@ try {
   };
   const platformManagement = async (route, options) =>
     management(await currentPlatformAccessToken(), route, options);
+  const waitForConfigVersion = async (version, attempts = 80) => {
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      const status = await platformManagement('runtime-sync');
+      const gateway = status.gateways.find(candidate =>
+        candidate.instanceId === gatewayInstanceId);
+      if (gateway?.state === 'applied' && gateway.appliedVersion >= version) {
+        return status;
+      }
+      await new Promise(resolve => setTimeout(resolve, 250));
+    }
+    throw new Error(`Gateway did not apply config version ${version}`);
+  };
   const waitForRuntimeSync = async (mutation, attempts = 80) => {
     if (
       mutation.runtimeRefreshRequired !== false
@@ -258,19 +315,7 @@ try {
     ) {
       throw new Error('Routing mutation did not return a queued runtime version');
     }
-    for (let attempt = 0; attempt < attempts; attempt += 1) {
-      const status = await platformManagement('runtime-sync');
-      const gateway = status.gateways.find(candidate =>
-        candidate.instanceId === gatewayInstanceId);
-      if (
-        gateway?.state === 'applied'
-        && gateway.appliedVersion >= mutation.runtimeSync.version
-      ) {
-        return status;
-      }
-      await new Promise(resolve => setTimeout(resolve, 250));
-    }
-    throw new Error(`Gateway did not apply config version ${mutation.runtimeSync.version}`);
+    return waitForConfigVersion(mutation.runtimeSync.version, attempts);
   };
 
   const principal = await platformManagement('me');
@@ -912,6 +957,254 @@ try {
     throw new Error('Retired deployment remained in the gateway registry');
   }
 
+  const secondLabUsername = `lab-user-${revisionSuffix}`;
+  const secondLabPassword = `Lab-${randomUUID()}-Password`;
+  await ensureLabUser(keycloakAdmin.access_token, secondLabUsername, secondLabPassword);
+  const secondLabIdentity = await tokenRequest('api-gateway', {
+    grant_type: 'password',
+    client_id: 'platform-e2e',
+    username: secondLabUsername,
+    password: secondLabPassword,
+  });
+  const firstLabToken = await currentPlatformAccessToken();
+  const firstLab = await lab(firstLabToken, 'workspace', {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+  const secondLab = await lab(secondLabIdentity.access_token, 'workspace', {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+  if (
+    !firstLab.created
+    || !secondLab.created
+    || firstLab.workspace.id === secondLab.workspace.id
+    || firstLab.workspace.hostname === secondLab.workspace.hostname
+  ) {
+    throw new Error('Personal labs were not provisioned as isolated OIDC-owned workspaces');
+  }
+  await Promise.all([
+    waitForConfigVersion(firstLab.sample.deployment.configVersion),
+    waitForConfigVersion(secondLab.sample.deployment.configVersion),
+  ]);
+
+  const firstLabOrigin = gatewayOrigin(firstLab.workspace.hostname);
+  const secondLabOrigin = gatewayOrigin(secondLab.workspace.hostname);
+  const firstLabCredential = firstLab.sample.application.credential;
+  const secondLabCredential = secondLab.sample.application.credential;
+  const firstLabSecret = firstLab.sample.application.consumerSecret;
+  const firstLabApiKey = await gatewayCurl([
+    '--header', `x-api-key: ${firstLabCredential.consumerKey}`,
+    '--output', '/dev/null', '--write-out', '%{http_code}',
+    `${firstLabOrigin}/lab/banking/v1/accounts`,
+  ]);
+  const secondLabApiKey = await gatewayCurl([
+    '--header', `x-api-key: ${secondLabCredential.consumerKey}`,
+    '--output', '/dev/null', '--write-out', '%{http_code}',
+    `${secondLabOrigin}/lab/banking/v1/accounts`,
+  ]);
+  const crossLabApiKey = await gatewayCurl([
+    '--header', `x-api-key: ${firstLabCredential.consumerKey}`,
+    '--output', '/dev/null', '--write-out', '%{http_code}',
+    `${secondLabOrigin}/lab/banking/v1/accounts`,
+  ]);
+  const standardApiKey = await gatewayCurl([
+    '--header', `x-api-key: ${firstLabCredential.consumerKey}`,
+    '--output', '/dev/null', '--write-out', '%{http_code}',
+    `${qualEsGatewayOrigin}/es/banking/v1/accounts`,
+  ]);
+  if (
+    firstLabApiKey.stdout !== '200'
+    || secondLabApiKey.stdout !== '200'
+    || crossLabApiKey.stdout === '200'
+    || standardApiKey.stdout === '200'
+  ) {
+    throw new Error('Lab API keys were not constrained to their workspace hostname');
+  }
+
+  const firstLabTokenResponse = await oauthClientCredentialsAt(
+    firstLabOrigin,
+    firstLabCredential.consumerKey,
+    firstLabSecret,
+    'banking:write',
+  );
+  if (firstLabTokenResponse.status !== '200' || !firstLabTokenResponse.body.access_token) {
+    throw new Error('Lab Client Credentials did not issue an access token');
+  }
+  const tokenPayload = JSON.parse(Buffer.from(
+    firstLabTokenResponse.body.access_token.split('.')[1],
+    'base64url',
+  ).toString('utf8'));
+  if (tokenPayload.workspace_id !== firstLab.workspace.id) {
+    throw new Error('Lab access token did not contain the owning workspace ID');
+  }
+  const labTransfer = await gatewayCurl([
+    '--header', `authorization: Bearer ${firstLabTokenResponse.body.access_token}`,
+    '--header', 'content-type: application/json',
+    '--data', JSON.stringify({ from: 'account-1001', to: 'account-2002', amount: 25 }),
+    '--output', '/dev/null', '--write-out', '%{http_code}',
+    `${firstLabOrigin}/lab/banking/v1/transfers`,
+  ]);
+  const crossLabBearer = await gatewayCurl([
+    '--header', `authorization: Bearer ${firstLabTokenResponse.body.access_token}`,
+    '--header', 'content-type: application/json',
+    '--data', JSON.stringify({ from: 'account-1001', to: 'account-2002', amount: 25 }),
+    '--output', '/dev/null', '--write-out', '%{http_code}',
+    `${secondLabOrigin}/lab/banking/v1/transfers`,
+  ]);
+  if (labTransfer.stdout !== '201' || crossLabBearer.stdout === '201') {
+    throw new Error('Lab OAuth token was not constrained to its workspace');
+  }
+
+  const jwtPair = generateKeyPairSync('rsa', { modulusLength: 2048 });
+  const jwtKid = `lab-e2e-${revisionSuffix}`;
+  const jwtJwk = jwtPair.publicKey.export({ format: 'jwk' });
+  await lab(firstLabToken, `credentials/${firstLabCredential.id}/public-keys`, {
+    method: 'POST',
+    body: JSON.stringify({
+      kid: jwtKid,
+      jwk: { ...jwtJwk, alg: 'RS256', use: 'sig', kid: jwtKid },
+    }),
+  });
+  const assertion = await new SignJWT({})
+    .setProtectedHeader({ alg: 'RS256', kid: jwtKid, typ: 'JWT' })
+    .setIssuer(firstLabCredential.consumerKey)
+    .setSubject(firstLabCredential.consumerKey)
+    .setAudience(`${firstLabOrigin}/oauth/token`)
+    .setIssuedAt()
+    .setExpirationTime('60s')
+    .setJti(randomUUID())
+    .sign(jwtPair.privateKey);
+  const jwtGrant = await gatewayCurl([
+    '--header', 'content-type: application/x-www-form-urlencoded',
+    '--data-urlencode', 'grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer',
+    '--data-urlencode', `assertion=${assertion}`,
+    '--data-urlencode', 'scope=banking:write',
+    '--write-out', '\n%{http_code}',
+    `${firstLabOrigin}/oauth/token`,
+  ]);
+  const jwtGrantLines = jwtGrant.stdout.trimEnd().split('\n');
+  const jwtGrantStatus = jwtGrantLines.pop();
+  const jwtGrantBody = JSON.parse(jwtGrantLines.join('\n'));
+  if (jwtGrantStatus !== '200' || !jwtGrantBody.access_token) {
+    throw new Error('Lab JWT Bearer assertion did not issue an access token');
+  }
+
+  let blockedLabUpstream = false;
+  try {
+    await lab(firstLabToken, 'upstreams', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: `Blocked loopback ${revisionSuffix}`,
+        kind: 'publicHttps',
+        targetUrl: 'https://127.0.0.1',
+      }),
+    });
+  } catch (error) {
+    blockedLabUpstream = error.message.includes('400')
+      && error.message.includes('lab_upstream_blocked');
+  }
+  if (!blockedLabUpstream) {
+    throw new Error('Lab upstream creation did not block an SSRF loopback target');
+  }
+
+  const labClient = await generateClientKeyAndCsr({
+    clientsDirectory: workDirectory,
+    credentialId: `lab-${firstLabCredential.id}`,
+    algorithm: 'ec',
+  });
+  const labCertificate = await lab(
+    firstLabToken,
+    `credentials/${firstLabCredential.id}/certificates`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ csrPem: await readFile(labClient.csrFile, 'utf8'), validityDays: 1 }),
+    },
+  );
+  const labCertificateMaterial = await lab(
+    firstLabToken,
+    `certificates/${labCertificate.id}/download`,
+  );
+  const labCertificateFile = path.join(workDirectory, 'lab-client.crt');
+  await writeFile(labCertificateFile, labCertificateMaterial.certificatePem, { mode: 0o644 });
+  let labMtlsStatus = '';
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    try {
+      const response = await gatewayCurl([
+        '--cert', labCertificateFile,
+        '--key', labClient.keyFile,
+        '--output', '/dev/null', '--write-out', '%{http_code}',
+        `${firstLabOrigin}/lab/banking/v1/certificate-profile`,
+      ]);
+      labMtlsStatus = response.stdout;
+      if (labMtlsStatus === '200') break;
+    } catch {
+      labMtlsStatus = '';
+    }
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+  if (labMtlsStatus !== '200') {
+    throw new Error(`Lab mTLS certificate was not accepted: ${labMtlsStatus}`);
+  }
+
+  const standardOrganizationsAfterLabs = await platformManagement('organizations');
+  const standardProxiesAfterLabs = await platformManagement('proxies');
+  if (
+    standardOrganizationsAfterLabs.some(item => item.id === firstLab.workspace.organizationId)
+    || standardProxiesAfterLabs.some(item =>
+      item.id === firstLab.sample.proxy.id || item.id === secondLab.sample.proxy.id)
+  ) {
+    throw new Error('Lab resources leaked into the standard Management API catalog');
+  }
+
+  const firstLabReset = await lab(firstLabToken, 'workspace/reset', {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+  await waitForConfigVersion(firstLabReset.sample.deployment.configVersion);
+  const oldLabCredentialAfterReset = await gatewayCurl([
+    '--header', `x-api-key: ${firstLabCredential.consumerKey}`,
+    '--output', '/dev/null', '--write-out', '%{http_code}',
+    `${firstLabOrigin}/lab/banking/v1/accounts`,
+  ]);
+  const resetLabCredential = await gatewayCurl([
+    '--header', `x-api-key: ${firstLabReset.sample.application.credential.consumerKey}`,
+    '--output', '/dev/null', '--write-out', '%{http_code}',
+    `${firstLabOrigin}/lab/banking/v1/accounts`,
+  ]);
+  if (oldLabCredentialAfterReset.stdout === '200' || resetLabCredential.stdout !== '200') {
+    throw new Error('Lab reset did not replace the runnable sample credentials');
+  }
+  const firstLabAudit = await lab(firstLabToken, 'audit-events?limit=200');
+  const firstLabActions = new Set(firstLabAudit.items.map(event => event.action));
+  for (const action of ['labWorkspace.create', 'labWorkspace.reset', 'proxy.create', 'application.register']) {
+    if (!firstLabActions.has(action)) {
+      throw new Error(`Lab workflow was not audited: ${action}`);
+    }
+  }
+
+  const runtimeBeforeLabRevoke = await platformManagement('runtime-sync');
+  await lab(secondLabIdentity.access_token, 'workspace/revoke', {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+  let secondLabRetired = false;
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    const response = await gatewayCurl([
+      '--output', '/dev/null', '--write-out', '%{http_code}',
+      `${secondLabOrigin}/lab/banking/v1/accounts`,
+    ]);
+    if (response.stdout === '421' || response.stdout === '404') {
+      secondLabRetired = true;
+      break;
+    }
+    await new Promise(resolve => setTimeout(resolve, 250));
+  }
+  const runtimeAfterLabRevoke = await platformManagement('runtime-sync');
+  if (!secondLabRetired || runtimeAfterLabRevoke.latestVersion <= runtimeBeforeLabRevoke.latestVersion) {
+    throw new Error('Revoked lab workspace remained in the hot-reloaded runtime');
+  }
+
   const authority = await platformManagement(
     'organizations/org-bank-dev/certificate-authorities/managed',
     {
@@ -997,7 +1290,7 @@ try {
     throw new Error('An unrelated mTLS client stopped working');
   }
 
-  console.log('Platform revisions, OIDC, OAuth, PKI and persistence checks passed');
+  console.log('Platform revisions, OIDC, OAuth, PKI, personal labs and persistence checks passed');
 } finally {
   await rm(workDirectory, { recursive: true, force: true });
 }
