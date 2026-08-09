@@ -8,6 +8,7 @@ import {
   Clock3,
   Copy,
   FileKey2,
+  FolderKey,
   FlaskConical,
   KeyRound,
   Plus,
@@ -42,7 +43,11 @@ import { executePlayground, PlaygroundApiError } from '@/lib/playground-api';
 import type { PlaygroundExecutionResult } from '@/lib/playground-service';
 import { environmentLabel } from '@/lib/proxy-control';
 import { CatalogCombobox, type CatalogOption } from '@/components/catalog-combobox';
-import type { LocalAgentState, LocalIdentity } from '@/lib/local-agent';
+import {
+  buildMtlsImportCommand,
+  type LocalAgentState,
+  type LocalIdentity,
+} from '@/lib/local-agent';
 import { useLocalAgent, type AgentActivity } from '@/lib/use-local-agent';
 
 type OAuthMode = 'clientCredentials' | 'bearerToken' | 'jwtBearer';
@@ -673,6 +678,18 @@ export function PlaygroundWorkspace() {
     }
   }, [body, bodyMediaType, headers, localAgent, mtlsCurl, selectedDeployment, selectedLocalIdentity, selectedOperation, target]);
 
+  const refreshLocalIdentities = useCallback(async () => {
+    setAgentBusy(true);
+    setError('');
+    try {
+      await localAgent.refreshIdentities();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Local identities could not be refreshed');
+    } finally {
+      setAgentBusy(false);
+    }
+  }, [localAgent]);
+
   const addParameter = useCallback((kind: 'query' | 'headers') => {
     const next = { id: nextParameterId.current++, name: '', value: '' };
     if (kind === 'query') {
@@ -1103,6 +1120,7 @@ export function PlaygroundWorkspace() {
                   onGenerateMtlsIdentity={() => void generateLocalMtlsIdentity()}
                   onIssueCertificate={() => void issueLocalCertificate()}
                   onRunMtls={() => void runLocalMtlsRequest()}
+                  onRefreshIdentities={() => void refreshLocalIdentities()}
                 />
               )}
             </PlaygroundSection>
@@ -1432,6 +1450,7 @@ function LocalAuthorizationTools({
   onGenerateMtlsIdentity,
   onIssueCertificate,
   onRunMtls,
+  onRefreshIdentities,
 }: {
   mode: 'clientCredentials' | 'jwt' | 'mtls';
   agentState: LocalAgentState;
@@ -1455,6 +1474,7 @@ function LocalAuthorizationTools({
   onGenerateMtlsIdentity(): void;
   onIssueCertificate(): void;
   onRunMtls(): void;
+  onRefreshIdentities(): void;
 }) {
   if (mode === 'clientCredentials') {
     return (
@@ -1578,6 +1598,14 @@ function LocalAuthorizationTools({
         </>
       )}
 
+      {mode === 'mtls' && (
+        <ExistingMtlsIdentityImport
+          connected={connected}
+          busy={busy}
+          onRefreshIdentities={onRefreshIdentities}
+        />
+      )}
+
       {activity.length > 0 && (
         <div className="agent-activity" aria-live="polite">
           <span>Local activity</span>
@@ -1591,5 +1619,71 @@ function LocalAuthorizationTools({
         </div>
       )}
     </div>
+  );
+}
+
+function ExistingMtlsIdentityImport({
+  connected,
+  busy,
+  onRefreshIdentities,
+}: {
+  connected: boolean;
+  busy: boolean;
+  onRefreshIdentities(): void;
+}) {
+  const [name, setName] = useState('banking-mtls');
+  const [keyFile, setKeyFile] = useState('./client.key');
+  const [certificateFile, setCertificateFile] = useState('./client.crt');
+  const [chainFile, setChainFile] = useState('./chain.crt');
+  const [copied, setCopied] = useState(false);
+  const command = useMemo(() => buildMtlsImportCommand({
+    name: name.trim() || 'banking-mtls',
+    keyFile: keyFile.trim() || './client.key',
+    certificateFile: certificateFile.trim() || './client.crt',
+    ...(chainFile.trim() ? { chainFile: chainFile.trim() } : {}),
+  }), [certificateFile, chainFile, keyFile, name]);
+
+  const update = (setter: (value: string) => void, value: string) => {
+    setter(value);
+    setCopied(false);
+  };
+
+  const copyCommand = async () => {
+    await navigator.clipboard.writeText(command);
+    setCopied(true);
+  };
+
+  return (
+    <details className="agent-existing-import">
+      <summary>
+        <FolderKey aria-hidden="true" />
+        <span><strong>Use an existing certificate</strong><small>Build one local import command</small></span>
+      </summary>
+      <div className="agent-existing-import-body">
+        <p>
+          Enter paths from your machine. They are used only to build this command and are never sent to the platform.
+        </p>
+        <div className="agent-existing-import-fields">
+          <label className="playground-field"><span>Identity name</span><input value={name} onChange={event => update(setName, event.target.value)} spellCheck={false} /></label>
+          <label className="playground-field"><span>Private key</span><input value={keyFile} onChange={event => update(setKeyFile, event.target.value)} spellCheck={false} /></label>
+          <label className="playground-field"><span>Certificate</span><input value={certificateFile} onChange={event => update(setCertificateFile, event.target.value)} spellCheck={false} /></label>
+          <label className="playground-field"><span>Certificate chain <small>Optional</small></span><input value={chainFile} onChange={event => update(setChainFile, event.target.value)} spellCheck={false} /></label>
+        </div>
+        <div className="agent-existing-import-command">
+          <pre>{command}</pre>
+          <button type="button" onClick={() => void copyCommand()} aria-label="Copy mTLS import command" title="Copy mTLS import command">
+            {copied ? <Check /> : <Copy />}
+          </button>
+        </div>
+        <footer>
+          <span>{connected
+            ? 'Run the command in a terminal, then refresh the local identity list.'
+            : 'Run the command first, then start and connect gatewayctl.'}</span>
+          <button type="button" onClick={onRefreshIdentities} disabled={!connected || busy}>
+            <RotateCcw /> Refresh local identities
+          </button>
+        </footer>
+      </div>
+    </details>
   );
 }

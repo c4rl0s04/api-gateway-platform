@@ -680,6 +680,27 @@ td { padding: 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
 .assertion-inspector { border-top: 1px solid var(--line); color: var(--ink-soft); font-size: 10px; }
 .assertion-inspector summary { padding: 12px 0 0; cursor: pointer; }
 .assertion-inspector pre { max-height: 200px; overflow: auto; margin: 12px 0 0; padding: 12px; border: 1px solid var(--line); background: var(--surface-raised); color: var(--ink); font: 9px/1.6 var(--font-technical); }
+.agent-existing-import { border-top: 1px solid var(--line); }
+.agent-existing-import > summary { min-height: 44px; display: flex; align-items: center; gap: 10px; padding-top: 10px; color: var(--ink); cursor: pointer; list-style: none; }
+.agent-existing-import > summary::-webkit-details-marker { display: none; }
+.agent-existing-import > summary > svg { width: 17px; height: 17px; flex: 0 0 auto; color: var(--red); }
+.agent-existing-import > summary > span { display: grid; gap: 2px; }
+.agent-existing-import > summary strong { font-size: 10px; }
+.agent-existing-import > summary small { color: var(--ink-faint); font-size: 9px; }
+.agent-existing-import-body { display: grid; gap: 14px; padding: 8px 0 4px 27px; }
+.agent-existing-import-body > p { max-width: 68ch; margin: 0; color: var(--ink-soft); font-size: 10px; line-height: 1.5; }
+.agent-existing-import-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.agent-existing-import-fields .playground-field { gap: 6px; }
+.agent-existing-import-fields .playground-field > span { display: flex; justify-content: space-between; }
+.agent-existing-import-fields .playground-field > span small { color: var(--ink-faint); font-size: 9px; font-weight: 450; text-transform: none; }
+.agent-existing-import-command { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) 40px; border: 1px solid var(--line); background: var(--surface-raised); }
+.agent-existing-import-command pre { min-width: 0; overflow-x: auto; margin: 0; padding: 12px; color: var(--ink); font: 9px/1.6 var(--font-technical); white-space: pre-wrap; overflow-wrap: anywhere; }
+.agent-existing-import-command button { width: 40px; min-height: 40px; display: grid; place-items: center; align-self: start; border: 0; border-left: 1px solid var(--line); background: transparent; color: var(--ink-soft); cursor: pointer; }
+.agent-existing-import-command button svg { width: 14px; height: 14px; }
+.agent-existing-import-body > footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.agent-existing-import-body > footer > span { color: var(--ink-faint); font-size: 9px; line-height: 1.5; }
+.agent-existing-import-body > footer button { min-height: 36px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; flex: 0 0 auto; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: var(--radius-1); background: var(--surface-raised); color: var(--ink); font-size: 9px; font-weight: 650; cursor: pointer; }
+.agent-existing-import-body > footer button svg { width: 13px; height: 13px; }
 .agent-activity { display: grid; border-top: 1px solid var(--line); }
 .agent-activity > span { padding: 12px 0 6px; color: var(--ink-faint); font-size: 9px; font-weight: 650; text-transform: uppercase; }
 .agent-activity > div { min-height: 30px; display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; align-items: center; gap: 8px; border-top: 1px solid var(--line); }
@@ -977,6 +998,10 @@ td { padding: 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
   .agent-connect-empty p { grid-column: auto; }
   .agent-connect-empty button { width: 100%; }
   .agent-identity-facts { grid-template-columns: 1fr; }
+  .agent-existing-import-body { padding-left: 0; }
+  .agent-existing-import-fields { grid-template-columns: 1fr; }
+  .agent-existing-import-body > footer { align-items: stretch; flex-direction: column; }
+  .agent-existing-import-body > footer button { width: 100%; }
 }
 
 @keyframes access-enter {

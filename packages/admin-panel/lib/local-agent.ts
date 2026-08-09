@@ -28,6 +28,32 @@ export interface LocalAgentSession {
   expiresAt: string;
 }
 
+export interface MtlsImportCommandInput {
+  name: string;
+  keyFile: string;
+  certificateFile: string;
+  chainFile?: string;
+}
+
+function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, `'"'"'`)}'`;
+}
+
+export function buildMtlsImportCommand(input: MtlsImportCommandInput): string {
+  const argumentsList = [
+    ['--name', input.name],
+    ['--type', 'mtls'],
+    ['--key', input.keyFile],
+    ['--certificate', input.certificateFile],
+    ...(input.chainFile ? [['--chain', input.chainFile]] : []),
+  ];
+  return [
+    'npm run gatewayctl -- keys add \\',
+    ...argumentsList.map(([flag, value], index) =>
+      `  ${flag} ${shellQuote(value)}${index < argumentsList.length - 1 ? ' \\' : ''}`),
+  ].join('\n');
+}
+
 interface RpcResponse<T> {
   result?: T;
   error?: { code: string; message: string };

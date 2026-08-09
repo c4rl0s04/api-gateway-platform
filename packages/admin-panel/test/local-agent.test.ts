@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import { afterEach, describe, it } from 'node:test';
-import { LocalAgentClient, LocalAgentError } from '../lib/local-agent.js';
+import {
+  buildMtlsImportCommand,
+  LocalAgentClient,
+  LocalAgentError,
+} from '../lib/local-agent.js';
 
 const originalFetch = globalThis.fetch;
 
@@ -9,6 +13,27 @@ afterEach(() => {
 });
 
 describe('playground local-agent client', () => {
+  it('builds a safe local mTLS import command with an optional chain', () => {
+    assert.equal(buildMtlsImportCommand({
+      name: 'banking-mtls',
+      keyFile: './client key.pem',
+      certificateFile: "./client's.crt",
+      chainFile: './chain.crt',
+    }), [
+      'npm run gatewayctl -- keys add \\',
+      "  --name 'banking-mtls' \\",
+      "  --type 'mtls' \\",
+      "  --key './client key.pem' \\",
+      "  --certificate './client'\"'\"'s.crt' \\",
+      "  --chain './chain.crt'",
+    ].join('\n'));
+    assert.doesNotMatch(buildMtlsImportCommand({
+      name: 'without-chain',
+      keyFile: './client.key',
+      certificateFile: './client.crt',
+    }), /--chain/u);
+  });
+
   it('parses gatewayctl pairing data without accepting malformed ports or nonces', () => {
     const encoded = Buffer.from(JSON.stringify({
       port: 41_234,
