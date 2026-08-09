@@ -54,6 +54,28 @@ enum AuthorizationStatus {
   revoked
 }
 
+enum OrganizationKind {
+  standard
+  lab
+}
+
+enum CredentialPurpose {
+  standard
+  playground
+  lab
+}
+
+enum LabWorkspaceStatus {
+  active
+  expired
+  revoked
+}
+
+enum LabUpstreamKind {
+  mock
+  publicHttps
+}
+
 enum PublicKeyAlgorithm {
   RS256
 }
@@ -86,6 +108,7 @@ enum AdminRole {
 model Organization {
   id                     String                 @id @default(uuid())
   name                   String
+  kind                   OrganizationKind       @default(standard)
   createdAt              DateTime               @default(now())
   proxies                ApiProxy[]
   apps                   DeveloperApp[]
@@ -93,6 +116,7 @@ model Organization {
   certificateAuthorities CertificateAuthority[]
   adminMemberships       AdminMembership[]
   auditEvents            AuditEvent[]
+  labWorkspace           LabWorkspace?
 }
 
 /// Global deployment target selected from closed stage and region values.
@@ -154,6 +178,8 @@ model ProxyDeployment {
   revision        ApiProxyRevision   @relation(fields: [revisionId], references: [id], onDelete: Restrict)
   environmentId   String
   environment     Environment        @relation(fields: [environmentId], references: [id])
+  labWorkspaceId  String?
+  labWorkspace    LabWorkspace?      @relation(fields: [labWorkspaceId], references: [id], onDelete: Restrict)
   /// Backend origin for this deployment. Ex: "https://accounts-qual.example.com".
   upstreamBaseUrl String?
   status          DeploymentStatus   @default(active)
@@ -162,6 +188,7 @@ model ProxyDeployment {
 
   @@index([proxyId, environmentId, status])
   @@index([revisionId])
+  @@index([labWorkspaceId, status])
 }
 
 /// OpenAPI operation compiled into an immutable proxy revision.
@@ -242,6 +269,7 @@ model AppCredential {
   /// Scrypt hash. The generated secret is returned only once.
   consumerSecretHash   String
   status               AuthorizationStatus      @default(approved)
+  purpose              CredentialPurpose        @default(standard)
   attributes           Json                     @default("{}")
   issuedAt             DateTime                 @default(now())
   expiresAt            DateTime?
@@ -251,6 +279,43 @@ model AppCredential {
   publicKeys           AppPublicKey[]
   certificates         AppCertificate[]
   certificateIssuances CertificateIssuance[]
+}
+
+/// Ephemeral, OIDC-owned control-plane namespace used by the personal lab.
+model LabWorkspace {
+  id              String             @id @default(uuid())
+  ownerIssuer     String
+  ownerSubject    String
+  organizationId  String             @unique
+  organization    Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  hostname        String             @unique
+  status          LabWorkspaceStatus @default(active)
+  expiresAt       DateTime
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  deployments     ProxyDeployment[]
+  upstreams       LabUpstream[]
+
+  @@index([ownerIssuer, ownerSubject, status])
+  @@index([expiresAt, status])
+}
+
+/// A safe upstream definition owned by one lab workspace. Public URLs are
+/// reached only through the constrained lab egress service.
+model LabUpstream {
+  id          String          @id @default(uuid())
+  workspaceId String
+  workspace   LabWorkspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  name        String
+  kind        LabUpstreamKind
+  targetUrl   String?
+  mockConfig  Json            @default("{}")
+  active      Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@unique([workspaceId, name])
+  @@index([workspaceId, active])
 }
 
 model CredentialProductGrant {
