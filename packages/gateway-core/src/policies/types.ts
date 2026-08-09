@@ -15,6 +15,7 @@ export interface ClientContext {
   credentialId:   string;
   consumerKey:    string;
   organizationId: string;
+  workspaceId?:    string;
   /** Semana 4: productos a los que tiene acceso esta app. */
   productIds:     string[];
   scopes:         string[];

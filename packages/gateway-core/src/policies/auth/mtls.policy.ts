@@ -2,6 +2,7 @@ import { normalizeCertificateFingerprint, prisma } from '@api-gateway/database';
 import { mtlsAuthPolicyConfigSchema, type BasePolicyConfig } from '@api-gateway/shared';
 import {
   authorizedProducts,
+  credentialMatchesWorkspace,
   isCredentialValid,
   type CredentialRecord,
 } from '../../auth/authorization.js';
@@ -76,6 +77,11 @@ export function createMtlsPolicyWithDependencies(
         || certificate.validFrom > now
         || (certificate.expiresAt && certificate.expiresAt <= now)
         || !isCredentialValid(certificate.credential, now)
+        || !credentialMatchesWorkspace(
+          certificate.credential,
+          ctx.proxy.workspaceId,
+          now,
+        )
       ) {
         return halt(401, { error: 'Unauthorized', message: 'Invalid or revoked client certificate' });
       }
@@ -92,6 +98,7 @@ export function createMtlsPolicyWithDependencies(
         credentialId: certificate.credential.id,
         consumerKey: certificate.credential.consumerKey,
         organizationId: certificate.credential.app.organizationId,
+        ...(ctx.proxy.workspaceId ? { workspaceId: ctx.proxy.workspaceId } : {}),
         productIds: products.map(product => product.id),
         scopes: [...new Set(products.flatMap(product => product.scopes))],
       };

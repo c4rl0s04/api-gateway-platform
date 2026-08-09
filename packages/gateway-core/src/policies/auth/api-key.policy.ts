@@ -6,6 +6,7 @@ import type { PolicyFactory } from '../types';
 import { CONTINUE, halt } from '../types';
 import {
   authorizedProducts,
+  credentialMatchesWorkspace,
   findCredential,
   isCredentialValid,
   type CredentialRecord,
@@ -74,7 +75,9 @@ export function createApiKeyPolicyWithDependencies(
       });
     }
 
-    if (!credential || !isCredentialValid(credential)) {
+    if (!credential
+      || !isCredentialValid(credential)
+      || !credentialMatchesWorkspace(credential, ctx.proxy.workspaceId)) {
       // Same message for invalid and revoked keys:
       // don't reveal to an attacker whether the key ever existed.
       return halt(401, {
@@ -102,6 +105,7 @@ export function createApiKeyPolicyWithDependencies(
       credentialId:   credential.id,
       consumerKey:    credential.consumerKey,
       organizationId: credential.app.organizationId,
+      ...(ctx.proxy.workspaceId ? { workspaceId: ctx.proxy.workspaceId } : {}),
       productIds:     products.map(product => product.id),
       scopes:         [...new Set(products.flatMap(product => product.scopes))],
     };

@@ -22,7 +22,7 @@ export const createOAuthAccessTokenPolicy: PolicyFactory = (
       const runtime = getOAuthRuntime();
       const verified = await jwtVerify(value.slice(7), runtime.verificationKey, {
         algorithms: ['RS256'],
-        issuer: ctx.proxy.environment.publicOrigin,
+        issuer: ctx.proxy.runtimePublicOrigin ?? ctx.proxy.environment.publicOrigin,
         audience: config.audience,
         requiredClaims: ['sub', 'iat', 'nbf', 'exp', 'jti'],
       });
@@ -34,6 +34,9 @@ export const createOAuthAccessTokenPolicy: PolicyFactory = (
         || typeof claims.client_id !== 'string'
         || typeof claims.credential_id !== 'string'
         || claims.environment_id !== ctx.proxy.environment.id
+        || (ctx.proxy.workspaceId
+          ? claims.workspace_id !== ctx.proxy.workspaceId
+          : claims.workspace_id !== undefined)
         || !Array.isArray(claims.product_ids)
         || !Array.isArray(claims.proxy_ids)
         || !claims.product_ids.every(id => typeof id === 'string')
@@ -52,6 +55,7 @@ export const createOAuthAccessTokenPolicy: PolicyFactory = (
         credentialId: claims.credential_id,
         consumerKey: claims.client_id,
         organizationId: ctx.proxy.organizationId,
+        ...(ctx.proxy.workspaceId ? { workspaceId: ctx.proxy.workspaceId } : {}),
         productIds: claims.product_ids.filter((id): id is string => typeof id === 'string'),
         scopes,
       };

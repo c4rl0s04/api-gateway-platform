@@ -14,6 +14,7 @@ import {
 } from '@api-gateway/shared';
 import {
   authorizedProducts,
+  credentialMatchesWorkspace,
   findCredential,
   isCredentialValid,
   uniqueValues,
@@ -205,6 +206,7 @@ export function createOAuthTokenPolicyWithDependencies(
           !credential
           || !credential.consumerSecretHash
           || !isCredentialValid(credential)
+          || !credentialMatchesWorkspace(credential, ctx.proxy.workspaceId)
           || !await dependencies.verifySecret(basic[1], credential.consumerSecretHash)
         ) {
           return oauthError(401, 'invalid_client', 'Client authentication failed');
@@ -214,7 +216,7 @@ export function createOAuthTokenPolicyWithDependencies(
         if (!assertion) return oauthError(400, 'invalid_request', 'assertion is required');
         credential = await authenticateJwtAssertion(
           assertion,
-          `${ctx.proxy.environment.publicOrigin}/oauth/token`,
+          `${ctx.proxy.runtimePublicOrigin ?? ctx.proxy.environment.publicOrigin}/oauth/token`,
           dependencies,
         );
         if (!credential) return oauthError(400, 'invalid_grant', 'JWT assertion is invalid');
@@ -228,6 +230,9 @@ export function createOAuthTokenPolicyWithDependencies(
     }
 
     if (!credential) return oauthError(401, 'invalid_client', 'Client authentication failed');
+    if (!credentialMatchesWorkspace(credential, ctx.proxy.workspaceId)) {
+      return oauthError(401, 'invalid_client', 'Client authentication failed');
+    }
     const products = authorizedProducts(credential, ctx.proxy.environment.id);
     if (products.length === 0) {
       return oauthError(403, 'invalid_scope', 'The client has no approved products in this environment');
@@ -250,9 +255,10 @@ export function createOAuthTokenPolicyWithDependencies(
       product_ids: products.map(product => product.id),
       proxy_ids: uniqueValues(products.flatMap(product => product.proxyIds)),
       scope: scopes.join(' '),
+      ...(ctx.proxy.workspaceId ? { workspace_id: ctx.proxy.workspaceId } : {}),
     })
       .setProtectedHeader({ alg: 'RS256', kid: runtime.signingKeyId, typ: 'JWT' })
-      .setIssuer(ctx.proxy.environment.publicOrigin)
+      .setIssuer(ctx.proxy.runtimePublicOrigin ?? ctx.proxy.environment.publicOrigin)
       .setSubject(credential.appId)
       .setAudience(config.audience)
       .setIssuedAt(now)

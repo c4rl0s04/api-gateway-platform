@@ -17,6 +17,14 @@ export interface CredentialRecord {
   app: {
     status: string;
     organizationId: string;
+    organization?: {
+      kind: string;
+      labWorkspace: {
+        id: string;
+        status: string;
+        expiresAt: Date;
+      } | null;
+    };
   };
   productGrants: Array<{
     status: string;
@@ -36,7 +44,11 @@ export function findCredential(consumerKey: string): Promise<CredentialRecord | 
   return prisma.appCredential.findUnique({
     where: { consumerKey },
     include: {
-      app: true,
+      app: {
+        include: {
+          organization: { include: { labWorkspace: true } },
+        },
+      },
       productGrants: {
         include: {
           product: {
@@ -49,6 +61,21 @@ export function findCredential(consumerKey: string): Promise<CredentialRecord | 
       },
     },
   }) as unknown as Promise<CredentialRecord | null>;
+}
+
+export function credentialMatchesWorkspace(
+  credential: CredentialRecord,
+  workspaceId: string | null | undefined,
+  now = new Date(),
+): boolean {
+  const workspace = credential.app.organization?.labWorkspace;
+  if (!workspaceId) {
+    return credential.app.organization?.kind !== 'lab' && !workspace;
+  }
+  return credential.app.organization?.kind === 'lab'
+    && workspace?.id === workspaceId
+    && workspace.status === 'active'
+    && workspace.expiresAt > now;
 }
 
 export function isCredentialValid(

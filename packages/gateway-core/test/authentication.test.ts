@@ -5,6 +5,7 @@ import { exportJWK, importPKCS8, jwtVerify, SignJWT } from 'jose';
 import type { GatewayEnv } from '../src/config/env.js';
 import {
   authorizedProducts,
+  credentialMatchesWorkspace,
   isCredentialValid,
 } from '../src/auth/authorization.js';
 import { configureOAuthRuntime } from '../src/oauth/runtime.js';
@@ -82,6 +83,23 @@ describe('credential authorization rules', () => {
     valid.productGrants[0].status = 'revoked';
     assert.deepEqual(authorizedProducts(valid, 'env-qual-es', 'proxy-test'), []);
   });
+
+  it('binds lab credentials to one active workspace and excludes them from standard hosts', () => {
+    const labCredential = credential();
+    labCredential.app.organization = {
+      kind: 'lab',
+      labWorkspace: {
+        id: 'workspace-1',
+        status: 'active',
+        expiresAt: new Date(Date.now() + 60_000),
+      },
+    };
+    assert.equal(credentialMatchesWorkspace(labCredential, 'workspace-1'), true);
+    assert.equal(credentialMatchesWorkspace(labCredential, 'workspace-2'), false);
+    assert.equal(credentialMatchesWorkspace(labCredential, null), false);
+    labCredential.app.organization.labWorkspace.status = 'expired';
+    assert.equal(credentialMatchesWorkspace(labCredential, 'workspace-1'), false);
+  });
 });
 
 describe('OAuth token issuance and verification', () => {
@@ -116,6 +134,45 @@ describe('OAuth token issuance and verification', () => {
     });
     assert.equal(verified.payload.environment_id, 'env-qual-es');
     assert.deepEqual(verified.payload.proxy_ids, ['proxy-test']);
+  });
+
+  it('issues tokens bound to the lab hostname and workspace', async () => {
+    const labOrigin = 'https://workspace-1.lab.gateway.localhost:8443';
+    const labCredential = credential();
+    labCredential.app.organization = {
+      kind: 'lab',
+      labWorkspace: {
+        id: 'workspace-1',
+        status: 'active',
+        expiresAt: new Date(Date.now() + 60_000),
+      },
+    };
+    const policy = createOAuthTokenPolicyWithDependencies(tokenConfig, {
+      findCredential: async () => labCredential,
+      verifySecret: async () => true,
+      findPublicKey: async () => null,
+      consumeAssertion: async () => true,
+    });
+    const { context } = createPolicyContext({
+      headers: {
+        authorization: `Basic ${Buffer.from('client-1:secret').toString('base64')}`,
+        'content-type': 'application/x-www-form-urlencoded',
+      },
+    });
+    context.proxy.workspaceId = 'workspace-1';
+    context.proxy.runtimePublicOrigin = labOrigin;
+    context.endpoint.mode = 'local';
+    context.req.body = Buffer.from('grant_type=client_credentials');
+
+    const result = await policy(context);
+    assert.equal(result.action, 'respond');
+    if (result.action !== 'respond') return;
+    const verified = await jwtVerify(
+      (result.body as { access_token: string }).access_token,
+      gatewayPair.publicKey,
+      { issuer: labOrigin, audience: 'api-gateway', algorithms: ['RS256'] },
+    );
+    assert.equal(verified.payload.workspace_id, 'workspace-1');
   });
 
   it('validates JWT Bearer assertions and rejects replay fail-closed', async () => {
