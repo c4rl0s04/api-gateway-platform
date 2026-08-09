@@ -33,6 +33,8 @@ import { registerLabProductRoutes } from './routes/lab-products.routes.js';
 import type { LabProductOperations } from './services/lab-products.js';
 import { registerLabApplicationRoutes } from './routes/lab-applications.routes.js';
 import type { LabApplicationOperations } from './services/lab-applications.js';
+import { registerLabAuditRoutes } from './routes/lab-audit.routes.js';
+import type { LabAuditOperations } from './services/lab-audit.js';
 
 export interface ManagementServerOptions {
   config: ManagementEnv;
@@ -53,6 +55,7 @@ export interface ManagementServerOptions {
   labProxies?: LabProxyOperations;
   labProducts?: LabProductOperations;
   labApplications?: LabApplicationOperations;
+  labAudit?: LabAuditOperations;
 }
 
 export function buildServer(options: ManagementServerOptions): FastifyInstance {
@@ -145,6 +148,9 @@ export function buildServer(options: ManagementServerOptions): FastifyInstance {
   }
   if (options.labApplications) {
     registerLabApplicationRoutes(server, options.labApplications);
+  }
+  if (options.labAudit) {
+    registerLabAuditRoutes(server, options.labAudit);
   }
   return server;
 }
