@@ -121,6 +121,7 @@ export async function updateDeveloperApplication(
 export interface CreateManagedCredentialInput {
   appId: string;
   expiresAt?: Date | null;
+  purpose?: CredentialPurpose;
   products: Array<{ productId: string; scopes?: string[] }>;
   actor: ApplicationMutationActor;
 }
@@ -204,6 +205,7 @@ export async function createManagedCredential(
         appId: input.appId,
         consumerKey,
         consumerSecretHash,
+        purpose: input.purpose ?? CredentialPurpose.standard,
         expiresAt: input.expiresAt,
         status: AuthorizationStatus.approved,
         productGrants: { create: grants },
@@ -212,6 +214,7 @@ export async function createManagedCredential(
         id: true,
         appId: true,
         consumerKey: true,
+        purpose: true,
         status: true,
         issuedAt: true,
         expiresAt: true,

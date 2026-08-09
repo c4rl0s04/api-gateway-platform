@@ -9,6 +9,7 @@ import {
 import {
   AdminRole,
   AuthorizationStatus,
+  CredentialPurpose,
   Prisma,
   PublicKeyAlgorithm,
 } from './generated/index.js';
@@ -127,6 +128,7 @@ export interface RegisterDeveloperApplicationInput {
      */
     scopes?: string[];
   }>;
+  credentialPurpose?: CredentialPurpose;
   actor: {
     issuer: string;
     subject: string;
@@ -239,6 +241,7 @@ export async function registerDeveloperApplication(
           create: {
             consumerKey,
             consumerSecretHash,
+            purpose: input.credentialPurpose ?? CredentialPurpose.standard,
             status: AuthorizationStatus.approved,
             productGrants: { create: grants },
           },
@@ -254,6 +257,7 @@ export async function registerDeveloperApplication(
           select: {
             id: true,
             consumerKey: true,
+            purpose: true,
             status: true,
             issuedAt: true,
             expiresAt: true,
@@ -305,6 +309,7 @@ export interface CreateAppCredentialInput {
   consumerKey?: string;
   expiresAt?: Date | null;
   attributes?: Prisma.InputJsonValue;
+  purpose?: CredentialPurpose;
 }
 
 export async function createAppCredential(input: CreateAppCredentialInput) {
@@ -318,6 +323,7 @@ export async function createAppCredential(input: CreateAppCredentialInput) {
       appId: input.appId,
       consumerKey,
       consumerSecretHash,
+      purpose: input.purpose ?? CredentialPurpose.standard,
       expiresAt: input.expiresAt,
       attributes: input.attributes ?? {},
       status: AuthorizationStatus.approved,
