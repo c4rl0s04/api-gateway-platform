@@ -16,6 +16,7 @@ import {
 import {
   canManageOrganization,
   canReadOrganization,
+  expectedOrganizationKind,
   isPlatformAdmin,
   type AdminPrincipal,
 } from '../auth/authorization.js';
@@ -118,21 +119,54 @@ function actorRole(actor: AdminPrincipal, organizationId: string): AdminRole {
   return membership.role;
 }
 
-async function proxyOrganization(proxyId: string): Promise<string> {
+async function requireOrganizationContext(
+  organizationId: string,
+  actor: AdminPrincipal,
+): Promise<void> {
+  const organization = await prisma.organization.findFirst({
+    where: { id: organizationId, kind: expectedOrganizationKind(actor) },
+    select: { id: true },
+  });
+  if (!organization) throw notFound('Organization does not exist');
+}
+
+async function proxyOrganization(
+  proxyId: string,
+  actor: AdminPrincipal,
+): Promise<string> {
   const proxy = await prisma.apiProxy.findUnique({
     where: { id: proxyId },
-    select: { organizationId: true },
+    select: {
+      organizationId: true,
+      organization: { select: { kind: true } },
+    },
   });
   if (!proxy) throw notFound('Proxy does not exist');
+  if (proxy.organization.kind !== expectedOrganizationKind(actor)) {
+    throw notFound('Proxy does not exist');
+  }
   return proxy.organizationId;
 }
 
-async function deploymentOrganization(deploymentId: string): Promise<string> {
+async function deploymentOrganization(
+  deploymentId: string,
+  actor: AdminPrincipal,
+): Promise<string> {
   const deployment = await prisma.proxyDeployment.findUnique({
     where: { id: deploymentId },
-    select: { proxy: { select: { organizationId: true } } },
+    select: {
+      proxy: {
+        select: {
+          organizationId: true,
+          organization: { select: { kind: true } },
+        },
+      },
+    },
   });
   if (!deployment) throw notFound('Proxy deployment does not exist');
+  if (deployment.proxy.organization.kind !== expectedOrganizationKind(actor)) {
+    throw notFound('Proxy deployment does not exist');
+  }
   return deployment.proxy.organizationId;
 }
 
@@ -152,6 +186,7 @@ export class ProxyRevisionService implements ProxyRevisionOperations {
     if (!canManageOrganization(actor, organizationId)) {
       throw forbidden('Organization administration access denied');
     }
+    await requireOrganizationContext(organizationId, actor);
     return createApiProxy({
       organizationId,
       name: input.name,
@@ -171,6 +206,7 @@ export class ProxyRevisionService implements ProxyRevisionOperations {
     if (!canManageOrganization(actor, organizationId)) {
       throw forbidden('Organization administration access denied');
     }
+    await requireOrganizationContext(organizationId, actor);
     if (!input.gatewayConfigSource) {
       return {
         openapi: await inspectOpenApi(input.openapiSource),
@@ -211,6 +247,7 @@ export class ProxyRevisionService implements ProxyRevisionOperations {
     if (!canManageOrganization(actor, organizationId)) {
       throw forbidden('Organization administration access denied');
     }
+    await requireOrganizationContext(organizationId, actor);
     return createConfiguredApiProxy({
       organizationId,
       ...input,
@@ -227,7 +264,7 @@ export class ProxyRevisionService implements ProxyRevisionOperations {
     input: UpdateProxyInput,
     actor: AdminPrincipal,
   ) {
-    const organizationId = await proxyOrganization(proxyId);
+    const organizationId = await proxyOrganization(proxyId, actor);
     if (!canManageOrganization(actor, organizationId)) {
       throw forbidden('Organization administration access denied');
     }
@@ -250,7 +287,7 @@ export class ProxyRevisionService implements ProxyRevisionOperations {
     input: ImportRevisionInput,
     actor: AdminPrincipal,
   ) {
-    const organizationId = await proxyOrganization(proxyId);
+    const organizationId = await proxyOrganization(proxyId, actor);
     if (!canManageOrganization(actor, organizationId)) {
       throw forbidden('Organization administration access denied');
     }
@@ -266,7 +303,7 @@ export class ProxyRevisionService implements ProxyRevisionOperations {
   }
 
   async listRevisions(proxyId: string, actor: AdminPrincipal) {
-    const organizationId = await proxyOrganization(proxyId);
+    const organizationId = await proxyOrganization(proxyId, actor);
     if (!canReadOrganization(actor, organizationId)) {
       throw forbidden('Organization access denied');
     }
@@ -278,7 +315,7 @@ export class ProxyRevisionService implements ProxyRevisionOperations {
     revisionNumber: number,
     actor: AdminPrincipal,
   ) {
-    const organizationId = await proxyOrganization(proxyId);
+    const organizationId = await proxyOrganization(proxyId, actor);
     if (!canReadOrganization(actor, organizationId)) {
       throw forbidden('Organization access denied');
     }
@@ -293,7 +330,7 @@ export class ProxyRevisionService implements ProxyRevisionOperations {
     source: 'openapi' | 'gateway',
     actor: AdminPrincipal,
   ): Promise<string> {
-    const organizationId = await proxyOrganization(proxyId);
+    const organizationId = await proxyOrganization(proxyId, actor);
     if (!canReadOrganization(actor, organizationId)) {
       throw forbidden('Organization access denied');
     }
@@ -310,7 +347,7 @@ export class ProxyRevisionService implements ProxyRevisionOperations {
     input: DeployRevisionInput,
     actor: AdminPrincipal,
   ) {
-    const organizationId = await proxyOrganization(proxyId);
+    const organizationId = await proxyOrganization(proxyId, actor);
     if (!canManageOrganization(actor, organizationId)) {
       throw forbidden('Organization administration access denied');
     }
@@ -329,7 +366,7 @@ export class ProxyRevisionService implements ProxyRevisionOperations {
   }
 
   async retireDeployment(deploymentId: string, actor: AdminPrincipal) {
-    const organizationId = await deploymentOrganization(deploymentId);
+    const organizationId = await deploymentOrganization(deploymentId, actor);
     if (!canManageOrganization(actor, organizationId)) {
       throw forbidden('Organization administration access denied');
     }
