@@ -104,8 +104,9 @@ The gateway intentionally does not expose a root `/health` route.
 | `POST` | `/v1/certificate-authorities/:authorityId/refresh-crl` | `200` | Regenerate or download CRL |
 | `POST` | `/v1/certificate-authorities/:authorityId/crl` | `200` | Upload external CA CRL |
 | `GET` | `/v1/organizations/:organizationId/certificates` | `200` | List visible certificates |
+| `GET` | `/v1/credentials/:credentialId/certificates` | `200` | List certificates for one credential |
 | `POST` | `/v1/credentials/:credentialId/certificates/issue` | `201` | Issue managed certificate from CSR |
-| `POST` | `/v1/credentials/:credentialId/certificates/external` | `201` | Register externally issued certificate |
+| `POST` | `/v1/credentials/:credentialId/certificates/external` | `201` | Register externally issued PEM/DER certificate upload |
 | `GET` | `/v1/certificates/:certificateId/download` | `200` | Return public certificate and chain |
 | `POST` | `/v1/certificates/:certificateId/revoke` | `200` | Revoke and refresh managed CRL |
 | `GET` | `/v1/pki/status` | `200` | CA expiry, CRL, certificate, and audit status |

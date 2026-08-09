@@ -57,11 +57,11 @@ material, execute it through Envoy and the gateway, and inspect the response.
    - Access token: provide an already issued Bearer token.
    - JWT assertion: provide an assertion or connect `gatewayctl`, select a local
      RS256 identity, register its public JWK, and sign locally.
-   - mTLS: connect `gatewayctl` to generate a CSR, issue and install the public
-     certificate, and execute from the client machine. For existing local
-     certificate files, expand `Use an existing certificate`, build and copy
-     the import command, run it locally, and refresh the identity selector. The
-     browser and BFF do not receive the private key.
+   - mTLS: connect `gatewayctl`, select an installed client certificate, and
+     execute from the certificate-owner machine. Register CRTs from the owning
+     application configuration, not from the Playground. Expand `Use an
+     existing certificate` to build the local import command; the browser and
+     BFF do not receive the private key or file paths.
 6. Review the live, redacted cURL in the Inspector before sending. Select
    `Send request`, then inspect the body, response headers, exact redacted
    request, timing, response size, and OAuth exchange timing when present.
@@ -110,13 +110,18 @@ clipboard.
 3. Select a public local identity alias. The page never receives its private
    key or unrestricted filesystem path.
 4. For JWT, register the public JWK and generate a 60-second assertion.
-5. For mTLS, submit the generated CSR, install the returned public certificate,
-   and run the request through the agent.
+5. For mTLS, select a local certificate whose SHA-256 fingerprint is registered
+   on an authorized application credential, then run through the agent.
 
 When the certificate and key already exist, the Playground's local certificate
 client provides an editable `keys add` command builder. It shell-quotes every
 value, keeps path values in browser memory, and refreshes only public identity
 metadata from the connected agent after the command runs.
+
+The standard Playground never creates keys, submits CSRs, issues certificates,
+or changes an application credential. Those controls remain available only in
+the Personal Lab. Standard certificate registration belongs to the application
+detail and global certificate inventory.
 
 Use [[How to Connect Local Keys to the Playground]] for the full workflow and
 [[gatewayctl Reference]] for commands and configuration.

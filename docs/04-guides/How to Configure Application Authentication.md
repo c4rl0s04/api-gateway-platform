@@ -57,8 +57,11 @@ the Management API and the implemented PKI control plane.
 6. For JWT Bearer, call
    `POST /v1/credentials/:credentialId/public-keys` with an RSA public JWK and
    unique `kid`. Never send the client private key to the platform.
-7. For mTLS, generate a client-owned key and CSR, then issue or register its
-   certificate through the Admin Panel or Management API.
+7. For the standard mTLS onboarding flow, receive the client CRT and optional
+   public chain, open the application detail, and register them on the intended
+   credential against an active or retiring organization CA. The platform
+   validates the chain, client-auth usage, validity, key profile, CRL, and
+   unique SHA-256 fingerprint. Never request or upload the client private key.
 8. Configure one business-endpoint policy: `api-key-auth`,
    `oauth-access-token`, or `mtls-auth`.
 9. For OAuth, obtain a token from `/oauth/token` and use it as a Bearer token.
@@ -68,6 +71,10 @@ changes, and public-JWK registration are available through the Management API.
 CA and certificate lifecycle is available in the Admin Panel and Management
 API. See [[Management API Endpoint Reference]] and
 [[How to Use the Management API with Postman]] for exact calls.
+
+The standard Playground only selects and executes with an already registered
+local certificate. Managed CSR issuance remains an advanced Management API
+capability and the Personal Lab retains its guided CSR flow.
 
 The development seed provides concrete examples in `env-qual-es`:
 

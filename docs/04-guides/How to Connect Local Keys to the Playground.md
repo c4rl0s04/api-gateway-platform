@@ -69,36 +69,42 @@ private key remains on the developer machine.
 6. Send the token request, then use the returned gateway-signed access token on
    an operation protected by `oauth-access-token`.
 
-### mTLS with a new key
+### mTLS in the standard Playground
 
-The Lab and Playground show the same four-stage flow beside the mTLS controls:
+The standard Playground is an execution surface, not a certificate-management
+surface. The client obtains its certificate before testing the proxy:
 
 ```text
-Generate locally → Issue on platform → Install locally → Connect from agent
+Client owns key + certificate
+→ administrator registers CRT on the application credential
+→ client imports key + CRT into gatewayctl
+→ Playground matches the certificate fingerprint
+→ gatewayctl opens the mTLS connection
 ```
 
 | Stage | Owner | Material crossing the boundary |
 | --- | --- | --- |
-| Generate key and CSR | `gatewayctl` on the client machine | CSR only; the private key stays encrypted locally |
-| Issue certificate | Management API and the credential's active CA | CSR enters; public certificate and chain leave |
-| Install certificate | Browser hands public material to `gatewayctl` | Certificate and chain only |
+| Obtain certificate | Client and its certificate authority | Public CRT and optional chain go to the administrator |
+| Register certificate | Application administrator | CRT and chain only; never the private key |
+| Import local identity | Certificate owner | Key and certificate paths remain inside `gatewayctl` |
 | Connect | `gatewayctl` opens HTTPS to Envoy | TLS proof of private-key possession; the key itself never leaves |
 
-1. In an mTLS operation, connect the agent and select `Generate CSR`.
-2. Choose the application credential. The agent creates the key and returns
-   only the CSR.
-3. Select `Issue certificate`. Management API signs the CSR with the authorized
-   CA and returns public certificate material.
-4. The browser sends that certificate and chain back to the agent. The agent
-   verifies the key match and installs them beside its encrypted identity.
-5. Select `Run with local certificate`. The HTTPS connection originates from
-   the developer machine and the browser receives only safe status, headers,
-   body, and timing.
+1. Open the application detail under `Applications`.
+2. On the intended credential, select `Register certificate` and upload the
+   client CRT, optional intermediate chain, and trusted organization CA.
+3. On the certificate-owner machine, import the matching private key and CRT
+   using the command builder described below.
+4. Start and pair the agent, then choose the local certificate identity. The
+   Playground resolves its platform record from the SHA-256 fingerprint; no
+   application credential is selected or modified here.
+5. Select `Run with local certificate`. Execution is enabled only when the
+   certificate is approved, current, and attached to a credential authorized
+   for the selected proxy.
 
-### Manage the mTLS identity lifecycle
+### Manage the Lab mTLS identity lifecycle
 
-The mTLS controls deliberately separate local key ownership from platform
-certificate authorization:
+The Personal Lab deliberately retains generation and issuance controls so a
+user can learn the complete lifecycle without changing standard applications:
 
 | Action | Local private key | Platform certificate |
 | --- | --- | --- |
@@ -114,7 +120,7 @@ removing a lost, compromised, or no-longer-used identity; deleting only the
 local material cannot prove to the platform that its certificate should stop
 being trusted.
 
-The selector may contain several identities for the same credential. The Lab
+The Lab selector may contain several identities for the same credential. It
 matches the certificate using its SHA-256 fingerprint and enables `Run with
 certificate` only while the matching platform record is approved and unexpired.
 
@@ -135,10 +141,10 @@ npm run gatewayctl -- keys add \
 ```
 
 Run the copied command in a terminal, then select `Refresh local identities` in
-the Playground. The imported identity becomes available in the existing local
-identity selector without reconnecting the agent. The imported private key
-remains at its original path. Losing or moving that file makes the identity
-unusable until it is registered again.
+the Playground. The selector shows installed certificate identities and labels
+each one as authorized, unregistered, revoked, expired, or unauthorized for the
+selected proxy. The imported private key remains at its original path. Losing
+or moving that file makes the identity unusable until it is registered again.
 
 ## Verification
 

@@ -24,6 +24,11 @@ aliases:
 > [!summary] At a glance
 > Each organization can trust managed or external certificate authorities. Clients keep their private keys, submit CSRs, and present independently issued certificates to Envoy; the gateway authorizes the verified SHA-256 fingerprint.
 
+The standard application onboarding flow registers a client-provided CRT and
+optional public chain on an `AppCredential`. Managed CSR issuance remains an
+advanced control-plane capability and is used by the guided Personal Lab. In
+both cases, the private key remains with the certificate owner.
+
 ## Context
 
 The platform must identify multiple mTLS clients without baking one certificate

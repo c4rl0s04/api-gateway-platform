@@ -225,8 +225,9 @@ RSA members are never accepted or returned.
 | `POST` | `/certificate-authorities/:authorityId/refresh-crl` | `platformAdmin` | Refresh CRL |
 | `POST` | `/certificate-authorities/:authorityId/crl` | `platformAdmin` | Upload `{ "crlPem": string }` |
 | `GET` | `/organizations/:organizationId/certificates` | Visible member | List certificates |
+| `GET` | `/credentials/:credentialId/certificates` | Visible member | List certificates attached to one credential |
 | `POST` | `/credentials/:credentialId/certificates/issue` | Organization writer | Issue from CSR; `201` |
-| `POST` | `/credentials/:credentialId/certificates/external` | Organization writer | Register external certificate; `201` |
+| `POST` | `/credentials/:credentialId/certificates/external` | Organization writer | Register external CRT and chain; `201` |
 | `GET` | `/certificates/:certificateId/download` | Visible member | Return public certificate and chain |
 | `POST` | `/certificates/:certificateId/revoke` | Organization writer | Revoke certificate |
 | `GET` | `/pki/status` | Any member | Read expiry, CRL, and certificate status |
@@ -235,6 +236,13 @@ Managed CA creation accepts `name` and optional `validityDays` from 365 to
 3650. Issuance accepts `csrPem`, optional `authorityId`, and optional
 `validityDays` from 1 to 365. Revocation reasons are `unspecified`,
 `keyCompromise`, or `cessationOfOperation`. See [[How to Operate the PKI]].
+
+External registration accepts the existing JSON contract or
+`multipart/form-data` with `authorityId`, a required `certificate` file, and an
+optional `chain` file. Certificate files may be PEM or DER and are limited to
+1 MiB each. The server normalizes public material and validates trust, client
+authentication usage, validity, RSA/EC profile, CRL state, organization
+ownership, and fingerprint uniqueness. Private keys are never accepted.
 
 ### Audit
 

@@ -44,7 +44,7 @@ aliases: []
 | Rate limiting | Implemented | Fixed-window Redis counter with atomic Lua execution |
 | Application security management | Implemented | App lifecycle, customizable consumer keys, explicit or cloned credentials, one-time secret rotation, desired-state grants, RSA public keys, and certificates |
 | Management API | Implemented | Organization/product/proxy/app security lifecycle, audit, runtime synchronization status, and PKI; memberships, environment writes, and deletes remain out of scope |
-| Admin panel | Partial | OIDC login, proxy creation/inventory, PKI workflows, policy-aware Playground, local-agent integration, and Personal Lab onboarding/quick/advanced workflows are implemented; the standard product mutation UI is not |
+| Admin panel | Partial | OIDC login, proxy creation/inventory, app-scoped CRT registration, PKI inventory, policy-aware Playground, local-agent execution, and Personal Lab onboarding/quick/advanced workflows are implemented; the standard product mutation UI is not |
 | Local client agent | Implemented | Origin-bound loopback pairing, encrypted/imported identities, RS256 assertions, CSR lifecycle, certificate installation, and local mTLS execution without private-key transfer |
 | Personal Gateway Lab | Implemented | One 24-hour OIDC-owned workspace, runnable sample, isolated resources and hostname, qual deployments, workspace-bound auth, hot reload, reset, revocation, and audit |
 | Lab upstream boundary | Implemented | Declarative mocks plus unauthenticated public HTTPS egress with DNS/redirect SSRF controls, size/timeout limits, header stripping, and workspace rate limiting |

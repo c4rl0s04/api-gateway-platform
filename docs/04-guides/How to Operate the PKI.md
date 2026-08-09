@@ -64,12 +64,18 @@ CRL distribution URL. Activate it after validating subject, fingerprint,
 validity, ownership, and revocation process. External CA private keys remain
 outside the platform.
 
-### Issue or register a certificate
+### Register a client certificate
 
-Open `http://localhost:8080/certificates`. For managed issuance, select the
-mTLS credential, paste the CSR, and choose 1 to 365 validity days. For external
-registration, provide the issuing authority, leaf certificate, and optional
-chain. Downloaded material contains only public certificates.
+Open the application under `http://localhost:8080/apps`, choose its credential,
+and upload the client CRT plus optional intermediate chain. Select an active or
+retiring authority from the organization catalogue. The same operation is
+available from the global certificate inventory. The server accepts PEM or DER
+and stores normalized public material only.
+
+Managed issuance from a CSR remains available through
+`POST /v1/credentials/:credentialId/certificates/issue` for advanced workflows.
+It is not exposed by the standard Playground. Downloaded material contains only
+public certificates.
 
 ### Revoke and rotate
 

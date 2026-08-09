@@ -46,8 +46,8 @@ to the host; browsers and API clients reach it through the Admin Panel BFF.
 - Durable routing outbox publication and live gateway synchronization status.
 - CA lifecycle: create/import, activate, retire, revoke, rotate, refresh/upload
   CRL.
-- Certificate lifecycle: issue from CSR, register external, list, download, and
-  revoke.
+- Certificate lifecycle: issue from CSR, register uploaded PEM/DER client
+  certificates, list globally or by credential, download, and revoke.
 - PKI runtime status and append-only security audit events.
 - OIDC-owned Personal Lab API for workspace lifecycle, isolated proxies,
   revisions, deployments, products, apps, credentials, JWKs, certificates,

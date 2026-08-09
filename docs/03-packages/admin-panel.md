@@ -70,11 +70,13 @@ media types and editable examples, while a live redacted cURL shows the request
 before execution. It supports API key, existing Bearer tokens, automatic
 Client Credentials and JWT Bearer exchanges, and direct execution of the
 managed OAuth token and JWKS operations. `gatewayctl` adds an origin-bound local
-client for assertion signing, CSR issuance, certificate installation, and mTLS
-execution because private client keys must never enter the browser or BFF. For
-existing mTLS material, the Playground builds a shell-quoted local import
-command and refreshes the agent's public identity list after the operator runs
-it; the panel never submits the entered filesystem paths to the platform.
+client for assertion signing and mTLS execution because private client keys
+must never enter the browser or BFF. The standard Playground only matches and
+uses installed certificates; CRT registration belongs to the application
+configuration. It builds a shell-quoted local import command and refreshes the
+agent's public identity list after the operator runs it; the panel never submits
+the entered filesystem paths to the platform. The Personal Lab separately owns
+its guided CSR issuance and certificate installation workflow.
 
 The Personal Lab page provisions and reads an OIDC-owned workspace through the
 Lab BFF. It displays a runnable sample, a quick policy-aware executor, a
