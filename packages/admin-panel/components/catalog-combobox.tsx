@@ -9,6 +9,7 @@ export interface CatalogOption {
   description?: string;
   group?: string;
   keywords?: string[];
+  tone?: 'accent';
 }
 
 export function filterCatalogOptions(
@@ -76,6 +77,7 @@ export function CatalogCombobox({
       <button
         type="button"
         className="catalog-combobox-trigger"
+        data-tone={selected?.tone}
         aria-labelledby={`${id}-label ${id}-value`}
         aria-haspopup="listbox"
         aria-expanded={open}
@@ -144,6 +146,7 @@ export function CatalogCombobox({
                     role="option"
                     aria-selected={option.value === value}
                     data-active={index === activeIndex}
+                    data-tone={option.tone}
                     onMouseEnter={() => setActiveIndex(index)}
                     onClick={() => choose(option)}
                   >

@@ -570,12 +570,13 @@ td { padding: 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
 .catalog-combobox-popover { position: absolute; z-index: 30; top: calc(100% - 4px); left: 0; width: max(100%, 320px); overflow: hidden; border: 1px solid var(--line-strong); border-radius: var(--radius-1); background: var(--surface-raised); box-shadow: 0 16px 36px color-mix(in srgb, var(--ink) 14%, transparent); }
 .catalog-combobox-search { min-height: 48px; display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: center; gap: 8px; padding: 0 12px; border-bottom: 1px solid var(--line); }
 .catalog-combobox-search svg { width: 15px; height: 15px; color: var(--ink-faint); }
-.catalog-combobox-search input { width: 100%; height: 44px; padding: 0; border: 0; outline: 0; background: transparent; color: var(--ink); font-size: 13px; }
+.catalog-combobox-search input { width: 100%; height: 44px; padding: 0 0 0 4px; border: 0; outline: 0; background: transparent; color: var(--ink); font-size: 13px; }
 .catalog-combobox-options { max-height: 320px; overflow-y: auto; padding: 6px; }
 .catalog-combobox-group { display: block; padding: 10px 8px 6px; color: var(--ink-faint); font-size: 9px; font-weight: 650; letter-spacing: .05em; text-transform: uppercase; }
 .catalog-combobox-option-wrap button { width: 100%; min-width: 0; min-height: 48px; display: grid; grid-template-columns: minmax(0, 1fr) 18px; align-items: center; gap: 12px; padding: 7px 8px; border: 0; border-radius: var(--radius-1); background: transparent; color: var(--ink); text-align: left; cursor: pointer; }
 .catalog-combobox-option-wrap button[data-active='true'] { background: var(--surface-subtle); }
 .catalog-combobox-option-wrap button[aria-selected='true'] { color: var(--red); }
+.catalog-combobox-trigger[data-tone='accent'] strong, .catalog-combobox-option-wrap button[data-tone='accent'] strong { color: var(--red); }
 .catalog-combobox-option-wrap button > svg { width: 15px; height: 15px; }
 .catalog-combobox-empty { margin: 0; padding: 24px 12px; color: var(--ink-faint); font-size: 11px; text-align: center; }
 .playground-error { margin: 24px 0 0; padding: 12px 16px; border-left: 2px solid var(--danger); background: var(--danger-soft); color: var(--danger); font-size: 12px; line-height: 1.5; }

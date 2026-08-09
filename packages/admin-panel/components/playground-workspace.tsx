@@ -179,12 +179,14 @@ export function PlaygroundWorkspace() {
       description: item.systemManaged ? 'Managed platform service' : item.organization.name,
       group: item.systemManaged ? 'Platform services' : 'Business proxies',
       keywords: [item.id, item.organization.name],
+      tone: item.id === 'proxy-platform-oauth' ? 'accent' : undefined,
     })), [proxies]);
   const deploymentOptions = useMemo<CatalogOption[]>(() => deployments.map(item => ({
     value: item.id,
     label: environmentLabel(item.environment),
     description: `Revision ${item.revision.revisionNumber} · ${item.environment.publicOrigin}`,
     keywords: [item.environment.id, item.environment.region, item.environment.stage],
+    tone: item.environment.stage === 'prod' ? 'accent' : undefined,
   })), [deployments]);
   const operationOptions = useMemo<CatalogOption[]>(() => revision?.operations.map(operation => ({
     value: operation.operationId,
