@@ -11,6 +11,7 @@ export interface AdminPrincipal {
   issuer: string;
   subject: string;
   memberships: AdminMembershipRecord[];
+  context?: 'management' | 'lab';
 }
 
 export function isPlatformAdmin(principal: AdminPrincipal): boolean {

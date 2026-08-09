@@ -1,4 +1,4 @@
-import { AdminRole, prisma } from '@api-gateway/database';
+import { AdminRole, OrganizationKind, prisma } from '@api-gateway/database';
 import { isPlatformAdmin, type AdminPrincipal } from '../auth/authorization.js';
 import { ManagementError } from '../errors.js';
 
@@ -39,7 +39,10 @@ export class OrganizationService implements OrganizationOperations {
         .filter(membership => membership.active && membership.organizationId)
         .map(membership => membership.organizationId!);
     return prisma.organization.findMany({
-      where: organizationIds ? { id: { in: organizationIds } } : {},
+      where: {
+        kind: OrganizationKind.standard,
+        id: organizationIds ? { in: organizationIds } : undefined,
+      },
       orderBy: { name: 'asc' },
       select: { id: true, name: true, createdAt: true },
     });
@@ -51,8 +54,8 @@ export class OrganizationService implements OrganizationOperations {
     if (!canRead) {
       throw new ManagementError('forbidden', 403, 'Organization access denied');
     }
-    const organization = await prisma.organization.findUnique({
-      where: { id: organizationId },
+    const organization = await prisma.organization.findFirst({
+      where: { id: organizationId, kind: OrganizationKind.standard },
       select: { id: true, name: true, createdAt: true },
     });
     if (!organization) {
@@ -97,9 +100,9 @@ export class OrganizationService implements OrganizationOperations {
     return prisma.$transaction(async transaction => {
       const current = await transaction.organization.findUnique({
         where: { id: organizationId },
-        select: { id: true, name: true },
+        select: { id: true, name: true, kind: true },
       });
-      if (!current) {
+      if (!current || current.kind !== OrganizationKind.standard) {
         throw new ManagementError(
           'organization_not_found',
           404,

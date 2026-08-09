@@ -19,6 +19,7 @@ export async function resolveLabRequestContext(
     actor: {
       issuer: principal.issuer,
       subject: principal.subject,
+      context: 'lab',
       memberships: [{
         id: `lab:${workspace.id}`,
         role: AdminRole.organizationAdmin,

@@ -1,4 +1,4 @@
-import { listProxyDeployments, prisma } from '@api-gateway/database';
+import { OrganizationKind, listProxyDeployments, prisma } from '@api-gateway/database';
 import {
   canReadOrganization,
   isPlatformAdmin,
@@ -97,10 +97,14 @@ export class GatewayCatalogService implements GatewayCatalogOperations {
 
   listProxies(actor: AdminPrincipal) {
     const organizationIds = readableOrganizationIds(actor);
+    const organizationKind = actor.context === 'lab'
+      ? OrganizationKind.lab
+      : OrganizationKind.standard;
     return prisma.apiProxy.findMany({
-      where: organizationIds
-        ? { organizationId: { in: organizationIds } }
-        : {},
+      where: {
+        organization: { kind: organizationKind },
+        organizationId: organizationIds ? { in: organizationIds } : undefined,
+      },
       orderBy: [{ name: 'asc' }, { id: 'asc' }],
       select: proxySummarySelection,
     });
@@ -111,6 +115,7 @@ export class GatewayCatalogService implements GatewayCatalogOperations {
       where: { id: proxyId },
       select: {
         ...proxySummarySelection,
+        organization: { select: { id: true, name: true, kind: true } },
         products: {
           orderBy: { name: 'asc' },
           select: {
@@ -125,6 +130,10 @@ export class GatewayCatalogService implements GatewayCatalogOperations {
     if (!proxy) {
       throw notFound();
     }
+    const expectedKind = actor.context === 'lab'
+      ? OrganizationKind.lab
+      : OrganizationKind.standard;
+    if (proxy.organization.kind !== expectedKind) throw notFound();
     if (!canReadOrganization(actor, proxy.organizationId)) {
       throw forbidden();
     }
@@ -134,11 +143,18 @@ export class GatewayCatalogService implements GatewayCatalogOperations {
   async listDeployments(proxyId: string, actor: AdminPrincipal) {
     const proxy = await prisma.apiProxy.findUnique({
       where: { id: proxyId },
-      select: { organizationId: true },
+      select: {
+        organizationId: true,
+        organization: { select: { kind: true } },
+      },
     });
     if (!proxy) {
       throw notFound();
     }
+    const expectedKind = actor.context === 'lab'
+      ? OrganizationKind.lab
+      : OrganizationKind.standard;
+    if (proxy.organization.kind !== expectedKind) throw notFound();
     if (!canReadOrganization(actor, proxy.organizationId)) {
       throw forbidden();
     }
