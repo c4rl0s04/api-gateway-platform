@@ -15,7 +15,20 @@ export class PlaygroundApiError extends Error {
 export async function executePlayground(
   input: PlaygroundExecutionInput,
 ): Promise<PlaygroundExecutionResult> {
-  const response = await fetch('/api/playground', {
+  return executeAt('/api/playground', input);
+}
+
+export async function executeLabPlayground(
+  input: PlaygroundExecutionInput,
+): Promise<PlaygroundExecutionResult> {
+  return executeAt('/api/lab/playground', input);
+}
+
+async function executeAt(
+  endpoint: string,
+  input: PlaygroundExecutionInput,
+): Promise<PlaygroundExecutionResult> {
+  const response = await fetch(endpoint, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(input),
