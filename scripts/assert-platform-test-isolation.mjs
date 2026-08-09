@@ -44,7 +44,7 @@ assert.match(
   config.services.keycloak.environment.KC_DB_URL,
   /^jdbc:postgresql:\/\/keycloak-postgres:5432\/keycloak_e2e$/,
 );
-for (const serviceName of ['database-setup', 'gateway', 'management-api']) {
+for (const serviceName of ['database-setup', 'gateway', 'management-api', 'lab-egress']) {
   assert.match(
     config.services[serviceName].environment.DATABASE_URL,
     /\/apigw_e2e\?schema=public$/,
@@ -58,6 +58,7 @@ assert.equal(config.services.gateway.environment.GATEWAY_INSTANCE_ID, 'gateway-e
 assert.deepEqual(publishedPorts('admin-panel'), [18080]);
 assert.deepEqual(publishedPorts('keycloak'), [18081]);
 assert.deepEqual(publishedPorts('envoy'), [18443]);
+assert.deepEqual(publishedPorts('lab-egress'), []);
 assert.deepEqual(config.networks.default.ipam.config, [{ subnet: '172.31.0.0/24' }]);
 assert.match(config.volumes['postgres-data'].name, new RegExp(`^${projectName}_`));
 assert.match(config.volumes['keycloak-data'].name, new RegExp(`^${projectName}_`));
