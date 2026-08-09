@@ -106,6 +106,22 @@ export type {
   LabWorkspaceErrorCode,
 } from './lab-workspaces.js';
 export {
+  createLabUpstream,
+  listLabUpstreams,
+  normalizeLabMockRoutes,
+  normalizeLabPublicHttpsUrl,
+  resolveLabUpstreamInternalUrl,
+  updateLabUpstream,
+  LabUpstreamError,
+} from './lab-upstreams.js';
+export type {
+  CreateLabUpstreamInput,
+  LabMockRoute,
+  LabUpstreamActor,
+  LabUpstreamErrorCode,
+  UpdateLabUpstreamInput,
+} from './lab-upstreams.js';
+export {
   countPendingGatewayConfigChanges,
   getLatestGatewayConfigVersion,
   listPendingGatewayConfigChanges,
