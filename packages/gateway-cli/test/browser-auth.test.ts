@@ -106,6 +106,52 @@ describe('gatewayctl browser authorization', () => {
       hasCode('session_invalid'),
     );
   });
+
+  it('accepts browser WebCrypto P-256 proofs and expires pending challenges', async () => {
+    let now = Date.parse('2030-01-01T00:00:00.000Z');
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'gatewayctl-webcrypto-'));
+    directories.push(directory);
+    const store = new TrustedClientStore(directory, 30);
+    const pair = await crypto.subtle.generateKey(
+      { name: 'ECDSA', namedCurve: 'P-256' },
+      false,
+      ['sign', 'verify'],
+    );
+    const publicJwk = await crypto.subtle.exportKey('jwk', pair.publicKey);
+    const prompts: PairingPrompt[] = [];
+    const auth = new BrowserAgentAuth(store, 'agent-webcrypto', prompt => prompts.push(prompt), () => now);
+    const client = {
+      clientId: 'browser-webcrypto-0001',
+      origin: 'http://localhost:8080',
+      label: 'Chromium test',
+      publicJwk,
+    };
+    const pairing = await auth.createPairing(client);
+    const message = pairingProofMessage({
+      pairingId: pairing.pairingId,
+      nonce: pairing.nonce,
+      origin: client.origin,
+      instanceId: 'agent-webcrypto',
+      clientId: client.clientId,
+    });
+    const signature = Buffer.from(await crypto.subtle.sign(
+      { name: 'ECDSA', hash: 'SHA-256' },
+      pair.privateKey,
+      new TextEncoder().encode(message),
+    )).toString('base64url');
+    assert.ok((await auth.completePairing({
+      pairingId: pairing.pairingId,
+      code: prompts[0]!.code,
+      signature,
+    })).token);
+
+    const challenge = await auth.createSessionChallenge(client);
+    now += 31_000;
+    await assert.rejects(
+      auth.completeSession({ challengeId: challenge.challengeId, signature: 'expired' }),
+      hasCode('challenge_expired'),
+    );
+  });
 });
 
 async function setup() {

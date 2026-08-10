@@ -40,7 +40,7 @@ export async function startLocalAgent(input: {
     const origin = request.headers.origin;
     if (request.method === 'OPTIONS') {
       if (!origin || !input.profile.allowedOrigins.includes(origin)) {
-        sendJson(response, 403, { error: 'origin_not_allowed' });
+        sendJson(response, 403, { error: { code: 'origin_not_allowed', message: 'Browser origin is not allowed' } });
         return;
       }
       setCorsHeaders(response, origin);
@@ -48,7 +48,7 @@ export async function startLocalAgent(input: {
       return;
     }
     if (!origin || !input.profile.allowedOrigins.includes(origin)) {
-      sendJson(response, 403, { error: 'origin_not_allowed' });
+      sendJson(response, 403, { error: { code: 'origin_not_allowed', message: 'Browser origin is not allowed' } });
       return;
     }
     setCorsHeaders(response, origin);

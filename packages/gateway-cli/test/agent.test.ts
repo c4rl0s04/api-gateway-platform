@@ -132,21 +132,40 @@ describe('gatewayctl loopback pairing', () => {
     });
     assert.equal(forbiddenRoute.status, 404);
   });
+
+  it('rejects duplicate fixed-port agents and returns stable origin errors', async () => {
+    const { agent, directory } = await fixture();
+    const profile = testProfile();
+    const store = new IdentityStore(new TestMasterKeyProvider(), directory);
+    await assert.rejects(
+      startLocalAgent({
+        operations: new AgentOperations(store, profile),
+        profile,
+        stateDirectory: directory,
+        port: agent.port,
+      }),
+      (error: unknown) => error instanceof Error
+        && (error as { code?: string }).code === 'agent_port_in_use',
+    );
+    const forbidden = await fetch(`http://127.0.0.1:${agent.port}/v1/status`, {
+      headers: { origin: 'https://attacker.example' },
+    });
+    assert.equal(forbidden.status, 403);
+    assert.equal(
+      (await forbidden.json() as { error: { code: string } }).error.code,
+      'origin_not_allowed',
+    );
+  });
 });
 
 async function fixture(): Promise<{
   agent: RunningAgent;
   baseUrl: string;
+  directory: string;
   prompts: PairingPrompt[];
 }> {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'gatewayctl-agent-test-'));
-  const profile = {
-    allowedOrigins: ['http://localhost:8080'],
-    allowedAudienceHosts: ['*.gateway.localhost'],
-    playgroundUrl: 'http://localhost:8080/playground',
-    port: 43_127,
-    trustedClientDays: 30,
-  };
+  const profile = testProfile();
   const store = new IdentityStore(new TestMasterKeyProvider(), directory);
   const prompts: PairingPrompt[] = [];
   const agent = await startLocalAgent({
@@ -157,5 +176,15 @@ async function fixture(): Promise<{
     onPairingPrompt: prompt => prompts.push(prompt),
   });
   resources.push({ directory, agent });
-  return { agent, baseUrl: `http://127.0.0.1:${agent.port}`, prompts };
+  return { agent, baseUrl: `http://127.0.0.1:${agent.port}`, directory, prompts };
+}
+
+function testProfile() {
+  return {
+    allowedOrigins: ['http://localhost:8080'],
+    allowedAudienceHosts: ['*.gateway.localhost'],
+    playgroundUrl: 'http://localhost:8080/playground',
+    port: 43_127,
+    trustedClientDays: 30,
+  };
 }

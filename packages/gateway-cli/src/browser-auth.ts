@@ -79,6 +79,7 @@ export class BrowserAgentAuth {
     publicJwk: JWK;
   }): Promise<{ pairingId: string; nonce: string; expiresAt: string }> {
     this.cleanup();
+    validateClientInput(input.clientId, input.origin, input.label);
     validatePublicKey(input.publicJwk);
     if (await this.trustedClients.findActive(input.clientId, input.origin, new Date(this.now()))) {
       throw new GatewayCtlError('client_already_registered', 'Browser client is already trusted');
@@ -88,6 +89,7 @@ export class BrowserAgentAuth {
     if (duplicate && this.now() - duplicate.createdAt < PAIRING_COOLDOWN_MS) {
       throw new GatewayCtlError('pairing_pending', 'A pairing request is already pending');
     }
+    if (duplicate) this.pairings.delete(duplicate.id);
     if (this.pairings.size >= MAX_PAIRINGS) {
       throw new GatewayCtlError('pairing_limit_reached', 'Too many pairing requests are pending');
     }
@@ -304,6 +306,21 @@ function validatePublicKey(jwk: JWK): void {
     createPublicKey({ key: jwk as NodeJsonWebKey, format: 'jwk' });
   } catch {
     throw new GatewayCtlError('invalid_client_key', 'Browser client public JWK is invalid');
+  }
+}
+
+function validateClientInput(clientId: string, origin: string, label: string): void {
+  if (!/^[a-zA-Z0-9_-]{16,120}$/u.test(clientId)) {
+    throw new GatewayCtlError('invalid_client_id', 'Browser client ID is invalid');
+  }
+  if (!label.trim() || label.trim().length > 100 || /[\u0000-\u001f\u007f]/u.test(label)) {
+    throw new GatewayCtlError('invalid_client_label', 'Browser client label is invalid');
+  }
+  try {
+    const parsed = new URL(origin);
+    if (parsed.origin !== origin || !['http:', 'https:'].includes(parsed.protocol)) throw new Error();
+  } catch {
+    throw new GatewayCtlError('invalid_origin', 'Browser client origin is invalid');
   }
 }
 
