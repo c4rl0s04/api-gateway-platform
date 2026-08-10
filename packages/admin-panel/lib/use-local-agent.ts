@@ -27,7 +27,9 @@ export interface LocalAgentController {
   identities: LocalIdentity[];
   activity: AgentActivity[];
   port: number;
+  dialogOpen: boolean;
   connect(): Promise<void>;
+  closeDialog(): void;
   approvePairing(code: string): Promise<void>;
   setPort(port: number): void;
   refreshIdentities(client?: LocalAgentClient): Promise<LocalIdentity[]>;
@@ -47,6 +49,7 @@ export function useLocalAgentController(): LocalAgentController {
   const [state, setState] = useState<LocalAgentState>({ status: 'checking', port: DEFAULT_AGENT_PORT });
   const [identities, setIdentities] = useState<LocalIdentity[]>([]);
   const [activity, setActivity] = useState<AgentActivity[]>([]);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const identityRef = useRef<BrowserAgentIdentity | null>(null);
   const clientRef = useRef<LocalAgentClient | null>(null);
   const probeRef = useRef<Promise<void> | null>(null);
@@ -140,6 +143,7 @@ export function useLocalAgentController(): LocalAgentController {
   }, [applyConnected, port]);
 
   const connect = useCallback(async () => {
+    setDialogOpen(true);
     const identity = identityRef.current ?? await loadOrCreateBrowserAgentIdentity();
     identityRef.current = identity;
     try {
@@ -200,6 +204,8 @@ export function useLocalAgentController(): LocalAgentController {
     setState({ status: 'checking', port: nextPort });
   }, []);
 
+  const closeDialog = useCallback(() => setDialogOpen(false), []);
+
   useEffect(() => {
     const stored = Number(localStorage.getItem(PORT_KEY));
     const initialPort = Number.isInteger(stored) && stored > 0 && stored <= 65_535
@@ -239,5 +245,17 @@ export function useLocalAgentController(): LocalAgentController {
     return () => channel.close();
   }, [port, probe, refreshIdentities]);
 
-  return { state, identities, activity, port, connect, approvePairing, setPort, refreshIdentities, track };
+  return {
+    state,
+    identities,
+    activity,
+    port,
+    dialogOpen,
+    connect,
+    closeDialog,
+    approvePairing,
+    setPort,
+    refreshIdentities,
+    track,
+  };
 }
