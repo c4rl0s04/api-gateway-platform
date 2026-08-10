@@ -270,13 +270,16 @@ try {
   await waitFor(`${keycloakBaseUrl}/realms/api-gateway`);
   await waitFor(adminPanelBaseUrl);
 
-  const keycloakAdmin = await tokenRequest('master', {
-    grant_type: 'password',
-    client_id: 'admin-cli',
-    username: 'local-admin',
-    password: users.KEYCLOAK_ADMIN_PASSWORD,
-  });
-  await ensureTestClient(keycloakAdmin.access_token);
+  const currentKeycloakAdminAccessToken = async () => {
+    const identity = await tokenRequest('master', {
+      grant_type: 'password',
+      client_id: 'admin-cli',
+      username: 'local-admin',
+      password: users.KEYCLOAK_ADMIN_PASSWORD,
+    });
+    return identity.access_token;
+  };
+  await ensureTestClient(await currentKeycloakAdminAccessToken());
 
   let platformAccessToken;
   let platformAccessTokenExpiresAt = 0;
@@ -1028,7 +1031,11 @@ try {
 
   const secondLabUsername = `lab-user-${revisionSuffix}`;
   const secondLabPassword = `Lab-${randomUUID()}-Password`;
-  await ensureLabUser(keycloakAdmin.access_token, secondLabUsername, secondLabPassword);
+  await ensureLabUser(
+    await currentKeycloakAdminAccessToken(),
+    secondLabUsername,
+    secondLabPassword,
+  );
   const secondLabIdentity = await tokenRequest('api-gateway', {
     grant_type: 'password',
     client_id: 'platform-e2e',
