@@ -1,8 +1,39 @@
+import {
+  signAgentProof,
+  type BrowserAgentIdentity,
+} from '@/lib/browser-agent-identity';
+
+export const AGENT_PROTOCOL_VERSION = 2;
+export const DEFAULT_AGENT_PORT = 43_127;
+
 export type LocalAgentState =
-  | { status: 'disconnected'; message?: string }
-  | { status: 'connecting'; port: number }
-  | { status: 'connected'; client: LocalAgentClient; expiresAt: string }
-  | { status: 'error'; message: string };
+  | { status: 'checking'; port: number }
+  | { status: 'unavailable'; port: number; message: string }
+  | { status: 'approvalRequired'; port: number; agent: AgentStatus }
+  | { status: 'pairing'; port: number; agent: AgentStatus; pairing: PendingPairing; message?: string }
+  | { status: 'connected'; client: LocalAgentClient; expiresAt: string; trustedUntil: string }
+  | { status: 'incompatible'; port: number; foundVersion: number }
+  | { status: 'error'; port: number; message: string };
+
+export interface AgentStatus {
+  name: 'gatewayctl';
+  protocolVersion: number;
+  agentVersion: string;
+  instanceId: string;
+  capabilities: string[];
+}
+
+export interface PendingPairing {
+  pairingId: string;
+  nonce: string;
+  expiresAt: string;
+}
+
+interface BrowserSession {
+  token: string;
+  expiresAt: string;
+  trustedUntil: string;
+}
 
 export interface LocalIdentity {
   id: string;
@@ -19,41 +50,11 @@ export interface LocalIdentity {
   createdAt: string;
 }
 
-interface PairingData {
-  port: number;
-  nonce: string;
-}
-
-export interface LocalAgentSession {
-  port: number;
-  token: string;
-  expiresAt: string;
-}
-
 export interface MtlsImportCommandInput {
   name: string;
   keyFile: string;
   certificateFile: string;
   chainFile?: string;
-}
-
-function shellQuote(value: string): string {
-  return `'${value.replace(/'/g, `'"'"'`)}'`;
-}
-
-export function buildMtlsImportCommand(input: MtlsImportCommandInput): string {
-  const argumentsList = [
-    ['--name', input.name],
-    ['--type', 'mtls'],
-    ['--key', input.keyFile],
-    ['--certificate', input.certificateFile],
-    ...(input.chainFile ? [['--chain', input.chainFile]] : []),
-  ];
-  return [
-    'npm run gatewayctl -- keys add \\',
-    ...argumentsList.map(([flag, value], index) =>
-      `  ${flag} ${shellQuote(value)}${index < argumentsList.length - 1 ? ' \\' : ''}`),
-  ].join('\n');
 }
 
 interface RpcResponse<T> {
@@ -62,72 +63,83 @@ interface RpcResponse<T> {
 }
 
 export class LocalAgentError extends Error {
-  constructor(
-    readonly code: string,
-    message: string,
-  ) {
+  constructor(readonly code: string, message: string) {
     super(message);
     this.name = 'LocalAgentError';
   }
 }
 
 export class LocalAgentClient {
-  constructor(
+  private renewal: Promise<void> | null = null;
+
+  private constructor(
     readonly port: number,
-    private readonly token: string,
+    public agent: AgentStatus,
+    private readonly identity: BrowserAgentIdentity,
+    private sessionValue: BrowserSession,
   ) {}
 
-  static pairingFromFragment(fragment: string): PairingData | null {
-    const parameters = new URLSearchParams(fragment.replace(/^#/, ''));
-    const encoded = parameters.get('gatewayctl');
-    if (!encoded) return null;
-    try {
-      const parsed = JSON.parse(decodeBase64Url(encoded)) as Partial<PairingData>;
-      if (!Number.isInteger(parsed.port)
-        || (parsed.port ?? 0) < 1
-        || (parsed.port ?? 0) > 65_535
-        || typeof parsed.nonce !== 'string'
-        || parsed.nonce.length < 32) {
-        return null;
-      }
-      return parsed as PairingData;
-    } catch {
-      return null;
+  get expiresAt(): string {
+    return this.sessionValue.expiresAt;
+  }
+
+  get trustedUntil(): string {
+    return this.sessionValue.trustedUntil;
+  }
+
+  static async discover(port: number): Promise<AgentStatus> {
+    const response = await agentFetch(port, '/v1/status', { method: 'GET' }, 1_500);
+    const payload = await jsonPayload<Partial<AgentStatus>>(response);
+    if (!response.ok || payload.name !== 'gatewayctl' || typeof payload.protocolVersion !== 'number') {
+      throw new LocalAgentError('agent_unavailable', 'No compatible gatewayctl agent answered');
     }
+    return payload as AgentStatus;
   }
 
-  static async pair(pairing: PairingData): Promise<{
-    client: LocalAgentClient;
-    expiresAt: string;
-  }> {
-    const response = await fetch(`http://127.0.0.1:${pairing.port}/pair`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ nonce: pairing.nonce }),
-    });
-    const payload = await response.json() as {
-      token?: string;
-      expiresAt?: string;
-      error?: { code?: string; message?: string };
-    };
-    if (!response.ok || !payload.token || !payload.expiresAt) {
-      throw new LocalAgentError(
-        payload.error?.code ?? 'pairing_failed',
-        payload.error?.message ?? 'Could not pair with the local agent',
-      );
-    }
-    return {
-      client: new LocalAgentClient(pairing.port, payload.token),
-      expiresAt: payload.expiresAt,
-    };
+  static async connectTrusted(
+    port: number,
+    agent: AgentStatus,
+    identity: BrowserAgentIdentity,
+  ): Promise<LocalAgentClient> {
+    const session = await createTrustedSession(port, agent, identity);
+    return new LocalAgentClient(port, agent, identity, session);
   }
 
-  static restore(session: LocalAgentSession): LocalAgentClient {
-    return new LocalAgentClient(session.port, session.token);
+  static async requestPairing(
+    port: number,
+    identity: BrowserAgentIdentity,
+  ): Promise<PendingPairing> {
+    return request<PendingPairing>(port, '/v1/pairings', {
+      clientId: identity.clientId,
+      label: identity.label,
+      publicJwk: identity.publicJwk,
+    }, undefined, 3_000);
   }
 
-  session(expiresAt: string): LocalAgentSession {
-    return { port: this.port, token: this.token, expiresAt };
+  static async completePairing(input: {
+    port: number;
+    agent: AgentStatus;
+    identity: BrowserAgentIdentity;
+    pairing: PendingPairing;
+    code: string;
+  }): Promise<LocalAgentClient> {
+    const signature = await signAgentProof(input.identity, pairingMessage({
+      pairingId: input.pairing.pairingId,
+      nonce: input.pairing.nonce,
+      origin: window.location.origin,
+      instanceId: input.agent.instanceId,
+      clientId: input.identity.clientId,
+    }));
+    const session = await request<BrowserSession>(
+      input.port,
+      `/v1/pairings/${encodeURIComponent(input.pairing.pairingId)}/complete`,
+      { code: input.code, signature },
+    );
+    return new LocalAgentClient(input.port, input.agent, input.identity, session);
+  }
+
+  status(): Promise<AgentStatus> {
+    return LocalAgentClient.discover(this.port);
   }
 
   listIdentities(): Promise<LocalIdentity[]> {
@@ -192,28 +204,159 @@ export class LocalAgentClient {
   }
 
   private async rpc<T>(method: string, params: Record<string, unknown> = {}): Promise<T> {
-    const response = await fetch(`http://127.0.0.1:${this.port}/rpc`, {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${this.token}`,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({ method, params }),
-    });
-    const payload = await response.json() as RpcResponse<T>;
-    if (!response.ok || payload.error || payload.result === undefined) {
-      throw new LocalAgentError(
-        payload.error?.code ?? 'agent_request_failed',
-        payload.error?.message ?? 'Local agent request failed',
-      );
+    await this.ensureSession();
+    try {
+      return await request<T>(this.port, '/v1/rpc', { method, params }, this.sessionValue.token, 15_000);
+    } catch (error) {
+      if (!(error instanceof LocalAgentError) || error.code !== 'session_invalid') throw error;
+      await this.renewSession();
+      return request<T>(this.port, '/v1/rpc', { method, params }, this.sessionValue.token, 15_000);
     }
-    return payload.result;
+  }
+
+  private async ensureSession(): Promise<void> {
+    if (new Date(this.sessionValue.expiresAt).getTime() - Date.now() > 60_000) return;
+    await this.renewSession();
+  }
+
+  private async renewSession(): Promise<void> {
+    if (!this.renewal) {
+      this.renewal = LocalAgentClient.discover(this.port)
+        .then(agent => {
+          if (agent.protocolVersion !== AGENT_PROTOCOL_VERSION) {
+            throw new LocalAgentError('agent_incompatible', `gatewayctl protocol ${agent.protocolVersion} is not supported`);
+          }
+          this.agent = agent;
+          return createTrustedSession(this.port, agent, this.identity);
+        })
+        .then(session => { this.sessionValue = session; })
+        .finally(() => { this.renewal = null; });
+    }
+    await this.renewal;
   }
 }
 
-function decodeBase64Url(value: string): string {
-  const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
-  const bytes = Uint8Array.from(globalThis.atob(normalized), character =>
-    character.charCodeAt(0));
-  return new TextDecoder().decode(bytes);
+async function createTrustedSession(
+  port: number,
+  agent: AgentStatus,
+  identity: BrowserAgentIdentity,
+): Promise<BrowserSession> {
+  const challenge = await request<{
+    challengeId: string;
+    nonce: string;
+  }>(port, '/v1/sessions/challenges', { clientId: identity.clientId });
+  const signature = await signAgentProof(identity, sessionMessage({
+    challengeId: challenge.challengeId,
+    nonce: challenge.nonce,
+    origin: window.location.origin,
+    instanceId: agent.instanceId,
+    clientId: identity.clientId,
+  }));
+  return request<BrowserSession>(port, '/v1/sessions', {
+    challengeId: challenge.challengeId,
+    signature,
+  });
+}
+
+async function request<T>(
+  port: number,
+  path: string,
+  body: Record<string, unknown>,
+  token?: string,
+  timeoutMs = 5_000,
+): Promise<T> {
+  const response = await agentFetch(port, path, {
+    method: 'POST',
+    headers: {
+      ...(token ? { authorization: `Bearer ${token}` } : {}),
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  }, timeoutMs);
+  const payload = await jsonPayload<RpcResponse<T> & T>(response);
+  if (!response.ok || payload.error) {
+    throw new LocalAgentError(
+      payload.error?.code ?? `agent_http_${response.status}`,
+      payload.error?.message ?? 'Local agent request failed',
+    );
+  }
+  if ('result' in payload) {
+    if (payload.result === undefined) throw new LocalAgentError('agent_response_invalid', 'Local agent response is invalid');
+    return payload.result;
+  }
+  return payload as T;
+}
+
+async function agentFetch(
+  port: number,
+  path: string,
+  init: RequestInit,
+  timeoutMs: number,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(`http://127.0.0.1:${port}${path}`, {
+      ...init,
+      signal: controller.signal,
+      targetAddressSpace: 'local',
+    } as RequestInit & { targetAddressSpace: 'local' });
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new LocalAgentError('agent_timeout', 'The local agent did not answer in time');
+    }
+    throw new LocalAgentError(
+      'agent_unavailable',
+      'The local agent is unavailable or local network access was blocked by the browser',
+    );
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
+async function jsonPayload<T>(response: Response): Promise<T> {
+  try {
+    return await response.json() as T;
+  } catch {
+    throw new LocalAgentError('agent_response_invalid', 'Local agent returned an invalid response');
+  }
+}
+
+function pairingMessage(input: {
+  pairingId: string;
+  nonce: string;
+  origin: string;
+  instanceId: string;
+  clientId: string;
+}): string {
+  return JSON.stringify(['gatewayctl-pairing-v2', input.pairingId, input.nonce, input.origin, input.instanceId, input.clientId]);
+}
+
+function sessionMessage(input: {
+  challengeId: string;
+  nonce: string;
+  origin: string;
+  instanceId: string;
+  clientId: string;
+}): string {
+  return JSON.stringify(['gatewayctl-session-v2', input.challengeId, input.nonce, input.origin, input.instanceId, input.clientId]);
+}
+
+function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, `'"'"'`)}'`;
+}
+
+export function buildMtlsImportCommand(input: MtlsImportCommandInput): string {
+  const argumentsList = [
+    ['--name', input.name],
+    ['--type', 'mtls'],
+    ['--key', input.keyFile],
+    ['--certificate', input.certificateFile],
+    ...(input.chainFile ? [['--chain', input.chainFile]] : []),
+  ];
+  return [
+    'npm run gatewayctl -- keys add \\',
+    ...argumentsList.map(([flag, value], index) =>
+      `  ${flag} ${shellQuote(value)}${index < argumentsList.length - 1 ? ' \\' : ''}`),
+  ].join('\n');
 }

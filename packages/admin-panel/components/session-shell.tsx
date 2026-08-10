@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { AccessScreen, AccessScreenState } from '@/components/access-screen';
 import { CollapsibleSidebar } from '@/components/collapsible-sidebar';
 import { AdminSessionProvider } from '@/components/session-context';
+import { LocalAgentProvider } from '@/components/local-agent-provider';
 import { AdminSession, checkSession } from '@/lib/session';
 
 export function SessionShell({ children }: { children: React.ReactNode }) {
@@ -32,10 +33,12 @@ export function SessionShell({ children }: { children: React.ReactNode }) {
 
   return (
     <AdminSessionProvider session={session}>
-      <div className="app-shell">
-        <CollapsibleSidebar role={role} />
-        <main className="workspace">{children}</main>
-      </div>
+      <LocalAgentProvider>
+        <div className="app-shell">
+          <CollapsibleSidebar role={role} />
+          <main className="workspace">{children}</main>
+        </div>
+      </LocalAgentProvider>
     </AdminSessionProvider>
   );
 }

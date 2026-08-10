@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { afterEach, describe, it } from 'node:test';
+import { afterEach, beforeEach, describe, it } from 'node:test';
+import type { BrowserAgentIdentity } from '../lib/browser-agent-identity.js';
 import {
   buildMtlsImportCommand,
   LocalAgentClient,
@@ -7,9 +8,22 @@ import {
 } from '../lib/local-agent.js';
 
 const originalFetch = globalThis.fetch;
+const originalWindow = globalThis.window;
+
+beforeEach(() => {
+  Object.defineProperty(globalThis, 'window', {
+    configurable: true,
+    value: {
+      location: { origin: 'http://localhost:8080' },
+      setTimeout,
+      clearTimeout,
+    },
+  });
+});
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: originalWindow });
 });
 
 describe('playground local-agent client', () => {
@@ -34,92 +48,90 @@ describe('playground local-agent client', () => {
     }), /--chain/u);
   });
 
-  it('parses gatewayctl pairing data without accepting malformed ports or nonces', () => {
-    const encoded = Buffer.from(JSON.stringify({
-      port: 41_234,
-      nonce: 'a'.repeat(43),
-    })).toString('base64url');
-    assert.deepEqual(
-      LocalAgentClient.pairingFromFragment(`#gatewayctl=${encoded}`),
-      { port: 41_234, nonce: 'a'.repeat(43) },
-    );
-    assert.equal(LocalAgentClient.pairingFromFragment('#gatewayctl=invalid'), null);
-    assert.equal(LocalAgentClient.pairingFromFragment('#other=value'), null);
-  });
-
-  it('pairs and sends only authenticated RPC requests to the advertised loopback port', async () => {
+  it('discovers protocol v2 and restores a signed session before RPC', async () => {
     const requests: Array<{ url: string; init?: RequestInit }> = [];
     globalThis.fetch = async (input, init) => {
       const url = String(input);
       requests.push({ url, init });
-      if (url.endsWith('/pair')) {
-        return Response.json({
-          token: 'session-token',
-          expiresAt: '2030-01-01T00:30:00.000Z',
-        });
+      if (url.endsWith('/v1/status')) return Response.json(agentStatus());
+      if (url.endsWith('/v1/sessions/challenges')) {
+        return Response.json({ challengeId: 'challenge-1', nonce: 'nonce-1', expiresAt: '2030-01-01T00:00:30.000Z' });
+      }
+      if (url.endsWith('/v1/sessions')) {
+        return Response.json({ token: 'session-token', expiresAt: '2030-01-01T00:15:00.000Z', trustedUntil: '2030-01-31T00:00:00.000Z' });
       }
       return Response.json({ result: [{
-        id: 'identity-1',
-        name: 'banking-jwt',
-        type: 'jwt',
-        source: 'generated',
-        algorithm: 'RS256',
-        fingerprint: 'abc',
-        hasCertificate: false,
+        id: 'identity-1', name: 'banking-jwt', type: 'jwt', source: 'generated',
+        algorithm: 'RS256', fingerprint: 'abc', hasCertificate: false,
         createdAt: '2030-01-01T00:00:00.000Z',
       }] });
     };
-
-    const paired = await LocalAgentClient.pair({
-      port: 41_234,
-      nonce: 'nonce-value',
-    });
-    const identities = await paired.client.listIdentities();
+    const identity = await browserIdentity();
+    const status = await LocalAgentClient.discover(43_127);
+    const client = await LocalAgentClient.connectTrusted(43_127, status, identity);
+    const identities = await client.listIdentities();
 
     assert.equal(identities[0]?.name, 'banking-jwt');
-    assert.equal(requests[0]?.url, 'http://127.0.0.1:41234/pair');
-    assert.deepEqual(JSON.parse(String(requests[0]?.init?.body)), {
-      nonce: 'nonce-value',
-    });
-    assert.equal(requests[1]?.url, 'http://127.0.0.1:41234/rpc');
-    assert.equal(
-      new Headers(requests[1]?.init?.headers).get('authorization'),
-      'Bearer session-token',
-    );
-    assert.deepEqual(JSON.parse(String(requests[1]?.init?.body)), {
-      method: 'identity.list',
-      params: {},
-    });
+    assert.deepEqual(requests.map(request => new URL(request.url).pathname), [
+      '/v1/status', '/v1/sessions/challenges', '/v1/sessions', '/v1/rpc',
+    ]);
+    assert.equal(new Headers(requests[3]?.init?.headers).get('authorization'), 'Bearer session-token');
+    assert.deepEqual(JSON.parse(String(requests[3]?.init?.body)), { method: 'identity.list', params: {} });
+    assert.equal((requests[0]?.init as RequestInit & { targetAddressSpace?: string }).targetAddressSpace, 'local');
   });
 
-  it('surfaces closed agent error codes without exposing implementation details', async () => {
+  it('requests terminal pairing without sending private browser material', async () => {
+    const requests: Array<{ url: string; init?: RequestInit }> = [];
+    globalThis.fetch = async (input, init) => {
+      requests.push({ url: String(input), init });
+      return Response.json({ pairingId: 'pairing-1', nonce: 'nonce', expiresAt: '2030-01-01T00:02:00.000Z' }, { status: 202 });
+    };
+    const identity = await browserIdentity();
+    await LocalAgentClient.requestPairing(43_127, identity);
+    const body = JSON.parse(String(requests[0]?.init?.body)) as Record<string, unknown>;
+    assert.equal(body.clientId, identity.clientId);
+    assert.deepEqual(body.publicJwk, identity.publicJwk);
+    assert.equal('privateKey' in body, false);
+  });
+
+  it('surfaces stable agent errors and network availability failures', async () => {
     globalThis.fetch = async () => Response.json({
-      error: {
-        code: 'operation_not_allowed',
-        message: 'The requested local-agent operation is not allowed',
-      },
-    }, { status: 400 });
-    const client = new LocalAgentClient(41_234, 'session-token');
-
+      error: { code: 'client_not_registered', message: 'Browser client is not trusted' },
+    }, { status: 404 });
     await assert.rejects(
-      client.listIdentities(),
-      (error: unknown) => error instanceof LocalAgentError
-        && error.code === 'operation_not_allowed',
+      LocalAgentClient.connectTrusted(43_127, agentStatus(), await browserIdentity()),
+      (error: unknown) => error instanceof LocalAgentError && error.code === 'client_not_registered',
     );
-  });
 
-  it('restores only an explicit temporary browser session', async () => {
-    const { LocalAgentClient } = await import('../lib/local-agent.js');
-    const client = LocalAgentClient.restore({
-      port: 43123,
-      token: 'temporary-session-token-with-enough-entropy',
-      expiresAt: '2030-01-01T00:00:00.000Z',
-    });
-
-    assert.deepEqual(client.session('2030-01-01T00:00:00.000Z'), {
-      port: 43123,
-      token: 'temporary-session-token-with-enough-entropy',
-      expiresAt: '2030-01-01T00:00:00.000Z',
-    });
+    globalThis.fetch = async () => { throw new TypeError('blocked'); };
+    await assert.rejects(
+      LocalAgentClient.discover(43_127),
+      (error: unknown) => error instanceof LocalAgentError && error.code === 'agent_unavailable',
+    );
   });
 });
+
+async function browserIdentity(): Promise<BrowserAgentIdentity> {
+  const pair = await crypto.subtle.generateKey(
+    { name: 'ECDSA', namedCurve: 'P-256' },
+    false,
+    ['sign', 'verify'],
+  );
+  return {
+    clientId: 'browser-test-client-0001',
+    label: 'Test browser',
+    publicJwk: await crypto.subtle.exportKey('jwk', pair.publicKey),
+    privateKey: pair.privateKey,
+    createdAt: '2030-01-01T00:00:00.000Z',
+  };
+}
+
+function agentStatus() {
+  return {
+    name: 'gatewayctl' as const,
+    protocolVersion: 2,
+    agentVersion: '1.0.0',
+    instanceId: 'agent-instance',
+    capabilities: ['identity.list'],
+  };
+}

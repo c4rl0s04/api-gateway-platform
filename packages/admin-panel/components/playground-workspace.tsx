@@ -971,7 +971,7 @@ export function PlaygroundWorkspace() {
             <CircleDot />
             {localAgent.state.status === 'connected'
               ? 'Local agent connected'
-              : localAgent.state.status === 'connecting'
+              : localAgent.state.status === 'checking' || localAgent.state.status === 'pairing'
                 ? 'Connecting local agent'
                 : 'Connect local agent'}
           </button>
@@ -1774,8 +1774,8 @@ function LocalAuthorizationTools({
             ? agentState.message
             : 'Start gatewayctl once, then return through its pairing link.'}</p>
           <code>npm run gatewayctl -- agent start</code>
-          <button type="button" onClick={onConnect} disabled={agentState.status === 'connecting'}>
-            <Cable /> {agentState.status === 'connecting' ? 'Connecting' : 'Connect local agent'}
+          <button type="button" onClick={onConnect} disabled={agentState.status === 'checking' || agentState.status === 'pairing'}>
+            <Cable /> {agentState.status === 'checking' || agentState.status === 'pairing' ? 'Connecting' : 'Connect local agent'}
           </button>
         </div>
       ) : (
