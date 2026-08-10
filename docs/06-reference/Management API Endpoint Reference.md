@@ -3,7 +3,7 @@ title: "Management API Endpoint Reference"
 type: reference
 doc_status: current
 implementation_status: implemented
-last_verified: "2026-08-02"
+last_verified: "2026-08-10"
 tags:
   - type/reference
   - area/management-api
@@ -12,6 +12,8 @@ sources:
   - packages/management-api/src/routes
   - packages/management-api/src/errors.ts
   - packages/management-api/src/runtime-sync/publisher.ts
+  - packages/management-api/src/routes/developer-tokens.routes.ts
+  - packages/management-api/src/services/developer-tokens.ts
   - packages/admin-panel/app/api/management/[...path]/route.ts
 aliases:
   - Management API Reference
@@ -83,6 +85,46 @@ Product create body:
 `environmentIds: []` means all environments. Lists contain unique values;
 `PATCH` accepts any non-empty subset. Removing product scopes trims them from
 all grants in the same transaction. Use `active: false` instead of deletion.
+
+### Developer multi-proxy tokens
+
+| Method | BFF path | Role | Purpose |
+| --- | --- | --- | --- |
+| `POST` | `/organizations/:organizationId/developer-tokens` | `platformAdmin` or matching `organizationAdmin` | Issue a short-lived Bearer token for selected `qual` proxies; `201` |
+
+Request body:
+
+```json
+{
+  "environmentId": "env-qual-es",
+  "productIds": ["product-banking-apis"],
+  "proxyIds": ["proxy-banking", "proxy-payments"],
+  "scopes": ["banking:read"],
+  "ttlSeconds": 600
+}
+```
+
+`ttlSeconds` defaults to 600 and accepts 60-900. Every product must be active,
+belong to the organization, and allow the environment. Every proxy must be a
+non-system proxy exposed by a selected product and actively deployed in that
+environment. Requested scopes must be declared by the selected products.
+Only standard organizations and `qual` environments are accepted.
+
+The response is marked `no-store` and returns the token once:
+
+```json
+{
+  "accessToken": "<JWT>",
+  "tokenType": "Bearer",
+  "expiresIn": 600,
+  "authorizedProxies": ["proxy-banking", "proxy-payments"],
+  "scopes": ["banking:read"]
+}
+```
+
+This is an operator testing capability, not an application OAuth flow or a
+master environment token. Issuance creates a `developerToken.issue` audit
+event. The token itself is not stored.
 
 ### Proxies, revisions, and deployments
 
@@ -283,6 +325,10 @@ Stable codes include `organization_not_found`, `product_not_found`,
 `credential_clone_not_allowed`, `system_proxy_immutable`, and
 `active_deployment_not_found`.
 
+Developer-token errors also include `developer_token_environment_forbidden`,
+`developer_token_product_invalid`, `developer_token_proxy_invalid`, and
+`developer_token_issuance_failed`.
+
 Revision/deployment codes also include `invalid_openapi`,
 `invalid_gateway_config`, `unknown_operation`, `policy_not_supported`,
 `revision_not_found`, `upstream_required`, `promotion_required`, and
@@ -314,6 +360,8 @@ See [[How to Use the Management API with Postman]] for the complete workflow.
 - `packages/management-api/src/routes/proxy-revisions.routes.ts`
 - `packages/management-api/src/routes/apps.routes.ts`
 - `packages/management-api/src/routes/audit.routes.ts`
+- `packages/management-api/src/routes/developer-tokens.routes.ts`
+- `packages/management-api/src/services/developer-tokens.ts`
 - `packages/management-api/src/routes/certificate-authorities.ts`
 - `packages/management-api/src/routes/certificates.ts`
 - `packages/management-api/src/errors.ts`

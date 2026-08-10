@@ -3,7 +3,7 @@ title: "Authentication and Authorization"
 type: architecture
 doc_status: current
 implementation_status: implemented
-last_verified: "2026-08-09"
+last_verified: "2026-08-10"
 tags:
   - type/architecture
   - area/security
@@ -14,6 +14,7 @@ sources:
   - packages/gateway-core/src/policies/oauth/oauth-access-token.policy.ts
   - packages/gateway-core/src/policies/auth/mtls.policy.ts
   - packages/management-api/src/services/applications.ts
+  - packages/management-api/src/services/developer-tokens.ts
   - packages/admin-panel/app/api/auth
   - packages/admin-panel/components/session-shell.tsx
   - packages/gateway-cli/src/operations.ts
@@ -154,6 +155,32 @@ sequenceDiagram
   Gateway->>Backend: forward authorized request
 ```
 
+### Developer Multi-Proxy Token
+
+An authorized administrator can issue a short-lived token for manual testing
+without creating a privileged application credential. This is not a global or
+master token: it is restricted to one standard organization, one `qual`
+environment, explicitly selected active products and proxies, and a subset of
+their scopes.
+
+```mermaid
+sequenceDiagram
+  Administrator->>Management API: Select organization, qual environment, products, proxies, scopes
+  Management API->>PostgreSQL: Validate role and complete authorization boundary
+  Management API->>Gateway: One-time internal developer grant
+  Gateway->>Redis: Reject replay with SET NX EX
+  Gateway-->>Administrator: Environment-bound RS256 access token
+  Administrator->>Selected proxies: Authorization: Bearer access_token
+```
+
+`platformAdmin` may issue one for any standard organization;
+`organizationAdmin` may issue one only for its organization; `viewer` cannot
+issue one. The internal authorization assertion lasts 30 seconds and is signed
+with a shared secret kept outside Git. The resulting access token lasts from 60
+to 900 seconds, contains `token_kind=developer` and `organization_id`, and is
+accepted only by the selected proxies. Issuance is audited without persisting
+the token.
+
 ### Direct mTLS
 
 ```mermaid
@@ -187,6 +214,9 @@ credential organization owns the workspace selected by the request hostname.
 
 - RS256 only.
 - Access tokens default to 900 seconds and cannot exceed 3600 seconds.
+- Developer tokens last 60-900 seconds and are restricted to `qual`.
+- Developer tokens never bypass product, proxy, environment, organization, or
+  scope boundaries.
 - JWT assertions cannot span more than 120 seconds and are single-use.
 - No refresh tokens or individual access-token persistence/revocation.
 - One authentication policy per business endpoint.

@@ -62,6 +62,9 @@ material, execute it through Envoy and the gateway, and inspect the response.
      application configuration, not from the Playground. Expand `Use an
      existing certificate` to build the local import command; the browser and
      BFF do not receive the private key or file paths.
+   - Developer token: for an OAuth-protected operation in `qual`, an authorized
+     administrator may select additional products, proxies, and scopes. The
+     current proxy remains mandatory.
 6. Review the live, redacted cURL in the Inspector before sending. Select
    `Send request`, then inspect the body, response headers, exact redacted
    request, timing, response size, and OAuth exchange timing when present.
@@ -82,6 +85,24 @@ The token endpoint response intentionally exposes the newly issued access
 token to the authenticated operator. Consumer secrets and JWT assertions are
 still redacted from request diagnostics and are never persisted by the panel.
 
+### Issue a developer token for several proxies
+
+1. Select an OAuth-protected business operation in a `qual` deployment.
+2. Choose `Developer token` in the authorization method selector.
+3. Select products from the current organization. The Playground derives the
+   eligible active proxies and scopes from those products.
+4. Keep the current proxy selected and optionally add other eligible proxies.
+5. Choose the scopes and a lifetime from 60 to 900 seconds, then issue the
+   token.
+6. Use the returned Bearer token against any selected proxy in that same
+   environment until it expires.
+
+This mode is available to `platformAdmin` and the matching
+`organizationAdmin`; `viewer` is read-only. It does not create or modify an
+app credential and it does not provide access to all proxies in an environment.
+Use the normal Client Credentials or JWT assertion modes when testing the real
+permissions of a specific application.
+
 The BFF accepts only a proxy, active deployment, and operation known to the
 Management API. An optional edited URL must retain the selected deployment
 origin and match the operation path. The BFF then connects to Envoy over the
@@ -93,6 +114,7 @@ to the token and JWKS operations of `proxy-platform-oauth`.
 
 - A successful seeded API-key or OAuth banking request returns `200` in the
   Inspector.
+- A developer token succeeds only for its selected `qual` proxies and scopes.
 - The Preview tab changes before execution as URL, headers, body, and
   authorization mode change.
 - The request tab and generated cURL replace API keys, Bearer tokens, and

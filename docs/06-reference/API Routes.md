@@ -17,6 +17,7 @@ sources:
   - packages/management-api/src/routes/proxies.routes.ts
   - packages/management-api/src/routes/proxy-revisions.routes.ts
   - packages/management-api/src/routes/runtime-sync.routes.ts
+  - packages/management-api/src/routes/developer-tokens.routes.ts
   - packages/admin-panel/app/api/playground/route.ts
   - packages/admin-panel/app/api/lab/[...path]/route.ts
 aliases: []
@@ -67,6 +68,7 @@ The gateway intentionally does not expose a root `/health` route.
 | `POST` | `/v1/organizations` | `201` | Create organization; platform admin only |
 | `PATCH` | `/v1/organizations/:organizationId` | `200` | Rename organization; platform admin only |
 | `GET` | `/v1/environments` | `200` | All closed environments and deployment/product counts |
+| `POST` | `/v1/organizations/:organizationId/developer-tokens` | `201` | Issue an audited, short-lived multi-proxy token for authorized `qual` testing |
 | `GET/POST` | `/v1/organizations/:organizationId/products` | `200/201` | List or create products |
 | `GET/PATCH` | `/v1/products/:productId` | `200` | Read or update product configuration |
 | `POST` | `/v1/organizations/:organizationId/proxies` | `201` | Create a logical proxy identity |
@@ -114,7 +116,8 @@ The gateway intentionally does not expose a root `/health` route.
 Every `/v1` route requires an accepted OIDC Bearer token and at least one active
 database membership. CA mutations require `platformAdmin`; certificate and
 proxy mutations require `platformAdmin` or the matching `organizationAdmin`.
-A `viewer` has read-only access.
+A `viewer` has read-only access. Developer-token issuance follows the same
+write boundary and additionally rejects non-`qual` environments.
 
 ### admin-panel BFF
 

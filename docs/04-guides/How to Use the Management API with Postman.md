@@ -3,7 +3,7 @@ title: "How to Use the Management API with Postman"
 type: guide
 doc_status: current
 implementation_status: implemented
-last_verified: "2026-08-02"
+last_verified: "2026-08-10"
 tags:
   - type/guide
   - area/management-api
@@ -300,7 +300,27 @@ Capture `publicKeyId`, list with `GET
 {{managementBaseUrl}}/credentials/{{credentialId}}/public-keys`, and revoke
 with `POST {{managementBaseUrl}}/public-keys/{{publicKeyId}}/revoke`.
 
-### 10. Inspect audit and retire the deployment
+### 10. Issue a multi-proxy developer token
+
+As `platformAdmin` or the matching `organizationAdmin`, send `POST
+{{managementBaseUrl}}/organizations/{{organizationId}}/developer-tokens`:
+
+```json
+{
+  "environmentId": "env-qual-es",
+  "productIds": ["{{productId}}"],
+  "proxyIds": ["{{proxyId}}"],
+  "scopes": ["banking:read"],
+  "ttlSeconds": 600
+}
+```
+
+Capture `accessToken` only when needed for the current test. The response is
+not cacheable, the token is not persisted, and the API accepts only active
+business proxies exposed by the selected products in a `qual` environment.
+This does not replace app-specific OAuth testing.
+
+### 11. Inspect audit and retire the deployment
 
 Filter credential events:
 
@@ -328,6 +348,8 @@ without restarting the gateway.
   material.
 - Runtime status confirms deploy, rollback, and retirement versions.
 - Audit results contain every mutation and respect organization filters.
+- Developer-token issuance is denied to `viewer` and appears as
+  `developerToken.issue` without storing the Bearer token.
 - Previously issued OAuth access tokens remain valid until `exp`; grant changes
   do not revoke already issued stateless tokens.
 

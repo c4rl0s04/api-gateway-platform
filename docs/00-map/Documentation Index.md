@@ -3,7 +3,7 @@ title: Documentation Index
 type: map
 doc_status: current
 implementation_status: not-applicable
-last_verified: 2026-08-09
+last_verified: 2026-08-10
 tags:
   - type/map
   - area/project
@@ -25,7 +25,7 @@ aliases: []
 | --- | --- | --- | --- |
 | [[Documentation Home\|API Gateway Platform]] | current | partial | 2026-08-09 |
 | [[00-map/Control Plane\|Control Plane]] | current | not-applicable | 2026-08-09 |
-| [[00-map/Current Status\|Current Status]] | current | partial | 2026-08-09 |
+| [[00-map/Current Status\|Current Status]] | current | partial | 2026-08-10 |
 | [[00-map/Data Plane\|Data Plane]] | current | not-applicable | 2026-08-02 |
 | [[00-map/Decision Records\|Decision Records]] | current | not-applicable | 2026-08-09 |
 | [[00-map/Development\|Development]] | current | not-applicable | 2026-08-09 |
@@ -48,7 +48,7 @@ aliases: []
 
 | Note | Documentation | Implementation | Verified |
 | --- | --- | --- | --- |
-| [[02-architecture/Authentication and Authorization\|Authentication and Authorization]] | current | implemented | 2026-08-09 |
+| [[02-architecture/Authentication and Authorization\|Authentication and Authorization]] | current | implemented | 2026-08-10 |
 | [[02-architecture/Control Plane Flow\|Control Plane Flow]] | current | implemented | 2026-08-02 |
 | [[02-architecture/Data Model\|Data Model]] | current | implemented | 2026-08-09 |
 | [[02-architecture/Deployment Model\|Deployment Model]] | current | implemented | 2026-08-02 |
@@ -74,7 +74,7 @@ aliases: []
 | [[03-packages/gateway-core\|gateway-core]] | current | implemented | 2026-08-02 |
 | [[03-packages/gatewayctl\|gatewayctl]] | current | implemented | 2026-08-09 |
 | [[03-packages/lab-egress\|lab-egress]] | current | implemented | 2026-08-09 |
-| [[03-packages/management-api\|management-api]] | current | implemented | 2026-08-09 |
+| [[03-packages/management-api\|management-api]] | current | implemented | 2026-08-10 |
 | [[03-packages/pki\|pki]] | current | implemented | 2026-07-27 |
 | [[03-packages/shared\|shared]] | current | implemented | 2026-07-31 |
 
@@ -93,7 +93,7 @@ aliases: []
 | [[04-guides/How to Run Tests\|How to Run Tests]] | current | implemented | 2026-08-06 |
 | [[04-guides/How to Start the Project\|How to Start the Project]] | current | implemented | 2026-08-06 |
 | [[04-guides/How to Use Prisma Studio\|How to Use Prisma Studio]] | current | implemented | 2026-08-06 |
-| [[04-guides/How to Use the Management API with Postman\|How to Use the Management API with Postman]] | current | implemented | 2026-08-02 |
+| [[04-guides/How to Use the Management API with Postman\|How to Use the Management API with Postman]] | current | implemented | 2026-08-10 |
 | [[04-guides/How to Use the Proxy Playground\|How to Use the Proxy Playground]] | current | implemented | 2026-08-10 |
 
 ## Decisions
@@ -117,10 +117,10 @@ aliases: []
 | [[06-reference/API Routes\|API Routes]] | current | implemented | 2026-08-09 |
 | [[06-reference/Command Reference\|Command Reference]] | current | implemented | 2026-08-09 |
 | [[06-reference/Database Schema\|Database Schema]] | current | implemented | 2026-08-09 |
-| [[06-reference/Environment Variables\|Environment Variables]] | current | implemented | 2026-08-09 |
+| [[06-reference/Environment Variables\|Environment Variables]] | current | implemented | 2026-08-10 |
 | [[06-reference/gatewayctl Reference\|gatewayctl Reference]] | current | implemented | 2026-08-10 |
 | [[06-reference/Lab API Reference\|Lab API Reference]] | current | implemented | 2026-08-09 |
-| [[06-reference/Management API Endpoint Reference\|Management API Endpoint Reference]] | current | implemented | 2026-08-02 |
+| [[06-reference/Management API Endpoint Reference\|Management API Endpoint Reference]] | current | implemented | 2026-08-10 |
 | [[06-reference/policies/README\|Policy Reference Index]] | current | partial | 2026-07-27 |
 | [[06-reference/Policy Types\|Policy Types]] | current | partial | 2026-07-27 |
 | [[06-reference/Ports\|Ports]] | current | implemented | 2026-08-09 |
@@ -143,7 +143,7 @@ aliases: []
 | [[06-reference/policies/security/mTLS Authentication\|mTLS Authentication]] | current | implemented | 2026-07-27 |
 | [[06-reference/policies/security/OAuth 2.0\|OAuth 2.0]] | current | implemented | 2026-07-27 |
 | [[06-reference/policies/security/OAuth Access Token Verification\|OAuth Access Token Verification]] | current | implemented | 2026-07-29 |
-| [[06-reference/policies/security/OAuth Token Issuance\|OAuth Token Issuance]] | current | implemented | 2026-07-29 |
+| [[06-reference/policies/security/OAuth Token Issuance\|OAuth Token Issuance]] | current | implemented | 2026-08-10 |
 | [[06-reference/policies/traffic/Quota\|Quota]] | current | planned | 2026-07-27 |
 | [[06-reference/policies/extension/Raise Fault\|Raise Fault]] | current | planned | 2026-07-27 |
 | [[06-reference/policies/traffic/Rate Limiting\|Rate Limiting]] | current | implemented | 2026-07-27 |

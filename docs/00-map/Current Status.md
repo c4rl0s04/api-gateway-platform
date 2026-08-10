@@ -3,7 +3,7 @@ title: Current Status
 type: map
 doc_status: current
 implementation_status: partial
-last_verified: 2026-08-09
+last_verified: 2026-08-10
 tags:
   - type/map
   - area/project
@@ -38,6 +38,7 @@ aliases: []
 | API key authentication | Implemented | Resolves consumer key and validates status, expiry, approved grants, proxy, and environment |
 | OAuth token issuance | Implemented | Client Credentials and JWT Bearer Grant issue environment-bound RS256 tokens |
 | OAuth access-token verification | Implemented | Stateless signature, claims, proxy, environment, and scope validation |
+| Developer multi-proxy tokens | Implemented | Authorized administrators can issue audited 60-900 second tokens constrained to one standard organization, one `qual` environment, selected products, proxies, and scopes |
 | Proxy Management API | Implemented | OIDC-protected logical proxy metadata, multipart revision import, source download, deployment, retirement, history, and rollback |
 | Direct mTLS authentication | Implemented | Envoy chain/CRL validation, connection-derived fingerprints, trusted CIDR, and grants |
 | Multi-client PKI | Implemented | Managed/external organization CAs, encrypted keystore, issuance, CRLs, rotation, and SDS |

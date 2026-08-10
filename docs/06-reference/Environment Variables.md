@@ -3,7 +3,7 @@ title: Environment Variables
 type: reference
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-08-09
+last_verified: 2026-08-10
 tags:
   - type/reference
   - area/operations
@@ -39,6 +39,7 @@ aliases: []
 | `GATEWAY_ENVIRONMENT_ALLOWLIST` | No | All active deployments | Comma-separated environment IDs |
 | `OAUTH_SIGNING_PRIVATE_KEY_BASE64` | Outside tests | None | Base64 PKCS#8 RSA private key; imported at startup |
 | `OAUTH_SIGNING_KEY_ID` | Outside tests | None | Non-empty signing/JWKS `kid` |
+| `DEVELOPER_TOKEN_ISSUANCE_SECRET` | When developer issuance is enabled | None | Shared secret, minimum 32 characters, used only to verify one-time internal grants |
 | `MTLS_TRUSTED_PROXY_CIDRS` | Outside tests | None | Comma-separated valid CIDRs |
 
 The gateway parses these variables before loading configuration or listening.
@@ -87,9 +88,16 @@ configuration.
 | `PKI_TRUST_BUNDLE_FILE` | Yes | None | Envoy public CA bundle |
 | `PKI_CRL_BUNDLE_FILE` | Yes | None | Envoy public CRL bundle |
 | `PKI_SDS_TRIGGER_FILE` | Yes | None | Atomically replaced SDS resource |
+| `DEVELOPER_TOKEN_ISSUANCE_SECRET` | When developer issuance is enabled | None | Shared secret, minimum 32 characters, used to authorize internal gateway issuance |
+| `GATEWAY_INTERNAL_URL` | When developer issuance is enabled | None | Internal gateway origin used to exchange the one-time grant |
 
 Management API confirms routing mutations even when Redis is unavailable. Its
 outbox dispatcher retries publication after reconnecting.
+
+The gateway and Management API must receive the same
+`DEVELOPER_TOKEN_ISSUANCE_SECRET`. Local bootstrap generates it under
+`.local-secrets/oauth/`; production must inject it from a secret manager. It is
+not an OAuth signing key and must never be exposed to the browser.
 
 ### admin-panel
 

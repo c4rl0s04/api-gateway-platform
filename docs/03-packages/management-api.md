@@ -3,7 +3,7 @@ title: management-api
 type: package
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-08-09
+last_verified: 2026-08-10
 tags:
   - type/package
   - area/management-api
@@ -52,6 +52,9 @@ workspace-scoped variants of those resource operations.
 - Delegates revision numbering, compilation, promotion, activation, conflicts,
   history, and audit to database domain operations.
 - Prevents public mutation of system-managed proxies.
+- Validates administrator-selected product, proxy, scope, organization, and
+  `qual` boundaries before exchanging a one-time internal grant for an audited
+  multi-proxy developer token.
 - Commits routing changes with a durable outbox version, publishes Redis
   notifications, and exposes live gateway convergence through `/v1/runtime-sync`.
 - Resolves `LabPrincipal` from OIDC `issuer + subject`, enforces 24-hour
@@ -84,7 +87,8 @@ Tests cover cryptographic token verification, missing identities, membership
 resolution, role boundaries, multipart revision contracts, deployment
 activation responses, catalog and mutation routes, application contracts,
 credential customization, cloning, rotation, desired-state grants, RSA keys,
-outbox publication, runtime status, audit filters, and CA authorization.
+developer-token role and selection boundaries, outbox publication, runtime
+status, audit filters, and CA authorization.
 `test:integration:management` verifies domain persistence; `test:platform`
 verifies hot reload and the full workflow through the real BFF and gateway.
 The isolated platform test additionally creates two OIDC-owned labs and verifies
