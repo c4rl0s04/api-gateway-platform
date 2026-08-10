@@ -27,11 +27,11 @@ aliases: []
 | [[00-map/Control Plane\|Control Plane]] | current | not-applicable | 2026-08-09 |
 | [[00-map/Current Status\|Current Status]] | current | partial | 2026-08-10 |
 | [[00-map/Data Plane\|Data Plane]] | current | not-applicable | 2026-08-02 |
-| [[00-map/Decision Records\|Decision Records]] | current | not-applicable | 2026-08-09 |
+| [[00-map/Decision Records\|Decision Records]] | current | not-applicable | 2026-08-10 |
 | [[00-map/Development\|Development]] | current | not-applicable | 2026-08-09 |
 | [[00-map/Operations\|Operations]] | current | not-applicable | 2026-08-09 |
 | [[00-map/Project Map\|Project Map]] | current | partial | 2026-08-09 |
-| [[00-map/Security and Identity\|Security and Identity]] | current | not-applicable | 2026-08-09 |
+| [[00-map/Security and Identity\|Security and Identity]] | current | not-applicable | 2026-08-10 |
 
 ## Concepts
 
@@ -54,14 +54,14 @@ aliases: []
 | [[02-architecture/Deployment Model\|Deployment Model]] | current | implemented | 2026-08-02 |
 | [[02-architecture/Global Architecture\|Global Architecture]] | current | partial | 2026-07-29 |
 | [[02-architecture/Hot Reload Sync\|Hot Reload Sync]] | current | implemented | 2026-08-09 |
-| [[02-architecture/Local Client Agent Architecture\|Local Client Agent Architecture]] | current | implemented | 2026-08-09 |
+| [[02-architecture/Local Client Agent Architecture\|Local Client Agent Architecture]] | current | implemented | 2026-08-10 |
 | [[02-architecture/Management API\|Management API]] | current | implemented | 2026-08-09 |
 | [[02-architecture/Monorepo and Packages\|Monorepo and Packages]] | current | partial | 2026-07-27 |
 | [[02-architecture/Multi-Client PKI\|Multi-Client PKI]] | current | implemented | 2026-08-09 |
 | [[02-architecture/Observability\|Observability]] | current | partial | 2026-07-27 |
 | [[02-architecture/Personal Gateway Lab\|Personal Gateway Lab]] | current | implemented | 2026-08-09 |
 | [[02-architecture/Proxy Revisions and Deployments\|Proxy Revisions and Deployments]] | current | implemented | 2026-08-02 |
-| [[02-architecture/Public Developer Sandbox\|Public Developer Sandbox]] | current | partial | 2026-08-09 |
+| [[02-architecture/Public Developer Sandbox\|Public Developer Sandbox]] | current | partial | 2026-08-10 |
 | [[02-architecture/Routing Engine\|Routing Engine]] | current | implemented | 2026-07-31 |
 | [[02-architecture/Runtime Request Flow\|Runtime Request Flow]] | current | implemented | 2026-08-09 |
 
@@ -72,7 +72,7 @@ aliases: []
 | [[03-packages/admin-panel\|admin-panel]] | current | partial | 2026-08-10 |
 | [[03-packages/database\|database]] | current | implemented | 2026-08-09 |
 | [[03-packages/gateway-core\|gateway-core]] | current | implemented | 2026-08-02 |
-| [[03-packages/gatewayctl\|gatewayctl]] | current | implemented | 2026-08-09 |
+| [[03-packages/gatewayctl\|gatewayctl]] | current | implemented | 2026-08-10 |
 | [[03-packages/lab-egress\|lab-egress]] | current | implemented | 2026-08-09 |
 | [[03-packages/management-api\|management-api]] | current | implemented | 2026-08-10 |
 | [[03-packages/pki\|pki]] | current | implemented | 2026-07-27 |
@@ -107,8 +107,9 @@ aliases: []
 | [[05-decisions/ADR-005 Signed OAuth Tokens\|ADR-005 Signed OAuth Tokens]] | current | implemented | 2026-07-27 |
 | [[05-decisions/ADR-006 Envoy and Managed Client PKI\|ADR-006 Envoy and Managed Client PKI]] | current | implemented | 2026-07-27 |
 | [[05-decisions/ADR-007 Hostname-Based Environment Routing\|ADR-007 Hostname-Based Environment Routing]] | current | implemented | 2026-07-29 |
-| [[05-decisions/ADR-008 Closed Loopback Client Agent\|ADR-008 Closed Loopback Client Agent]] | current | implemented | 2026-08-09 |
+| [[05-decisions/ADR-008 Closed Loopback Client Agent\|ADR-008 Closed Loopback Client Agent]] | current | implemented | 2026-08-10 |
 | [[05-decisions/ADR-009 Logical Lab Workspace Isolation\|ADR-009 Logical Lab Workspace Isolation]] | current | implemented | 2026-08-09 |
+| [[05-decisions/ADR-010 Remembered Loopback Browser Clients\|ADR-010 Remembered Loopback Browser Clients]] | current | implemented | 2026-08-10 |
 
 ## Reference
 
@@ -123,7 +124,7 @@ aliases: []
 | [[06-reference/Management API Endpoint Reference\|Management API Endpoint Reference]] | current | implemented | 2026-08-10 |
 | [[06-reference/policies/README\|Policy Reference Index]] | current | partial | 2026-07-27 |
 | [[06-reference/Policy Types\|Policy Types]] | current | partial | 2026-07-27 |
-| [[06-reference/Ports\|Ports]] | current | implemented | 2026-08-09 |
+| [[06-reference/Ports\|Ports]] | current | implemented | 2026-08-10 |
 | [[06-reference/Seed Example Catalog\|Seed Example Catalog]] | current | implemented | 2026-07-31 |
 
 ## Policies
@@ -159,7 +160,7 @@ aliases: []
 | [[07-runbooks/Debug Gateway 404\|Debug Gateway 404]] | current | implemented | 2026-08-02 |
 | [[07-runbooks/Debug Gateway Runtime Sync\|Debug Gateway Runtime Sync]] | current | implemented | 2026-08-02 |
 | [[07-runbooks/Debug Lab Isolation and Egress\|Debug Lab Isolation and Egress]] | current | implemented | 2026-08-09 |
-| [[07-runbooks/Debug Local Agent Pairing\|Debug Local Agent Pairing]] | current | implemented | 2026-08-09 |
+| [[07-runbooks/Debug Local Agent Pairing\|Debug Local Agent Pairing]] | current | implemented | 2026-08-10 |
 | [[07-runbooks/Debug OAuth and mTLS\|Debug OAuth and mTLS]] | current | implemented | 2026-07-29 |
 | [[07-runbooks/Debug Policy Failure\|Debug Policy Failure]] | current | partial | 2026-07-27 |
 | [[07-runbooks/Reset Local Database\|Reset Local Database]] | current | implemented | 2026-08-06 |
