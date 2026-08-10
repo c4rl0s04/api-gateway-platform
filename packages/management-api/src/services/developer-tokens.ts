@@ -6,6 +6,7 @@ import {
   type DeveloperTokenResponse,
 } from '@api-gateway/shared';
 import { SignJWT } from 'jose';
+import { request as undiciRequest } from 'undici';
 import {
   canManageOrganization,
   isPlatformAdmin,
@@ -144,7 +145,6 @@ export const prismaDeveloperTokenCatalog: DeveloperTokenCatalog = {
 export class GatewayDeveloperTokenIssuer implements DeveloperTokenIssuer {
   constructor(
     private readonly internalGatewayUrl: string,
-    private readonly fetchImplementation: typeof fetch = fetch,
   ) {}
 
   async issue(input: { assertion: string; tokenEndpoint: string }) {
@@ -154,17 +154,19 @@ export class GatewayDeveloperTokenIssuer implements DeveloperTokenIssuer {
       grant_type: DEVELOPER_TOKEN_GRANT_TYPE,
       developer_assertion: input.assertion,
     });
-    const response = await this.fetchImplementation(endpoint, {
+    const response = await undiciRequest(endpoint, {
       method: 'POST',
       headers: {
         host: publicEndpoint.host,
         accept: 'application/json',
         'content-type': 'application/x-www-form-urlencoded',
       },
-      body,
+      body: body.toString(),
     });
-    const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
-    if (!response.ok || typeof payload.access_token !== 'string') {
+    const payload = await response.body.json().catch(() => ({})) as Record<string, unknown>;
+    if (response.statusCode < 200
+      || response.statusCode >= 300
+      || typeof payload.access_token !== 'string') {
       throw new ManagementError(
         'developer_token_issuance_failed',
         502,
