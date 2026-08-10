@@ -1,9 +1,11 @@
-import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import { appendFile, mkdir, writeFile } from 'node:fs/promises';
 import http, { type IncomingMessage, type ServerResponse } from 'node:http';
 import path from 'node:path';
 import type { AgentOperations } from './operations.js';
 import {
+  AGENT_CAPABILITIES,
+  AGENT_PROTOCOL_VERSION,
   GatewayCtlError,
   type AgentOperationRequest,
   type AgentOperationResponse,
@@ -21,6 +23,7 @@ interface AgentSession {
 
 export interface RunningAgent {
   port: number;
+  instanceId: string;
   pairingNonce: string;
   close(): Promise<void>;
 }
@@ -31,6 +34,7 @@ export async function startLocalAgent(input: {
   stateDirectory: string;
   port?: number;
 }): Promise<RunningAgent> {
+  const instanceId = randomUUID();
   let pairingNonce = randomBytes(32).toString('base64url');
   let session: AgentSession | undefined;
   const server = http.createServer(async (request, response) => {
@@ -50,6 +54,16 @@ export async function startLocalAgent(input: {
     }
     setCorsHeaders(response, origin);
     try {
+      if (request.method === 'GET' && request.url === '/v1/status') {
+        sendJson(response, 200, {
+          name: 'gatewayctl',
+          protocolVersion: AGENT_PROTOCOL_VERSION,
+          agentVersion: '1.0.0',
+          instanceId,
+          capabilities: AGENT_CAPABILITIES,
+        });
+        return;
+      }
       if (request.method === 'POST' && request.url === '/pair') {
         const body = await readJsonBody(request);
         if (typeof body.nonce !== 'string'
@@ -71,7 +85,7 @@ export async function startLocalAgent(input: {
         });
         return;
       }
-      if (request.method === 'POST' && request.url === '/rpc') {
+      if (request.method === 'POST' && (request.url === '/rpc' || request.url === '/v1/rpc')) {
         authorizeSession(request, origin, session);
         session!.expiresAt = Date.now() + SESSION_TTL_MS;
         const body = await readJsonBody(request) as unknown as AgentOperationRequest;
@@ -120,6 +134,7 @@ export async function startLocalAgent(input: {
   }), { mode: 0o600 });
   return {
     port: address.port,
+    instanceId,
     pairingNonce,
     close: () => new Promise<void>((resolve, reject) => server.close(error => {
       if (error) reject(error);

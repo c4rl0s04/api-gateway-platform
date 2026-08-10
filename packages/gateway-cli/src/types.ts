@@ -3,6 +3,29 @@ import type { JWK } from 'jose';
 export type IdentityType = 'jwt' | 'mtls';
 export type IdentitySource = 'generated' | 'file';
 
+export const AGENT_PROTOCOL_VERSION = 2;
+export const DEFAULT_AGENT_PORT = 43_127;
+export const AGENT_CAPABILITIES = [
+  'agent.status',
+  'identity.list',
+  'identity.remove',
+  'jwt.generateKey',
+  'jwt.getPublicJwk',
+  'jwt.signAssertion',
+  'mtls.generateKeyAndCsr',
+  'mtls.getCsr',
+  'mtls.installCertificate',
+  'mtls.executeRequest',
+] as const;
+
+export interface AgentStatus {
+  name: 'gatewayctl';
+  protocolVersion: typeof AGENT_PROTOCOL_VERSION;
+  agentVersion: string;
+  instanceId: string;
+  capabilities: readonly string[];
+}
+
 export interface LocalIdentity {
   id: string;
   name: string;
@@ -42,6 +65,8 @@ export interface AgentProfile {
   allowedAudienceHosts: string[];
   playgroundUrl: string;
   gatewayCaCertificateFile?: string;
+  port: number;
+  trustedClientDays: number;
 }
 
 export interface AgentOperationRequest {

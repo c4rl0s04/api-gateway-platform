@@ -8,10 +8,16 @@ export {
 } from './keychain.js';
 export { AgentOperations } from './operations.js';
 export type {
+  AgentStatus,
   AgentOperationRequest,
   AgentOperationResponse,
   AgentProfile,
   LocalIdentity,
   PublicIdentity,
+} from './types.js';
+export {
+  AGENT_CAPABILITIES,
+  AGENT_PROTOCOL_VERSION,
+  DEFAULT_AGENT_PORT,
 } from './types.js';
 export { GatewayCtlError } from './types.js';

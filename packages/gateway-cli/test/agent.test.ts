@@ -27,6 +27,19 @@ afterEach(async () => {
 });
 
 describe('gatewayctl loopback pairing', () => {
+  it('exposes protocol and capability metadata without runtime secrets', async () => {
+    const { agent, baseUrl } = await fixture();
+    const response = await fetch(`${baseUrl}/v1/status`, {
+      headers: { origin: 'http://localhost:8080' },
+    });
+    assert.equal(response.status, 200);
+    const status = await response.json() as Record<string, unknown>;
+    assert.equal(status.protocolVersion, 2);
+    assert.equal(status.instanceId, agent.instanceId);
+    assert.ok(Array.isArray(status.capabilities));
+    assert.equal('pid' in status, false);
+    assert.equal('stateDirectory' in status, false);
+  });
   it('uses a single-use nonce and origin-bound temporary session', async () => {
     const { agent, baseUrl } = await fixture();
     const paired = await fetch(`${baseUrl}/pair`, {
@@ -108,6 +121,8 @@ async function fixture(): Promise<{ agent: RunningAgent; baseUrl: string }> {
     allowedOrigins: ['http://localhost:8080'],
     allowedAudienceHosts: ['*.gateway.localhost'],
     playgroundUrl: 'http://localhost:8080/playground',
+    port: 43_127,
+    trustedClientDays: 30,
   };
   const store = new IdentityStore(new TestMasterKeyProvider(), directory);
   const agent = await startLocalAgent({
