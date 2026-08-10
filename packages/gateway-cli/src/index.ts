@@ -8,6 +8,13 @@ export {
 } from './keychain.js';
 export { AgentOperations } from './operations.js';
 export {
+  BrowserAgentAuth,
+  pairingProofMessage,
+  sessionProofMessage,
+  type BrowserSessionResult,
+  type PairingPrompt,
+} from './browser-auth.js';
+export {
   TrustedClientStore,
   type PublicTrustedBrowserClient,
   type TrustedBrowserClient,
