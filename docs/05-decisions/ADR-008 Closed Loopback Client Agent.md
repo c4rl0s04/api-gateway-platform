@@ -3,8 +3,8 @@ title: ADR-008 Closed Loopback Client Agent
 type: decision
 doc_status: current
 implementation_status: implemented
-decision_status: accepted
-last_verified: 2026-08-09
+decision_status: superseded
+last_verified: 2026-08-10
 tags:
   - type/decision
   - area/security
@@ -20,7 +20,7 @@ aliases: []
 # ADR-008 Closed Loopback Client Agent
 
 > [!summary] At a glance
-> Use an origin-bound loopback agent with a fixed cryptographic RPC allowlist so the web interface can request signatures and mTLS connections without obtaining client private keys or arbitrary machine access.
+> Superseded by [[ADR-010 Remembered Loopback Browser Clients]]. The closed cryptographic boundary remains, but random-port URL-fragment pairing has been replaced by a fixed discoverable port and a remembered browser public key.
 
 ## Context
 
@@ -73,8 +73,8 @@ operation is part of the protocol.
 
 ## Related Implementation
 
+- [[ADR-010 Remembered Loopback Browser Clients]]
 - [[Local Client Agent Architecture]]
 - [[gatewayctl Reference]]
 - [[How to Connect Local Keys to the Playground]]
 - [[Debug Local Agent Pairing]]
-
