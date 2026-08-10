@@ -129,6 +129,7 @@ async function fixture(): Promise<{ agent: RunningAgent; baseUrl: string }> {
     operations: new AgentOperations(store, profile),
     profile,
     stateDirectory: directory,
+    port: 0,
   });
   resources.push({ directory, agent });
   return { agent, baseUrl: `http://127.0.0.1:${agent.port}` };

@@ -1,13 +1,17 @@
 #!/usr/bin/env node
 
 import { spawn } from 'node:child_process';
-import { readFile, rm } from 'node:fs/promises';
-import path from 'node:path';
+import { mkdir } from 'node:fs/promises';
 import { startLocalAgent } from './agent.js';
 import { gatewayCtlDirectory, loadAgentProfile } from './config.js';
 import { IdentityStore } from './identity-store.js';
 import { SystemKeychainMasterKeyProvider } from './keychain.js';
 import { AgentOperations } from './operations.js';
+import {
+  probeAgent,
+  readAgentState,
+  removeAgentState,
+} from './runtime-state.js';
 import { GatewayCtlError } from './types.js';
 
 const args = process.argv.slice(2);
@@ -72,7 +76,7 @@ async function run(command: string[]): Promise<void> {
     return;
   }
   if (group === 'agent' && action === 'start') {
-    await runAgent();
+    await runAgent(command);
     return;
   }
   if (group === 'agent' && action === 'status') {
@@ -87,25 +91,37 @@ async function run(command: string[]): Promise<void> {
   process.exitCode = 1;
 }
 
-async function runAgent(): Promise<void> {
+async function runAgent(command: string[]): Promise<void> {
   const profile = loadAgentProfile();
+  const requestedPort = option(command, '--port');
+  const port = requestedPort ? parsePort(requestedPort) : profile.port;
+  await mkdir(rootDirectory, { recursive: true, mode: 0o700 });
+  const existingState = await readAgentState(rootDirectory);
+  if (existingState) {
+    const existing = await probeAgent(existingState.port, profile.allowedOrigins[0]!);
+    if (existing?.instanceId === existingState.instanceId) {
+      throw new GatewayCtlError(
+        'agent_already_running',
+        `Local agent is already running on 127.0.0.1:${existingState.port}`,
+      );
+    }
+    await removeAgentState(rootDirectory);
+  }
   const operations = new AgentOperations(identities, profile);
   const agent = await startLocalAgent({
     operations,
     profile,
     stateDirectory: rootDirectory,
+    port,
   });
-  const pairing = Buffer.from(JSON.stringify({
-    port: agent.port,
-    nonce: agent.pairingNonce,
-  })).toString('base64url');
-  const url = `${profile.playgroundUrl}#gatewayctl=${pairing}`;
   console.log(`Local agent listening on http://127.0.0.1:${agent.port}`);
-  console.log(`Pairing expires after first use: ${url}`);
-  openBrowser(url);
+  if (command.includes('--open')) openBrowser(profile.playgroundUrl);
+  let stopping = false;
   const stop = async () => {
+    if (stopping) return;
+    stopping = true;
     await agent.close();
-    await rm(path.join(rootDirectory, 'agent.json'), { force: true });
+    await removeAgentState(rootDirectory, agent.instanceId);
     process.exit(0);
   };
   process.once('SIGINT', stop);
@@ -114,27 +130,42 @@ async function runAgent(): Promise<void> {
 }
 
 async function printAgentStatus(): Promise<void> {
-  try {
-    const state = JSON.parse(
-      await readFile(path.join(rootDirectory, 'agent.json'), 'utf8'),
-    ) as { pid: number; port: number; startedAt: string };
-    process.kill(state.pid, 0);
-    console.log(JSON.stringify({ running: true, ...state }, null, 2));
-  } catch {
+  const profile = loadAgentProfile();
+  const state = await readAgentState(rootDirectory);
+  if (!state) {
     console.log(JSON.stringify({ running: false }, null, 2));
+    return;
   }
+  const status = await probeAgent(state.port, profile.allowedOrigins[0]!);
+  if (!status || status.instanceId !== state.instanceId) {
+    await removeAgentState(rootDirectory, state.instanceId);
+    console.log(JSON.stringify({ running: false, staleStateRemoved: true }, null, 2));
+    return;
+  }
+  console.log(JSON.stringify({ running: true, ...state, agentVersion: status.agentVersion }, null, 2));
 }
 
 async function stopAgent(): Promise<void> {
-  try {
-    const state = JSON.parse(
-      await readFile(path.join(rootDirectory, 'agent.json'), 'utf8'),
-    ) as { pid: number };
-    process.kill(state.pid, 'SIGTERM');
-    console.log('Agent stop requested');
-  } catch {
+  const profile = loadAgentProfile();
+  const state = await readAgentState(rootDirectory);
+  if (!state) {
     throw new GatewayCtlError('agent_not_running', 'Local agent is not running');
   }
+  const status = await probeAgent(state.port, profile.allowedOrigins[0]!);
+  if (!status || status.instanceId !== state.instanceId) {
+    await removeAgentState(rootDirectory, state.instanceId);
+    throw new GatewayCtlError('agent_state_stale', 'Agent state was stale and has been removed');
+  }
+  process.kill(state.pid, 'SIGTERM');
+  console.log('Agent stop requested');
+}
+
+function parsePort(value: string): number {
+  const port = Number(value);
+  if (!Number.isInteger(port) || port < 1 || port > 65_535) {
+    throw new GatewayCtlError('invalid_port', '--port must be an integer between 1 and 65535');
+  }
+  return port;
 }
 
 function option(command: string[], name: string): string | undefined {
@@ -175,5 +206,6 @@ function printUsage(): void {
   gatewayctl keys generate --name <name> --type mtls --credential-id <id> [--algorithm rsa|ec]
   gatewayctl keys list
   gatewayctl keys remove --id <identity-id>
-  gatewayctl agent start|status|stop`);
+  gatewayctl agent start [--port <port>] [--open]
+  gatewayctl agent status|stop`);
 }

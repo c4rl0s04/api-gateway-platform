@@ -1,8 +1,9 @@
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
-import { appendFile, mkdir, writeFile } from 'node:fs/promises';
+import { appendFile, mkdir } from 'node:fs/promises';
 import http, { type IncomingMessage, type ServerResponse } from 'node:http';
 import path from 'node:path';
 import type { AgentOperations } from './operations.js';
+import { writeAgentState } from './runtime-state.js';
 import {
   AGENT_CAPABILITIES,
   AGENT_PROTOCOL_VERSION,
@@ -118,8 +119,13 @@ export async function startLocalAgent(input: {
   });
 
   await new Promise<void>((resolve, reject) => {
-    server.once('error', reject);
-    server.listen(input.port ?? 0, '127.0.0.1', () => resolve());
+    server.once('error', error => {
+      const code = (error as NodeJS.ErrnoException).code;
+      reject(code === 'EADDRINUSE'
+        ? new GatewayCtlError('agent_port_in_use', `Port ${input.port ?? input.profile.port} is already in use`)
+        : error);
+    });
+    server.listen(input.port ?? input.profile.port, '127.0.0.1', () => resolve());
   });
   const address = server.address();
   if (!address || typeof address === 'string') {
@@ -127,11 +133,13 @@ export async function startLocalAgent(input: {
     throw new GatewayCtlError('agent_start_failed', 'Could not determine agent port');
   }
   await mkdir(input.stateDirectory, { recursive: true, mode: 0o700 });
-  await writeFile(path.join(input.stateDirectory, 'agent.json'), JSON.stringify({
+  await writeAgentState(input.stateDirectory, {
     pid: process.pid,
     port: address.port,
+    instanceId,
+    protocolVersion: AGENT_PROTOCOL_VERSION,
     startedAt: new Date().toISOString(),
-  }), { mode: 0o600 });
+  });
   return {
     port: address.port,
     instanceId,

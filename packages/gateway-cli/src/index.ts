@@ -7,6 +7,13 @@ export {
   type MasterKeyProvider,
 } from './keychain.js';
 export { AgentOperations } from './operations.js';
+export {
+  probeAgent,
+  readAgentState,
+  removeAgentState,
+  writeAgentState,
+  type AgentRuntimeState,
+} from './runtime-state.js';
 export type {
   AgentStatus,
   AgentOperationRequest,
