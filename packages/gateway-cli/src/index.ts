@@ -8,6 +8,11 @@ export {
 } from './keychain.js';
 export { AgentOperations } from './operations.js';
 export {
+  TrustedClientStore,
+  type PublicTrustedBrowserClient,
+  type TrustedBrowserClient,
+} from './trusted-client-store.js';
+export {
   probeAgent,
   readAgentState,
   removeAgentState,
