@@ -1,14 +1,18 @@
 import assert from 'node:assert/strict';
+import { generateKeyPairSync, sign } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, it } from 'node:test';
+import { exportJWK } from 'jose';
 import {
   AgentOperations,
   IdentityStore,
   startLocalAgent,
   type MasterKeyProvider,
   type RunningAgent,
+  pairingProofMessage,
+  type PairingPrompt,
 } from '../src/index.js';
 
 class TestMasterKeyProvider implements MasterKeyProvider {
@@ -40,31 +44,39 @@ describe('gatewayctl loopback pairing', () => {
     assert.equal('pid' in status, false);
     assert.equal('stateDirectory' in status, false);
   });
-  it('uses a single-use nonce and origin-bound temporary session', async () => {
-    const { agent, baseUrl } = await fixture();
-    const paired = await fetch(`${baseUrl}/pair`, {
+  it('pairs through a terminal code and protects versioned RPC with the browser session', async () => {
+    const { agent, baseUrl, prompts } = await fixture();
+    const { publicKey, privateKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' });
+    const clientId = 'browser-http-client-0001';
+    const requested = await fetch(`${baseUrl}/v1/pairings`, {
       method: 'POST',
       headers: {
         origin: 'http://localhost:8080',
         'content-type': 'application/json',
       },
-      body: JSON.stringify({ nonce: agent.pairingNonce }),
+      body: JSON.stringify({ clientId, label: 'HTTP test', publicJwk: await exportJWK(publicKey) }),
+    });
+    assert.equal(requested.status, 202);
+    const pairing = await requested.json() as { pairingId: string; nonce: string };
+    const signature = sign('sha256', Buffer.from(pairingProofMessage({
+      pairingId: pairing.pairingId,
+      nonce: pairing.nonce,
+      origin: 'http://localhost:8080',
+      instanceId: agent.instanceId,
+      clientId,
+    })), { key: privateKey, dsaEncoding: 'ieee-p1363' }).toString('base64url');
+    const paired = await fetch(`${baseUrl}/v1/pairings/${pairing.pairingId}/complete`, {
+      method: 'POST',
+      headers: {
+        origin: 'http://localhost:8080',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ code: prompts[0]!.code, signature }),
     });
     assert.equal(paired.status, 200);
     const session = await paired.json() as { token: string };
 
-    const reused = await fetch(`${baseUrl}/pair`, {
-      method: 'POST',
-      headers: {
-        origin: 'http://localhost:8080',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({ nonce: agent.pairingNonce }),
-    });
-    assert.equal(reused.status, 400);
-    assert.equal((await reused.json() as { error: { code: string } }).error.code, 'pairing_rejected');
-
-    const status = await fetch(`${baseUrl}/rpc`, {
+    const status = await fetch(`${baseUrl}/v1/rpc`, {
       method: 'POST',
       headers: {
         origin: 'http://localhost:8080',
@@ -79,7 +91,7 @@ describe('gatewayctl loopback pairing', () => {
       true,
     );
 
-    const wrongOrigin = await fetch(`${baseUrl}/rpc`, {
+    const wrongOrigin = await fetch(`${baseUrl}/v1/rpc`, {
       method: 'POST',
       headers: {
         origin: 'https://attacker.example',
@@ -89,6 +101,13 @@ describe('gatewayctl loopback pairing', () => {
       body: JSON.stringify({ method: 'agent.status' }),
     });
     assert.equal(wrongOrigin.status, 403);
+
+    const retired = await fetch(`${baseUrl}/rpc`, {
+      method: 'POST',
+      headers: { origin: 'http://localhost:8080', 'content-type': 'application/json' },
+      body: '{}',
+    });
+    assert.equal(retired.status, 404);
   });
 
   it('answers Private Network Access preflights without exposing extra routes', async () => {
@@ -115,7 +134,11 @@ describe('gatewayctl loopback pairing', () => {
   });
 });
 
-async function fixture(): Promise<{ agent: RunningAgent; baseUrl: string }> {
+async function fixture(): Promise<{
+  agent: RunningAgent;
+  baseUrl: string;
+  prompts: PairingPrompt[];
+}> {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'gatewayctl-agent-test-'));
   const profile = {
     allowedOrigins: ['http://localhost:8080'],
@@ -125,12 +148,14 @@ async function fixture(): Promise<{ agent: RunningAgent; baseUrl: string }> {
     trustedClientDays: 30,
   };
   const store = new IdentityStore(new TestMasterKeyProvider(), directory);
+  const prompts: PairingPrompt[] = [];
   const agent = await startLocalAgent({
     operations: new AgentOperations(store, profile),
     profile,
     stateDirectory: directory,
     port: 0,
+    onPairingPrompt: prompt => prompts.push(prompt),
   });
   resources.push({ directory, agent });
-  return { agent, baseUrl: `http://127.0.0.1:${agent.port}` };
+  return { agent, baseUrl: `http://127.0.0.1:${agent.port}`, prompts };
 }

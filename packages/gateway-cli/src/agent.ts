@@ -1,9 +1,11 @@
-import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { appendFile, mkdir } from 'node:fs/promises';
 import http, { type IncomingMessage, type ServerResponse } from 'node:http';
 import path from 'node:path';
+import { BrowserAgentAuth, type PairingPrompt } from './browser-auth.js';
 import type { AgentOperations } from './operations.js';
 import { writeAgentState } from './runtime-state.js';
+import { TrustedClientStore } from './trusted-client-store.js';
 import {
   AGENT_CAPABILITIES,
   AGENT_PROTOCOL_VERSION,
@@ -14,18 +16,9 @@ import {
 } from './types.js';
 
 const MAX_BODY_BYTES = 256 * 1024;
-const SESSION_TTL_MS = 30 * 60 * 1000;
-
-interface AgentSession {
-  tokenHash: string;
-  origin: string;
-  expiresAt: number;
-}
-
 export interface RunningAgent {
   port: number;
   instanceId: string;
-  pairingNonce: string;
   close(): Promise<void>;
 }
 
@@ -34,10 +27,15 @@ export async function startLocalAgent(input: {
   profile: AgentProfile;
   stateDirectory: string;
   port?: number;
+  onPairingPrompt?: (prompt: PairingPrompt) => void;
 }): Promise<RunningAgent> {
   const instanceId = randomUUID();
-  let pairingNonce = randomBytes(32).toString('base64url');
-  let session: AgentSession | undefined;
+  const trustedClients = new TrustedClientStore(input.stateDirectory, input.profile.trustedClientDays);
+  const browserAuth = new BrowserAgentAuth(
+    trustedClients,
+    instanceId,
+    input.onPairingPrompt ?? (() => undefined),
+  );
   const server = http.createServer(async (request, response) => {
     const origin = request.headers.origin;
     if (request.method === 'OPTIONS') {
@@ -65,30 +63,52 @@ export async function startLocalAgent(input: {
         });
         return;
       }
-      if (request.method === 'POST' && request.url === '/pair') {
+      if (request.method === 'POST' && request.url === '/v1/pairings') {
         const body = await readJsonBody(request);
-        if (typeof body.nonce !== 'string'
-          || pairingNonce === ''
-          || !timingSafeTextEqual(body.nonce, pairingNonce)) {
-          throw new GatewayCtlError('pairing_rejected', 'Pairing code is invalid or already used');
-        }
-        const token = randomBytes(32).toString('base64url');
-        session = {
-          tokenHash: hashToken(token),
+        const pairing = await browserAuth.createPairing({
+          clientId: stringField(body, 'clientId'),
           origin,
-          expiresAt: Date.now() + SESSION_TTL_MS,
-        };
-        pairingNonce = '';
-        await recordAudit(input.stateDirectory, 'agent.pair', { origin });
-        sendJson(response, 200, {
-          token,
-          expiresAt: new Date(session.expiresAt).toISOString(),
+          label: stringField(body, 'label'),
+          publicJwk: objectField(body, 'publicJwk'),
         });
+        await recordAudit(input.stateDirectory, 'agent.pairing.request', { origin });
+        sendJson(response, 202, pairing);
         return;
       }
-      if (request.method === 'POST' && (request.url === '/rpc' || request.url === '/v1/rpc')) {
-        authorizeSession(request, origin, session);
-        session!.expiresAt = Date.now() + SESSION_TTL_MS;
+      const pairingCompletion = request.method === 'POST'
+        ? request.url?.match(/^\/v1\/pairings\/([^/]+)\/complete$/u)
+        : null;
+      if (pairingCompletion) {
+        const body = await readJsonBody(request);
+        const session = await browserAuth.completePairing({
+          pairingId: decodeURIComponent(pairingCompletion[1]!),
+          code: stringField(body, 'code'),
+          signature: stringField(body, 'signature'),
+        });
+        await recordAudit(input.stateDirectory, 'agent.pairing.complete', { origin });
+        sendJson(response, 200, session);
+        return;
+      }
+      if (request.method === 'POST' && request.url === '/v1/sessions/challenges') {
+        const body = await readJsonBody(request);
+        sendJson(response, 200, await browserAuth.createSessionChallenge({
+          clientId: stringField(body, 'clientId'),
+          origin,
+        }));
+        return;
+      }
+      if (request.method === 'POST' && request.url === '/v1/sessions') {
+        const body = await readJsonBody(request);
+        const session = await browserAuth.completeSession({
+          challengeId: stringField(body, 'challengeId'),
+          signature: stringField(body, 'signature'),
+        });
+        await recordAudit(input.stateDirectory, 'agent.session.create', { origin });
+        sendJson(response, 200, session);
+        return;
+      }
+      if (request.method === 'POST' && request.url === '/v1/rpc') {
+        await browserAuth.authorize(bearerToken(request), origin);
         const body = await readJsonBody(request) as unknown as AgentOperationRequest;
         if (!body || typeof body.method !== 'string') {
           throw new GatewayCtlError('invalid_request', 'RPC method is required');
@@ -114,7 +134,7 @@ export async function startLocalAgent(input: {
       const payload: AgentOperationResponse = {
         error: { code: gatewayError.code, message: gatewayError.message },
       };
-      sendJson(response, gatewayError.code === 'session_invalid' ? 401 : 400, payload);
+      sendJson(response, errorStatus(gatewayError.code), payload);
     }
   });
 
@@ -143,7 +163,6 @@ export async function startLocalAgent(input: {
   return {
     port: address.port,
     instanceId,
-    pairingNonce,
     close: () => new Promise<void>((resolve, reject) => server.close(error => {
       if (error) reject(error);
       else resolve();
@@ -178,32 +197,36 @@ async function readJsonBody(request: IncomingMessage): Promise<Record<string, un
   }
 }
 
-function authorizeSession(
-  request: IncomingMessage,
-  origin: string,
-  session?: AgentSession,
-): void {
+function bearerToken(request: IncomingMessage): string {
   const authorization = request.headers.authorization;
-  const token = authorization?.startsWith('Bearer ')
+  return authorization?.startsWith('Bearer ')
     ? authorization.slice('Bearer '.length)
     : '';
-  if (!session
-    || session.origin !== origin
-    || session.expiresAt <= Date.now()
-    || !timingSafeTextEqual(hashToken(token), session.tokenHash)) {
-    throw new GatewayCtlError('session_invalid', 'Agent session is missing or expired');
+}
+
+function stringField(body: Record<string, unknown>, name: string): string {
+  const value = body[name];
+  if (typeof value !== 'string' || !value) {
+    throw new GatewayCtlError('invalid_request', `${name} is required`);
   }
+  return value;
 }
 
-function timingSafeTextEqual(left: string, right: string): boolean {
-  const leftBuffer = Buffer.from(left);
-  const rightBuffer = Buffer.from(right);
-  return leftBuffer.byteLength === rightBuffer.byteLength
-    && timingSafeEqual(leftBuffer, rightBuffer);
+function objectField(body: Record<string, unknown>, name: string): Record<string, unknown> {
+  const value = body[name];
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new GatewayCtlError('invalid_request', `${name} is required`);
+  }
+  return value as Record<string, unknown>;
 }
 
-function hashToken(token: string): string {
-  return createHash('sha256').update(token).digest('base64url');
+function errorStatus(code: string): number {
+  if (code === 'session_invalid') return 401;
+  if (code === 'origin_not_allowed') return 403;
+  if (code === 'client_not_registered') return 404;
+  if (code === 'pairing_pending' || code === 'client_already_registered') return 409;
+  if (code === 'pairing_limit_reached') return 429;
+  return 400;
 }
 
 function sendJson(response: ServerResponse, status: number, body: unknown): void {

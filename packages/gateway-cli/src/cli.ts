@@ -113,6 +113,13 @@ async function runAgent(command: string[]): Promise<void> {
     profile,
     stateDirectory: rootDirectory,
     port,
+    onPairingPrompt: prompt => {
+      console.log('\nBrowser pairing requested');
+      console.log(`Origin: ${prompt.origin}`);
+      console.log(`Browser: ${prompt.label}`);
+      console.log(`Code: ${prompt.code}`);
+      console.log(`Expires: ${prompt.expiresAt}\n`);
+    },
   });
   console.log(`Local agent listening on http://127.0.0.1:${agent.port}`);
   if (command.includes('--open')) openBrowser(profile.playgroundUrl);
