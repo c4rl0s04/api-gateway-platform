@@ -9,6 +9,7 @@ import {
 
 const originalFetch = globalThis.fetch;
 const originalWindow = globalThis.window;
+const originalNavigator = globalThis.navigator;
 
 beforeEach(() => {
   Object.defineProperty(globalThis, 'window', {
@@ -24,6 +25,7 @@ beforeEach(() => {
 afterEach(() => {
   globalThis.fetch = originalFetch;
   Object.defineProperty(globalThis, 'window', { configurable: true, value: originalWindow });
+  Object.defineProperty(globalThis, 'navigator', { configurable: true, value: originalNavigator });
 });
 
 describe('playground local-agent client', () => {
@@ -107,6 +109,16 @@ describe('playground local-agent client', () => {
     await assert.rejects(
       LocalAgentClient.discover(43_127),
       (error: unknown) => error instanceof LocalAgentError && error.code === 'agent_unavailable',
+    );
+
+    Object.defineProperty(globalThis, 'navigator', {
+      configurable: true,
+      value: { permissions: { query: async () => ({ state: 'denied' }) } },
+    });
+    await assert.rejects(
+      LocalAgentClient.discover(43_127),
+      (error: unknown) => error instanceof LocalAgentError
+        && error.code === 'local_network_access_denied',
     );
   });
 });

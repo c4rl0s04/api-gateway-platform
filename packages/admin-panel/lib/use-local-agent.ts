@@ -53,6 +53,7 @@ export function useLocalAgentController(): LocalAgentController {
   const identityRef = useRef<BrowserAgentIdentity | null>(null);
   const clientRef = useRef<LocalAgentClient | null>(null);
   const probeRef = useRef<Promise<void> | null>(null);
+  const channelRef = useRef<BroadcastChannel | null>(null);
 
   const track = useCallback(async <T,>(label: string, operation: () => Promise<T>): Promise<T> => {
     const id = Date.now() + Math.random();
@@ -77,11 +78,15 @@ export function useLocalAgentController(): LocalAgentController {
     }
   }, []);
 
-  const refreshIdentities = useCallback(async (client?: LocalAgentClient) => {
+  const refreshIdentities = useCallback(async (
+    client?: LocalAgentClient,
+    announceChange = true,
+  ) => {
     const active = client ?? clientRef.current ?? undefined;
     if (!active) return [];
     const next = await track('Load local identities', () => active.listIdentities());
     setIdentities(next);
+    if (announceChange) channelRef.current?.postMessage('identities-changed');
     return next;
   }, [track]);
 
@@ -93,7 +98,8 @@ export function useLocalAgentController(): LocalAgentController {
       expiresAt: client.expiresAt,
       trustedUntil: client.trustedUntil,
     });
-    await refreshIdentities(client);
+    await refreshIdentities(client, false);
+    channelRef.current?.postMessage('agent-connected');
   }, [refreshIdentities]);
 
   const probe = useCallback(async (targetPort = port) => {
@@ -238,11 +244,17 @@ export function useLocalAgentController(): LocalAgentController {
 
   useEffect(() => {
     const channel = new BroadcastChannel(CHANNEL_NAME);
+    channelRef.current = channel;
     channel.onmessage = event => {
-      if (event.data === 'identities-changed' && clientRef.current) void refreshIdentities();
-      if (event.data === 'agent-reconnect') void probe(port);
+      if (event.data === 'identities-changed' && clientRef.current) {
+        void refreshIdentities(undefined, false);
+      }
+      if (event.data === 'agent-connected' && !clientRef.current) void probe(port);
     };
-    return () => channel.close();
+    return () => {
+      if (channelRef.current === channel) channelRef.current = null;
+      channel.close();
+    };
   }, [port, probe, refreshIdentities]);
 
   return {

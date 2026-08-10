@@ -305,12 +305,30 @@ async function agentFetch(
     if (controller.signal.aborted) {
       throw new LocalAgentError('agent_timeout', 'The local agent did not answer in time');
     }
+    if (await localNetworkAccessDenied()) {
+      throw new LocalAgentError(
+        'local_network_access_denied',
+        'The browser denied access to the local gatewayctl agent',
+      );
+    }
     throw new LocalAgentError(
       'agent_unavailable',
-      'The local agent is unavailable or local network access was blocked by the browser',
+      'The local gatewayctl agent is not running on the configured port',
     );
   } finally {
     window.clearTimeout(timeout);
+  }
+}
+
+async function localNetworkAccessDenied(): Promise<boolean> {
+  try {
+    if (!navigator.permissions) return false;
+    const permission = await navigator.permissions.query({
+      name: 'local-network-access' as PermissionName,
+    });
+    return permission.state === 'denied';
+  } catch {
+    return false;
   }
 }
 

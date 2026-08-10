@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { Cable, CheckCircle2, KeyRound, RefreshCw, ServerCog, X } from 'lucide-react';
 import { LocalAgentContext, useLocalAgentController } from '@/lib/use-local-agent';
 
@@ -9,6 +9,8 @@ export function LocalAgentProvider({ children }: { children: React.ReactNode }) 
   const [code, setCode] = useState('');
   const [customPort, setCustomPort] = useState(String(controller.port));
   const pairing = controller.state.status === 'pairing' ? controller.state : null;
+
+  useEffect(() => setCustomPort(String(controller.port)), [controller.port]);
 
   const approve = (event: FormEvent) => {
     event.preventDefault();
@@ -100,6 +102,7 @@ function dialogDescription(status: string): string {
   if (status === 'pairing') return 'Enter the short-lived code printed by the running gatewayctl process.';
   if (status === 'connected') return 'This browser can reconnect using its local non-exportable control key.';
   if (status === 'incompatible') return 'The running agent uses a protocol version this Admin Panel cannot use.';
+  if (status === 'error') return 'Review the connection error before trying again.';
   return 'The browser connects directly to the gatewayctl process on your machine.';
 }
 
