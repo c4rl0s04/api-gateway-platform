@@ -87,6 +87,14 @@ operations, targets, and ordered policy configuration. The server-side executor
 only accepts resources from the active workspace and rewrites the selected
 deployment to its workspace hostname.
 
+The page keeps those responsibilities in four distinct reading bands: workspace
+context, quick execution, proxy inspection, and advanced construction. Runtime
+and policy evidence use normal operational text sizes rather than metadata
+sizes. Advanced construction follows the dependency order vertically, with a
+separate form region for each upstream, proxy/deployment, product, application,
+credential, and audit step; it collapses to the same linear order on narrow
+viewports.
+
 ## Authentication Interface
 
 The pre-authentication surface and the `api-gateway` Keycloak login theme share
