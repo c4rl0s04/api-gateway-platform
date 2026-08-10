@@ -163,10 +163,14 @@ export async function startLocalAgent(input: {
   return {
     port: address.port,
     instanceId,
-    close: () => new Promise<void>((resolve, reject) => server.close(error => {
-      if (error) reject(error);
-      else resolve();
-    })),
+    close: () => new Promise<void>((resolve, reject) => {
+      server.close(error => {
+        if (error) reject(error);
+        else resolve();
+      });
+      server.closeIdleConnections();
+      server.closeAllConnections();
+    }),
   };
 }
 
