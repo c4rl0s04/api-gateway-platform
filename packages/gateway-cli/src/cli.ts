@@ -12,6 +12,7 @@ import {
   readAgentState,
   removeAgentState,
 } from './runtime-state.js';
+import { TrustedClientStore } from './trusted-client-store.js';
 import { GatewayCtlError } from './types.js';
 
 const args = process.argv.slice(2);
@@ -87,8 +88,31 @@ async function run(command: string[]): Promise<void> {
     await stopAgent();
     return;
   }
+  if (group === 'agent' && action === 'clients') {
+    await manageTrustedClients(command);
+    return;
+  }
   printUsage();
   process.exitCode = 1;
+}
+
+async function manageTrustedClients(command: string[]): Promise<void> {
+  const profile = loadAgentProfile();
+  const store = new TrustedClientStore(rootDirectory, profile.trustedClientDays);
+  const action = command[2];
+  if (action === 'list') {
+    console.log(JSON.stringify(await store.list(), null, 2));
+    return;
+  }
+  if (action === 'revoke') {
+    const revoked = await store.revoke(requiredOption(command, '--id'));
+    console.log(JSON.stringify(revoked, null, 2));
+    return;
+  }
+  throw new GatewayCtlError(
+    'invalid_arguments',
+    'agent clients requires list or revoke --id <client-id>',
+  );
 }
 
 async function runAgent(command: string[]): Promise<void> {
@@ -214,5 +238,7 @@ function printUsage(): void {
   gatewayctl keys list
   gatewayctl keys remove --id <identity-id>
   gatewayctl agent start [--port <port>] [--open]
-  gatewayctl agent status|stop`);
+  gatewayctl agent status|stop
+  gatewayctl agent clients list
+  gatewayctl agent clients revoke --id <client-id>`);
 }
