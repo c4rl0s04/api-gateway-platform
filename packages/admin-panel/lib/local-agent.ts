@@ -299,8 +299,8 @@ async function agentFetch(
     return await fetch(`http://127.0.0.1:${port}${path}`, {
       ...init,
       signal: controller.signal,
-      targetAddressSpace: 'local',
-    } as RequestInit & { targetAddressSpace: 'local' });
+      targetAddressSpace: 'loopback',
+    } as RequestInit & { targetAddressSpace: 'loopback' });
   } catch (error) {
     if (controller.signal.aborted) {
       throw new LocalAgentError('agent_timeout', 'The local agent did not answer in time');

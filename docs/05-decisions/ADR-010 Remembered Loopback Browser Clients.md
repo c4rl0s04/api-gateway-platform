@@ -52,7 +52,7 @@ making JWT and mTLS private keys available to JavaScript.
 - Keep trust for 30 days by default and allow local listing and immediate
   revocation through `gatewayctl agent clients`.
 - Use browser Local Network Access, exact-origin CORS, request timeouts, and
-  `targetAddressSpace: local`; never downgrade these controls for discovery.
+  `targetAddressSpace: loopback`; never downgrade these controls for discovery.
 
 The browser-control key authenticates a browser installation to the agent. It
 cannot sign OAuth assertions, perform mTLS, or replace a client identity.

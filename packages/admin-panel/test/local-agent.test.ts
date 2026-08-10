@@ -79,7 +79,7 @@ describe('playground local-agent client', () => {
     ]);
     assert.equal(new Headers(requests[3]?.init?.headers).get('authorization'), 'Bearer session-token');
     assert.deepEqual(JSON.parse(String(requests[3]?.init?.body)), { method: 'identity.list', params: {} });
-    assert.equal((requests[0]?.init as RequestInit & { targetAddressSpace?: string }).targetAddressSpace, 'local');
+    assert.equal((requests[0]?.init as RequestInit & { targetAddressSpace?: string }).targetAddressSpace, 'loopback');
   });
 
   it('requests terminal pairing without sending private browser material', async () => {
