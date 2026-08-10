@@ -651,7 +651,7 @@ try {
       body: JSON.stringify({
         name: `Management product ${revisionSuffix}`,
         scopes: ['banking:read', 'banking:write'],
-        proxyIds: [managedProxy.id],
+        proxyIds: [managedProxy.id, 'proxy-es-banking'],
         environmentIds: ['env-qual-es'],
       }),
     },
@@ -659,6 +659,75 @@ try {
   const managedProductDetail = await platformManagement(`products/${managedProduct.id}`);
   if (!managedProductDetail.proxies.some(proxy => proxy.id === managedProxy.id)) {
     throw new Error('Product was not associated with the managed proxy');
+  }
+  const developerToken = await platformManagement(
+    'organizations/org-bank-dev/developer-tokens',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        environmentId: 'env-qual-es',
+        productIds: [managedProduct.id],
+        proxyIds: [managedProxy.id, 'proxy-es-banking'],
+        scopes: ['banking:read'],
+        ttlSeconds: 600,
+      }),
+    },
+  );
+  const developerClaims = JSON.parse(Buffer.from(
+    developerToken.accessToken.split('.')[1],
+    'base64url',
+  ).toString('utf8'));
+  if (
+    developerClaims.token_kind !== 'developer'
+    || developerClaims.environment_id !== 'env-qual-es'
+    || !developerClaims.proxy_ids.includes(managedProxy.id)
+    || !developerClaims.proxy_ids.includes('proxy-es-banking')
+  ) {
+    throw new Error('Developer token did not contain its authorized multi-proxy boundary');
+  }
+  const developerManagedResponse = await gatewayCurl([
+    '--header', `authorization: Bearer ${developerToken.accessToken}`,
+    '--output', '/dev/null', '--write-out', '%{http_code}',
+    `${qualEsGatewayOrigin}${revisionBasePath}/oauth`,
+  ]);
+  const developerBankingResponse = await gatewayCurl([
+    '--header', `authorization: Bearer ${developerToken.accessToken}`,
+    '--output', '/dev/null', '--write-out', '%{http_code}',
+    `${qualEsGatewayOrigin}/es/banking/v1/accounts/1`,
+  ]);
+  if (
+    developerManagedResponse.stdout !== '200'
+    || developerBankingResponse.stdout !== '200'
+  ) {
+    throw new Error('Developer token was not accepted by every selected proxy');
+  }
+  const viewerIdentity = await tokenRequest('api-gateway', {
+    grant_type: 'password',
+    client_id: 'platform-e2e',
+    username: 'viewer',
+    password: users.VIEWER_PASSWORD,
+  });
+  let viewerDeveloperTokenDenied = false;
+  try {
+    await management(
+      viewerIdentity.access_token,
+      'organizations/org-bank-dev/developer-tokens',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          environmentId: 'env-qual-es',
+          productIds: [managedProduct.id],
+          proxyIds: [managedProxy.id],
+          scopes: ['banking:read'],
+          ttlSeconds: 600,
+        }),
+      },
+    );
+  } catch (error) {
+    viewerDeveloperTokenDenied = error.message.includes('403');
+  }
+  if (!viewerDeveloperTokenDenied) {
+    throw new Error('Viewer unexpectedly issued a developer token');
   }
 
   const managedRegistration = await platformManagement(
