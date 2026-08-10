@@ -56,22 +56,28 @@ identities are deliberately not interchangeable.
 
 | Command | Result |
 | --- | --- |
-| `npm run gatewayctl -- agent start` | Binds a random loopback port, writes runtime state, prints and opens the one-time pairing URL, and remains in the foreground. |
-| `npm run gatewayctl -- agent status` | Reports whether the PID in local agent state is still running. |
-| `npm run gatewayctl -- agent stop` | Requests `SIGTERM` for the recorded agent process. `Ctrl+C` performs the same clean shutdown in the foreground. |
+| `npm run gatewayctl -- agent start [--port <port>] [--open]` | Binds `127.0.0.1:43127` by default, writes verified runtime state, and remains in the foreground. `--open` opens the Playground without pairing data. |
+| `npm run gatewayctl -- agent status` | Probes the recorded port and reports running only when the live instance ID matches local state. |
+| `npm run gatewayctl -- agent stop` | Verifies the recorded live instance before requesting `SIGTERM`. `Ctrl+C` performs the same clean shutdown. |
+| `npm run gatewayctl -- agent clients list` | Lists browser client ID, exact origin, label, trust dates, last use, and revocation state; no private key is stored. |
+| `npm run gatewayctl -- agent clients revoke --id <client-id>` | Revokes browser trust and immediately invalidates its active agent sessions. |
 
-The pairing nonce is 256 bits, single-use, and carried in the URL fragment.
-The resulting origin-bound session lasts 30 minutes and is renewed by active
-RPC calls.
+First approval prints an eight-character code after the browser requests
+pairing. The code expires after two minutes and permits five attempts. Pairing
+and session challenges are signed with the browser's non-exportable P-256 key,
+are single-use, and expire after 30 seconds. Bearer sessions last 15 minutes and
+remain in tab memory only. Browser trust lasts 30 days by default.
 
 ### Environment variables
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `GATEWAYCTL_HOME` | `~/.gatewayctl` | Manifest, encrypted generated keys, CSRs, installed public certificates, agent state, and local audit. |
+| `GATEWAYCTL_PORT` | `43127` | Fixed IPv4 loopback port; range 1-65535. The CLI `--port` option overrides it for one start. |
+| `GATEWAYCTL_TRUSTED_CLIENT_DAYS` | `30` | Absolute browser trust lifetime; range 1-365 days. |
 | `GATEWAYCTL_ALLOWED_ORIGINS` | `http://localhost:8080` | Comma-separated exact browser origins accepted by CORS and pairing. |
 | `GATEWAYCTL_ALLOWED_AUDIENCE_HOSTS` | `*.gateway.localhost,*.lab.gateway.localhost` | Comma-separated exact or left-wildcard HTTPS hosts allowed for assertions and mTLS requests. |
-| `GATEWAYCTL_PLAYGROUND_URL` | `http://localhost:8080/playground` | Page opened by `agent start`. Use `/lab` when pairing directly with the lab portal. |
+| `GATEWAYCTL_PLAYGROUND_URL` | `http://localhost:8080/playground` | Page opened only when `agent start --open` is used. It never contains pairing data. |
 | `GATEWAYCTL_GATEWAY_CA_CERT_FILE` | Local development CA when present | Optional trust anchor for development gateway TLS. Public deployments should use publicly trusted server certificates. |
 
 ### Closed RPC methods
@@ -102,7 +108,7 @@ npm run gatewayctl -- keys generate \
   --consumer-key ck_example
 
 GATEWAYCTL_PLAYGROUND_URL=http://localhost:8080/lab \
-  npm run gatewayctl -- agent start
+  npm run gatewayctl -- agent start --open
 ```
 
 ## Source Files

@@ -12,6 +12,7 @@ sources:
   - packages/admin-panel/app
   - packages/admin-panel/components/access-screen.tsx
   - packages/admin-panel/components/session-shell.tsx
+  - packages/admin-panel/components/local-agent-provider.tsx
   - packages/admin-panel/components/playground-workspace.tsx
   - packages/admin-panel/components/personal-lab-workspace.tsx
   - packages/admin-panel/components/lab-quick-playground.tsx
@@ -69,9 +70,12 @@ request to Envoy over the internal network. OpenAPI request bodies provide
 media types and editable examples, while a live redacted cURL shows the request
 before execution. It supports API key, existing Bearer tokens, automatic
 Client Credentials and JWT Bearer exchanges, and direct execution of the
-managed OAuth token and JWKS operations. `gatewayctl` adds an origin-bound local
-client for assertion signing and mTLS execution because private client keys
-must never enter the browser or BFF. The standard Playground only matches and
+managed OAuth token and JWKS operations. One authenticated `LocalAgentProvider`
+discovers `gatewayctl` on fixed IPv4 loopback, restores browser trust through a
+non-exportable control key, renews in-memory sessions, and shares connection
+state between Playground and Lab. `gatewayctl` performs assertion signing and
+mTLS execution because private client keys must never enter the browser or BFF.
+The standard Playground only matches and
 uses installed certificates; CRT registration belongs to the application
 configuration. It builds a shell-quoted local import command and refreshes the
 agent's public identity list after the operator runs it; the panel never submits

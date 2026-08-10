@@ -122,9 +122,11 @@ that Envoy listener.
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `GATEWAYCTL_HOME` | `~/.gatewayctl` | Local identity manifest, encrypted generated keys, certificates, agent state, and redacted audit. |
+| `GATEWAYCTL_PORT` | `43127` | Fixed loopback discovery port; integer from 1 to 65535. |
+| `GATEWAYCTL_TRUSTED_CLIENT_DAYS` | `30` | Absolute browser trust lifetime; integer from 1 to 365 days. |
 | `GATEWAYCTL_ALLOWED_ORIGINS` | `http://localhost:8080` | Comma-separated exact browser origins allowed to pair and invoke loopback RPC. |
 | `GATEWAYCTL_ALLOWED_AUDIENCE_HOSTS` | `*.gateway.localhost,*.lab.gateway.localhost` | Exact or left-wildcard HTTPS hosts accepted for JWT audiences and mTLS requests. |
-| `GATEWAYCTL_PLAYGROUND_URL` | `http://localhost:8080/playground` | Page opened with the one-time pairing fragment. |
+| `GATEWAYCTL_PLAYGROUND_URL` | `http://localhost:8080/playground` | Navigation target used only by `agent start --open`; it contains no pairing data. |
 | `GATEWAYCTL_GATEWAY_CA_CERT_FILE` | Local development CA when present | Optional development trust anchor; omit when server TLS is publicly trusted. |
 
 ### lab-egress

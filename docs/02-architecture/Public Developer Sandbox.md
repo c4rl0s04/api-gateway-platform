@@ -3,7 +3,7 @@ title: Public Developer Sandbox
 type: architecture
 doc_status: current
 implementation_status: partial
-last_verified: 2026-08-09
+last_verified: 2026-08-10
 tags:
   - type/architecture
   - area/developer-platform
@@ -62,7 +62,8 @@ For client-owned key flows:
 
 ```text
 Developer Portal or Admin Panel
-↔ origin-bound gatewayctl on 127.0.0.1
+↔ remembered browser identity
+↔ origin-bound gatewayctl on 127.0.0.1:43127
 → public JWK or CSR only reaches the platform
 → private key signs or connects locally
 ```

@@ -3,7 +3,7 @@ title: Debug Local Agent Pairing
 type: runbook
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-08-09
+last_verified: 2026-08-10
 tags:
   - type/runbook
   - area/operations
@@ -25,7 +25,9 @@ aliases: []
 ## Symptoms
 
 - Playground remains `Local agent disconnected`.
-- Pairing reports `pairing_rejected`, `origin_not_allowed`, or
+- The connection dialog reports agent unavailable, Local Network Access denied,
+  incompatible protocol, or approval required.
+- Pairing reports an expired code, attempt limit, `origin_not_allowed`, or
   `session_invalid`.
 - JWT signing reports audience, consumer-key, identity, or TTL errors.
 - mTLS reports a missing certificate, key mismatch, or TLS trust failure.
@@ -38,17 +40,27 @@ known-secret Client Credentials, and access-token requests remain independent.
 ## Diagnosis
 
 1. Run `npm run gatewayctl -- agent status`.
-2. Confirm the foreground `agent start` process still owns the reported PID.
-3. Compare the Admin Panel origin with `GATEWAYCTL_ALLOWED_ORIGINS`; scheme,
+2. Confirm the reported port is `43127`, or matches the deliberate CLI/UI
+   override. `status` verifies the HTTP instance ID as well as recorded state.
+3. Confirm the foreground `agent start` process remains running. A foreign
+   process on the fixed port produces a port-collision error rather than agent
+   state.
+4. Compare the Admin Panel origin with `GATEWAYCTL_ALLOWED_ORIGINS`; scheme,
    hostname, and port must match exactly.
-4. Start a fresh agent rather than reusing a consumed pairing URL.
-5. Run `npm run gatewayctl -- keys list` and verify type, algorithm, fingerprint,
+5. In Chrome or Edge site settings, confirm Local Network Access is allowed for
+   the Admin Panel origin. The dialog distinguishes this denial from an absent
+   process when Chromium exposes the permission state.
+6. Request a fresh terminal code. Codes expire after two minutes and pairing
+   challenges cannot be replayed.
+7. Run `npm run gatewayctl -- agent clients list`. Expired or revoked trust
+   requires a new approval; an active entry should show recent use.
+8. Run `npm run gatewayctl -- keys list` and verify type, algorithm, fingerprint,
    and public certificate availability.
-6. For JWT, compare the identity consumer-key binding with the selected
+9. For JWT, compare the identity consumer-key binding with the selected
    credential and confirm the destination host matches an allowed audience.
-7. For mTLS, confirm the identity has an installed certificate and that an
+10. For mTLS, confirm the identity has an installed certificate and that an
    imported key file still has owner-only permissions.
-8. Inspect `~/.gatewayctl/agent-audit.ndjson` for operation code and status only.
+11. Inspect `~/.gatewayctl/agent-audit.ndjson` for operation code and status only.
    Do not add private keys or assertions to support logs.
 
 ## Resolution
@@ -58,8 +70,11 @@ npm run gatewayctl -- agent stop
 npm run gatewayctl -- agent start
 ```
 
-- Set the correct `GATEWAYCTL_PLAYGROUND_URL` before restart.
+- Use `--port` and the matching advanced UI override only when `43127` cannot be
+  used; prefer resolving a foreign port collision.
 - Add the exact trusted UI origin to `GATEWAYCTL_ALLOWED_ORIGINS`.
+- Revoke a stale browser entry, reconnect, and enter the new terminal code when
+  browser storage and the trusted-client registry no longer match.
 - Add only the required gateway hostname pattern to
   `GATEWAYCTL_ALLOWED_AUDIENCE_HOSTS`.
 - Re-register a moved imported key with `keys add`.
@@ -69,14 +84,15 @@ npm run gatewayctl -- agent start
 ## Verification
 
 - Pairing succeeds once and the page shows `Local agent connected`.
-- A second use of the same URL is rejected.
+- Reloading, opening a second tab, or restarting the foreground agent restores
+  a session without another code while browser trust remains active.
 - A JWT identity returns its public JWK and signs only an allowed audience.
 - An mTLS identity executes the selected gateway URL without returning its
   private key or path.
 
 ## Escalation
 
-Capture the agent version, error code, operation name, allowed-origin pattern,
-destination hostname, and redacted audit line. Never attach the private key,
-consumer secret, session token, pairing fragment, or complete assertion.
-
+Capture the protocol/agent version, instance ID, error code, operation name,
+allowed-origin pattern, destination hostname, and redacted audit line. Never
+attach the private key, consumer secret, session token, terminal code, browser
+control key, or complete assertion.

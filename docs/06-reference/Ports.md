@@ -3,7 +3,7 @@ title: Ports
 type: reference
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-08-09
+last_verified: 2026-08-10
 tags:
   - type/reference
   - area/operations
@@ -35,7 +35,7 @@ aliases: []
 | `management-api` | Internal `3002` | Default local Compose service | Not published |
 | `lab-egress` | Internal `3010` | Default local Compose service | Not published |
 | Mock backend | Internal `4000` | Default local Compose service | Not published to the host |
-| `gatewayctl` agent | Random loopback port | Client process | Binds `127.0.0.1` only while running |
+| `gatewayctl` agent | `43127` | Client process | `GATEWAYCTL_PORT`, `agent start --port`, or the matching per-browser override; always binds IPv4 loopback only |
 | Prometheus | `9090` | Optional `observability` profile | Through Compose edit |
 | Grafana | `3001` | Optional `observability` profile | Through Compose edit |
 | Prisma Studio | `5555` | Prisma default | Through Prisma CLI options |
@@ -43,6 +43,10 @@ aliases: []
 ## Known Collisions
 
 The default `npm run dev:local` environment has no host-port collisions.
+
+Only one `gatewayctl` agent can own `127.0.0.1:43127`. A foreign listener is
+reported separately from a running agent, and recorded state is trusted only
+when the live instance ID matches.
 
 The isolated `npm run test:platform` stack uses a separate set of ports:
 

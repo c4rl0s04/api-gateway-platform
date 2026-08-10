@@ -127,12 +127,15 @@ clipboard.
 ### Connect client-owned keys
 
 1. Run `npm run gatewayctl -- agent start` on the machine that owns the key.
-2. Continue in the Playground page opened by the CLI. Pairing data is carried in
-   the fragment and remains local to the browser.
-3. Select a public local identity alias. The page never receives its private
+2. Open the authenticated Playground. It discovers `127.0.0.1:43127`
+   automatically. On first use, select the connection status and enter the
+   eight-character code printed by the agent.
+3. Approve Chromium Local Network Access if prompted. The browser is remembered
+   for 30 days through a non-exportable browser-control key.
+4. Select a public local identity alias. The page never receives its private
    key or unrestricted filesystem path.
-4. For JWT, register the public JWK and generate a 60-second assertion.
-5. For mTLS, select a local certificate whose SHA-256 fingerprint is registered
+5. For JWT, register the public JWK and generate a 60-second assertion.
+6. For mTLS, select a local certificate whose SHA-256 fingerprint is registered
    on an authorized application credential, then run through the agent.
 
 When the certificate and key already exist, the Playground's local certificate

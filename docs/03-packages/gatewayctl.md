@@ -3,7 +3,7 @@ title: gatewayctl
 type: package
 doc_status: current
 implementation_status: implemented
-last_verified: 2026-08-09
+last_verified: 2026-08-10
 tags:
   - type/package
   - area/security
@@ -26,7 +26,8 @@ aliases:
 - Import or generate separate JWT and mTLS identities.
 - Encrypt generated keys with AES-256-GCM and a system-keychain master key.
 - Validate imported key ownership, permissions, algorithm, and certificate match.
-- Pair one allowed browser origin through a single-use nonce.
+- Pair an allowed browser origin through a short-lived terminal code and a
+  signed browser-control challenge.
 - Sign constrained RS256 JWT Bearer assertions.
 - Generate CSRs, install public certificates, and execute local mTLS requests.
 
@@ -39,17 +40,22 @@ Management API directly; the browser registers public JWKs and submits CSRs.
 ## Public Contracts
 
 - Binary: `gatewayctl`, available in-repository through `npm run gatewayctl --`.
-- Commands: `keys add|generate|list|remove` and `agent start|status|stop`.
-- Loopback HTTP: origin-checked `POST /pair`, `POST /rpc`, and CORS/PNA
-  preflight.
+- Commands: `keys add|generate|list|remove`, `agent start|status|stop`, and
+  `agent clients list|revoke`.
+- Loopback HTTP: versioned status, pairing, session-challenge, session, and RPC
+  routes under `/v1`, plus CORS/PNA preflight.
 - RPC allowlist documented in [[gatewayctl Reference]].
 
 ## Runtime Flow
 
-`agent start` loads its profile, binds a random `127.0.0.1` port, creates a
-single-use nonce, writes PID/port state, and opens the Playground URL fragment.
-After pairing, each RPC verifies the origin and timing-safe Bearer session hash,
-executes one named operation, and writes a redacted local audit line.
+`agent start` loads its profile, binds `127.0.0.1:43127` by default, writes
+PID/port/instance state, and waits in the foreground. The authenticated Admin
+Panel discovers it automatically. First approval prints a code in the terminal;
+later connections prove possession of a non-exportable browser-control key.
+
+Each RPC verifies the exact origin and timing-safe Bearer session hash, executes
+one named operation, and writes a redacted local audit line. `agent status` and
+`agent stop` verify the live HTTP instance before trusting recorded PID state.
 
 ## Configuration
 
@@ -69,4 +75,3 @@ TTL, certificate installation, and mTLS execution constraints.
   distributed for external developers.
 - A supported operating-system keychain is mandatory for generated keys.
 - The agent is foreground-oriented; no OS service installation is included.
-

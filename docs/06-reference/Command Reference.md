@@ -129,7 +129,10 @@ dependencies and configuration.
 | `npm run gatewayctl -- keys generate --name <name> --type mtls --credential-id <id> [--algorithm rsa\|ec]` | recommended | Generates a key and CSR in the local agent store; only the CSR is returned to the browser/platform. |
 | `npm run gatewayctl -- keys add ...` | recommended | Registers an existing JWT or mTLS private-key reference after ownership, permissions, algorithm, and optional certificate matching checks. |
 | `npm run gatewayctl -- keys list` / `keys remove --id <id>` | recommended | Lists public identity metadata or removes a local alias and agent-generated encrypted material. |
-| `npm run gatewayctl -- agent start\|status\|stop` | recommended | Starts, inspects, or stops the origin-bound loopback agent used by Playground and Personal Lab. |
+| `npm run gatewayctl -- agent start [--port <port>] [--open]` | recommended | Starts the fixed-port foreground loopback agent. `--open` only navigates to the Playground; pairing starts from the authenticated UI. |
+| `npm run gatewayctl -- agent status\|stop` | recommended | Probes and verifies the recorded agent instance before reporting or signalling it. |
+| `npm run gatewayctl -- agent clients list` | advanced | Lists remembered browser public identities, exact origins, trust expiry, last use, and revocation state. |
+| `npm run gatewayctl -- agent clients revoke --id <client-id>` | advanced | Revokes one remembered browser and invalidates its in-memory sessions immediately. |
 
 See [[gatewayctl Reference]] for exact options and [[How to Connect Local Keys to the Playground]] for the browser flow.
 

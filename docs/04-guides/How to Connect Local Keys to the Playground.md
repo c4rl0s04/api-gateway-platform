@@ -58,8 +58,14 @@ private key remains on the developer machine.
    npm run gatewayctl -- agent start
    ```
 
-   Keep this foreground process running. It opens the Playground with a
-   single-use fragment; the pairing value is not sent to the platform server.
+   Keep this foreground process running. Open the authenticated Playground in
+   Chrome or Edge. It discovers `127.0.0.1:43127` automatically. Select
+   `Connect local agent`; the terminal prints an eight-character code that must
+   be entered in the connection dialog within two minutes.
+
+   The browser is then trusted for 30 days by a non-exportable local key. Page
+   reloads, new tabs, and agent restarts reconnect without another code until
+   trust expires, is revoked, or browser site data is cleared.
 
 3. In `JWT assertion`, select the application credential and local signing
    identity.
@@ -160,12 +166,21 @@ or moving that file makes the identity unusable until it is registered again.
   and whether the matching platform record is active, expired, or revoked.
 - `~/.gatewayctl/agent-audit.ndjson` contains operation names and outcomes, not
   complete assertions or key material.
+- `npm run gatewayctl -- agent clients list` shows the approved browser origin
+  and trust expiration without any private key.
 
 ## Troubleshooting or Rollback
 
-- Start a new agent when pairing is expired or already consumed.
-- Set `GATEWAYCTL_PLAYGROUND_URL=http://localhost:8080/lab` when the desired
-  pairing page is the personal lab.
+- Request a new code from the connection dialog when a pairing expires. The
+  agent process does not need to restart.
+- Use `agent start --open` only as a navigation convenience; discovery and
+  pairing never depend on the opened URL.
+- Grant Chrome or Edge Local Network Access when prompted. If it was denied,
+  restore the permission in site settings and retry the connection.
+- Use the advanced connection control only when the agent was deliberately
+  started with `--port` or `GATEWAYCTL_PORT`.
+- Revoke obsolete browser trust with
+  `npm run gatewayctl -- agent clients revoke --id <client-id>`.
 - Set `GATEWAYCTL_GATEWAY_CA_CERT_FILE` only for a development CA; a public
   deployment should use normal operating-system trust.
 - Revoke the registered JWK or certificate through the appropriate API when a

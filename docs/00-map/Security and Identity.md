@@ -3,7 +3,7 @@ title: Security and Identity
 type: map
 doc_status: current
 implementation_status: not-applicable
-last_verified: 2026-08-09
+last_verified: 2026-08-10
 tags:
   - type/map
   - area/security
@@ -68,5 +68,5 @@ issuance, certificate trust, and OIDC-based administrator access.
 - Packages: [[pki]], [[gateway-core]], [[management-api]], [[gatewayctl]], and [[shared]].
 - Decisions: [[ADR-005 Signed OAuth Tokens]] and
   [[ADR-006 Envoy and Managed Client PKI]], plus
-  [[ADR-008 Closed Loopback Client Agent]] and
+  [[ADR-010 Remembered Loopback Browser Clients]] and
   [[ADR-009 Logical Lab Workspace Isolation]].
